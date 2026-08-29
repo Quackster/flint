@@ -1,0 +1,25 @@
+int main() {
+    // alloc + index into an int buffer
+    *int buf = alloc(64);
+    buf[0] = 42;
+    buf[1] = 43;
+    printi(buf[0] + buf[1]);
+    print("\n");
+    // dynamic array: fill with i*i, sum
+    int n = 10;
+    *int arr = alloc(n * 8);
+    for (int i = 0; i < n; i++) {
+        arr[i] = i * i;
+    }
+    int j = 0;
+    int sum = 0;
+    while (j < n) {
+        sum = sum + arr[j];
+        j++;
+    }
+    printi(sum);
+    print("\n");
+    free(arr);
+    free(buf);
+    return 0;
+}

@@ -1,0 +1,41 @@
+int abs(int n) {
+    if (n < 0) {
+        return -n;
+    }
+    return n;
+}
+
+int main() {
+    // if/else
+    int x = 7;
+    if (x > 5) {
+        printi(100);
+    } else {
+        printi(200);
+    }
+    print("\n");
+    // while: sum 0..9
+    int i = 0;
+    int s = 0;
+    while (i < 10) {
+        s = s + i;
+        i++;
+    }
+    printi(s);
+    print("\n");
+    // abs via function call
+    printi(abs(-42));
+    print("\n");
+    // comparison -> bool (0/1)
+    if (3 < 4 && 5 > 2) {
+        printi(1);
+    }
+    print("\n");
+    if (3 > 4 || 9 < 1) {
+        printi(1);
+    } else {
+        printi(0);
+    }
+    print("\n");
+    return 0;
+}

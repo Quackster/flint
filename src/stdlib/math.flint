@@ -1,0 +1,131 @@
+// std/math — math utilities.
+//
+// Usage:
+//   import std.Math;
+//   printi(Math.abs(-7));          // 7
+//
+// Fixed-point helpers operate on Q48.16 values (see the `math.*` builtins).
+package std;
+class Math {
+    static int abs(int x) { return x < 0 ? -x : x; }
+    static int min(int a, int b) { return a < b ? a : b; }
+    static int max(int a, int b) { return a > b ? a : b; }
+    static int clamp(int x, int lo, int hi) {
+        return x < lo ? lo : (x > hi ? hi : x);
+    }
+    static int gcd(int a, int b) {
+        a = Math.abs(a);
+        b = Math.abs(b);
+        while (b != 0) {
+            int t = a % b;
+            a = b;
+            b = t;
+        }
+        return a;
+    }
+    static int lcm(int a, int b) {
+        if (a == 0 || b == 0) {
+            return 0;
+        }
+        return Math.abs(a / Math.gcd(a, b) * b);
+    }
+    static int factorial(int n) {
+        int r = 1;
+        for (int i = 2; i <= n; i = i + 1) {
+            r = r * i;
+        }
+        return r;
+    }
+    // Returns 1 when n is a prime, 0 otherwise.
+    static int is_prime(int n) {
+        if (n < 2) {
+            return 0;
+        }
+        if (n < 5) {
+            return 1;
+        }
+        if (n % 2 == 0) {
+            return 0;
+        }
+        for (int i = 3; i * i <= n; i = i + 2) {
+            if (n % i == 0) {
+                return 0;
+            }
+        }
+        return 1;
+    }
+    // Largest r with r*r <= n (Newton iteration); -1 for negative input.
+    static int sqrt(int n) {
+        if (n < 0) {
+            return -1;
+        }
+        if (n < 2) {
+            return n;
+        }
+        int x = n;
+        int y = (x + 1) / 2;
+        while (y < x) {
+            x = y;
+            y = (x + n / x) / 2;
+        }
+        return x;
+    }
+    // base ** exp for exp >= 0 (binary exponentiation; wraps on overflow).
+    static int pow(int base, int exp) {
+        int r = 1;
+        int b = base;
+        int e = exp;
+        while (e > 0) {
+            if (e % 2 == 1) {
+                r = r * b;
+            }
+            b = b * b;
+            e = e / 2;
+        }
+        return r;
+    }
+    static int pow10(int e) { return Math.pow(10, e); }
+    // ---------------------------------------------------------------- fixed
+    // Round half toward +inf: rounds when the fraction is >= 0.5.
+    static int fround(int f) {
+        int i = math.ftoi(f);
+        if (f - math.itof(i) >= 32768) {
+            return i + 1;
+        }
+        return i;
+    }
+    static int fceil(int f) {
+        int i = math.ftoi(f);
+        if (f > math.itof(i)) {
+            return i + 1;
+        }
+        return i;
+    }
+    static int ffloor(int f) {
+        int i = math.ftoi(f);
+        if (f < math.itof(i)) {
+            return i - 1;
+        }
+        return i;
+    }
+    static int fabs(int f) { return f < 0 ? -f : f; }
+    // Fixed-point square root (Newton in Q48.16); -1 for negative, 0 for zero.
+    static int fsqrt(int f) {
+        if (f < 0) {
+            return -1;
+        }
+        if (f == 0) {
+            return 0;
+        }
+        int x = f;
+        int two = math.itof(2);
+        for (int i = 0; i < 64; i = i + 1) {
+            int y = math.fdiv(math.fadd(x, math.fdiv(f, x)), two);
+            if (math.fcmp(y, x) >= 0) {
+                break;
+            }
+            x = y;
+        }
+        return x;
+    }
+}

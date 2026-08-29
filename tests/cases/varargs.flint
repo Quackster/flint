@@ -1,0 +1,16 @@
+int main() {
+    // Test str.format with %d, %s, %b
+    *byte s1 = str.format("hello %s", "world", 0, 0, 0);
+    int r1 = str.cmp(s1, "hello world") == 0 ? 1 : 0;
+    printi(r1); print("\n");
+
+    *byte s2 = str.format("%d + %d = %d", 1, 2, 3, 0);
+    int r2 = str.cmp(s2, "1 + 2 = 3") == 0 ? 1 : 0;
+    printi(r2); print("\n");
+
+    *byte s3 = str.format("%b %b", 1, 0, 0, 0);
+    int r3 = str.cmp(s3, "1 0") == 0 ? 1 : 0;
+    printi(r3); print("\n");
+
+    return 0;
+}

@@ -1,0 +1,27 @@
+// alloc_demo: use the heap (mmap-based alloc/free) for a dynamic array.
+// Builds a Fibonacci table of length n, then prints the sum.
+int main() {
+    int n = 10;
+    *int fib = alloc(n * 8);
+    fib[0] = 0;
+    fib[1] = 1;
+    for (int i = 2; i < n; i++) {
+        fib[i] = fib[i - 1] + fib[i - 2];
+    }
+    // print the table
+    int j = 0;
+    int sum = 0;
+    while (j < n) {
+        printi(fib[j]);
+        if (j + 1 < n) {
+            print(" ");
+        }
+        sum = sum + fib[j];
+        j++;
+    }
+    print("\nsum=");
+    printi(sum);
+    print("\n");
+    free(fib);
+    return 0;
+}

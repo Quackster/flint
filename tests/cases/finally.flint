@@ -1,0 +1,28 @@
+int fin_ret() {
+    try {
+        return 5;
+    } catch (int e) {
+        return e;
+    } finally {
+        printi(3); print("\n");
+    }
+}
+int main() {
+    try {
+        printi(1); print("\n");
+    } catch (int e) {
+        printi(2); print("\n");
+    } finally {
+        printi(3); print("\n");
+    }
+    try {
+        throw 42;
+    } catch (int e) {
+        printi(e); print("\n");
+    } finally {
+        printi(3); print("\n");
+    }
+    int x = fin_ret();
+    printi(x); print("\n");
+    return 0;
+}

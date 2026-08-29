@@ -1,0 +1,32 @@
+abstract class Shape {
+    int id;
+    public Shape(int i) {
+        this.id = i;
+    }
+    abstract int area();
+    public int getid() {
+        return this.id;
+    }
+}
+class Circle extends Shape {
+    int r;
+    public Circle(int i, int r) {
+        super(i);
+        this.r = r;
+    }
+    public int area() {
+        return this.r * this.r;
+    }
+}
+int main() {
+    Shape c = new Circle(7, 3);
+    printi(c.area());
+    print("\n");
+    printi(c.getid());
+    print("\n");
+    printi(c instanceof Circle);
+    print("\n");
+    printi(c instanceof Shape);
+    print("\n");
+    return 0;
+}

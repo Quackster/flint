@@ -1,0 +1,38 @@
+interface Speaker {
+    int speak();
+}
+class Robot implements Speaker {
+    int level;
+    public Robot(int l) {
+        this.level = l;
+    }
+    public int speak() {
+        return this.level * 10;
+    }
+}
+class Human implements Speaker {
+    int vol;
+    public Human(int v) {
+        this.vol = v;
+    }
+    public int speak() {
+        return this.vol + 100;
+    }
+}
+int main() {
+    Speaker s = new Robot(3);
+    printi(s.speak());
+    print("\n");
+    printi(s instanceof Robot);
+    print("\n");
+    printi(s instanceof Speaker);
+    print("\n");
+    Speaker h = new Human(5);
+    printi(h.speak());
+    print("\n");
+    printi(h instanceof Human);
+    print("\n");
+    printi(h instanceof Robot);
+    print("\n");
+    return 0;
+}

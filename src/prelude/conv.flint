@@ -1,0 +1,17 @@
+// prelude/conv — number <-> string conversion.
+//
+//   atoi(s) -> int   parse a signed decimal integer (skips leading spaces,
+//                    accepts an optional leading '-')
+//
+// The reverse direction (itoa) is provided by `printi`, which formats an int in
+// decimal and writes it to stdout.
+int main() {
+    printi(atoi("42"));
+    print("\n");
+    printi(atoi("-17") * 2);
+    print("\n");
+    int x = atoi("  100");
+    printi(x + atoi("23"));
+    print("\n");
+    return 0;
+}

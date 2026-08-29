@@ -1,0 +1,13 @@
+int main() {
+    *byte path = "/tmp/flintc_fileio.txt";
+    int f = sys.open(path, 0x241, 0x1a4);
+    sys.write(f, "written-by-flint", 16);
+    sys.close(f);
+    int g = sys.open(path, 0, 0);
+    *byte buf = alloc(32);
+    int n = sys.read(g, buf, 32);
+    sys.write(1, buf, n);
+    sys.close(g);
+    print("\n");
+    return 0;
+}

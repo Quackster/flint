@@ -1,0 +1,31 @@
+// range-for: for (T x : a) desugars to an index loop over len(a);
+// T x[] iterates the rows of a multi-dimensional array.
+int main() {
+    int a[] = [1, 2, 3, 4];
+    int s = 0;
+    for (int x : a) {
+        s += x;
+    }
+    printi(s);
+    print("\n");
+
+    int g[][] = [[1, 2, 3], [4, 5, 6]];
+    int t = 0;
+    for (int r[] : g) {
+        for (int y : r) {
+            t += y;
+        }
+    }
+    printi(t);
+    print("\n");
+
+    // an inner decl shadows the loop variable
+    int u = 0;
+    for (int x : a) {
+        int x = 100;
+        u += x;
+    }
+    printi(u);
+    print("\n");
+    return 0;
+}

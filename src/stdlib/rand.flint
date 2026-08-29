@@ -1,0 +1,51 @@
+// std/rand — a xorshift64 PRNG seeded from the `rand.next()` builtin.
+//
+// Usage:
+//   import std.Rand;
+//   Rand.init(42);
+//   int x = Rand.range(10, 20);   // in [10, 20)
+package std;
+class Rand {
+    static int state;
+    static void init(int s) {
+        Rand.state = s == 0 ? 88172645463325252 : s;
+    }
+    // xorshift64; lazily seeds from the hardware builtin on first use.
+    static int next() {
+        int x = Rand.state;
+        if (x == 0) {
+            x = rand.next();
+        }
+        x = x ^ (x << 13);
+        x = x ^ (x >> 7);
+        x = x ^ (x << 17);
+        Rand.state = x;
+        return x;
+    }
+    // Uniform in [lo, hi).
+    static int range(int lo, int hi) {
+        if (lo >= hi) {
+            return lo;
+        }
+        int span = hi - lo;
+        int r = Rand.next() % span;
+        if (r < 0) {
+            r = r + span;
+        }
+        return lo + r;
+    }
+    // 0 or 1.
+    static int coin() { return Rand.next() & 1; }
+    // Fisher-Yates shuffle (in place).
+    static void shuffle(int a[]) {
+        int n = len(a);
+        int i = n - 1;
+        while (i > 0) {
+            int j = Rand.range(0, i + 1);
+            int t = a[i];
+            a[i] = a[j];
+            a[j] = t;
+            i = i - 1;
+        }
+    }
+}

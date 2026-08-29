@@ -1,0 +1,7 @@
+int main() {
+    log.info("hello");
+    log.warn("careful");
+    log.error("bad");
+    log.debug("dbg");
+    return 0;
+}

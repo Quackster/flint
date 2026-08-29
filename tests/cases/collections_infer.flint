@@ -1,0 +1,60 @@
+int geti(hashmap m) { return m.get(1); }
+string gets(hashmap m) { return m.get(2); }
+int main() {
+    // hashset with string elements (flavour inferred from usage)
+    hashset s = new hashset();
+    s.add("hello"); s.add("world"); s.add("hello");
+    printi(len(s)); print(" ");
+    printi(s.contains("world")); print(" ");
+    printi(s.contains("nope")); print(" ");
+    s.remove("world");
+    printi(s.contains("world")); print("\n");
+
+    // one map holding int keys AND string keys (both supported)
+    hashmap m = new hashmap();
+    m.put(1, 10);
+    m.put("a", 20);
+    printi(len(m)); print(" ");
+    printi(m.get(1)); print(" ");
+    printi(m.get("a")); print(" ");
+    printi(m.contains("a")); print(" ");
+    printi(m.contains(1)); print("\n");
+
+    // string values; get() flavour inferred from the declared variable
+    hashmap d = new hashmap();
+    d.put(1, "one");
+    d.put(2, "two");
+    string w = d.get(2);
+    print(w); print(" ");
+    int missing = d.get(9);
+    printi(missing); print("\n");
+
+    // get() flavour inferred from the function return type
+    printi(geti(m)); print(" ");
+    string g = gets(d);
+    print(g); print("\n");
+
+    // {...} literals (kind inferred: pairs -> map, bare -> set)
+    hashset ls = {3, 4, 5};
+    printi(len(ls)); print(" ");
+    printi(ls.contains(4)); print("\n");
+    hashmap lm = {7: "seven", 8: "eight"};
+    printi(len(lm)); print(" ");
+    string v = lm.get(8);
+    print(v); print("\n");
+
+    // [...] literals and new C(...) with initial items
+    list li = [10, 20, 30];
+    printi(len(li)); print(" ");
+    printi(li.get(2)); print("\n");
+    queue lq = new queue(1, 2, 3);
+    printi(len(lq)); print(" ");
+    printi(lq.pop()); print("\n");
+
+    // keys() / values() return a list
+    list ks = m.keys();
+    printi(len(ks)); print("\n");
+    list vs = m.values();
+    printi(len(vs)); print("\n");
+    return 0;
+}

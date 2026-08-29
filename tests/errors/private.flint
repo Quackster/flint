@@ -1,0 +1,8 @@
+class Secret {
+    private int _val;
+}
+int main() {
+    Secret s = new Secret(5);
+    printi(s._val);
+    return 0;
+}

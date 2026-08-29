@@ -1,0 +1,27 @@
+// tcp_server: a simple TCP echo server on 0.0.0.0:7777.
+// Accepts connections in a loop, reads data, and echoes it back.
+int main() {
+    int s = sys.socket(2, 1, 0);  // AF_INET, SOCK_STREAM
+
+    // build sockaddr_in: 0.0.0.0:7777
+    *int addr = sys.sockaddr(7777, 0, 0, 0, 0);
+    sys.bind(s, addr, 16);
+    sys.listen(s, 5);
+
+    *byte buf = alloc(64);
+    while (1) {
+        int c = sys.accept(s, 0, 0);
+        if (c < 0) {
+            break;
+        }
+        int n = sys.read(c, buf, 64);
+        while (n > 0) {
+            sys.write(c, buf, n);
+            n = sys.read(c, buf, 64);
+        }
+        sys.close(c);
+    }
+    free(buf);
+    sys.close(s);
+    return 0;
+}

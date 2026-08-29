@@ -1,0 +1,3 @@
+error[6:12]: field '_val' of class 'Secret' is private
+  |     printi(s._val);
+  |            ^

@@ -1,0 +1,16 @@
+package com.example;
+
+class Greeter {
+    public Greeter() {
+    }
+    public int hello() {
+        return 42;
+    }
+}
+
+int main() {
+    com.example.Greeter g = new com.example.Greeter();
+    printi(g.hello());
+    print("\n");
+    return 0;
+}

@@ -1,0 +1,33 @@
+class Point {
+    int x;
+    int y;
+}
+
+class Rect {
+    Point origin;
+    int w;
+    int h;
+}
+
+int main() {
+    Point p = new Point(3, 4);
+    printi(p.x);
+    print(",");
+    printi(p.y);
+    print("\n");
+    p.x = 10;
+    printi(p.x + p.y);
+    print("\n");
+    // nested class literal
+    Rect r = new Rect(new Point(1, 2), 30, 40);
+    printi(r.origin.x);
+    print(",");
+    printi(r.origin.y);
+    print(",");
+    printi(r.w + r.h);
+    print("\n");
+    r.w = 50;
+    printi(r.w);
+    print("\n");
+    return 0;
+}

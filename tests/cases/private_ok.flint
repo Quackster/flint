@@ -1,0 +1,24 @@
+class Secret {
+    private int _val;
+    public Secret(int v) { this._val = v; }
+    public int getVal() { return _val; }
+    public void setVal(int v) { this._val = v; }
+    private int hidden() { return 42; }
+    public int callHidden() { return this.hidden(); }
+    public void copyFrom(Secret other) { this._val = other._val; }
+}
+int main() {
+    Secret s = new Secret(5);
+    printi(s.getVal());
+    print("\n");
+    s.setVal(10);
+    printi(s.getVal());
+    print("\n");
+    printi(s.callHidden());
+    print("\n");
+    Secret t = new Secret(20);
+    s.copyFrom(t);
+    printi(s.getVal());
+    print("\n");
+    return 0;
+}

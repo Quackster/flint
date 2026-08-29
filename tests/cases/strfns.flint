@@ -1,0 +1,16 @@
+int main() {
+    // substring
+    *byte s = str.substring("hello world", 0, 5);
+    printi(str.cmp(s, "hello") == 0 ? 1 : 0); print("\n");
+    *byte s2 = str.substring("hello world", 6, 11);
+    printi(str.cmp(s2, "world") == 0 ? 1 : 0); print("\n");
+    // indexOf
+    printi(str.indexOf("hello world", "world") == 6 ? 1 : 0); print("\n");
+    printi(str.indexOf("hello world", "xyz") == -1 ? 1 : 0); print("\n");
+    // replace
+    *byte r = str.replace("aaa", "a", "b");
+    printi(str.cmp(r, "bbb") == 0 ? 1 : 0); print("\n");
+    *byte r2 = str.replace("hello", "l", "L");
+    printi(str.cmp(r2, "heLLo") == 0 ? 1 : 0); print("\n");
+    return 0;
+}

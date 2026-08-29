@@ -1,0 +1,5 @@
+int main() {
+    list l = [1, 2];
+    l.nope();
+    return 0;
+}

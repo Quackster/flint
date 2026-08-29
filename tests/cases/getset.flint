@@ -1,0 +1,26 @@
+class User {
+    private get int _age;
+    private getset string _name;
+    private getset int _score;
+    public User(int age, string name, int score) {
+        this._age = age;
+        this._name = name;
+        this._score = score;
+    }
+}
+int main() {
+    User u = new User(30, "bob", 100);
+    printi(u.getAge());
+    print("\n");
+    print(u.getName());
+    print("\n");
+    u.setName("alice");
+    print(u.getName());
+    print("\n");
+    printi(u.getScore());
+    print("\n");
+    u.setScore(200);
+    printi(u.getScore());
+    print("\n");
+    return 0;
+}

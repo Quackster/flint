@@ -1,0 +1,53 @@
+class MyError {
+    int code;
+    void MyError(int c) { this.code = c; }
+}
+
+int caught_value() {
+    try {
+        throw 42;
+    } catch (int e) {
+        return e;
+    }
+    return -1;
+}
+
+int caught_class() {
+    try {
+        throw 99;
+    } catch (int e) {
+        return e;
+    }
+    return -1;
+}
+
+int no_throw() {
+    try {
+        return 7;
+    } catch (int e) {
+        return -1;
+    }
+}
+
+int main() {
+    // Basic throw/catch
+    int v1 = caught_value();
+    printi(v1 == 42 ? 1 : 0); print("\n");
+
+    // Another throw/catch
+    int v2 = caught_class();
+    printi(v2 == 99 ? 1 : 0); print("\n");
+
+    // No throw - try block returns normally
+    int v3 = no_throw();
+    printi(v3 == 7 ? 1 : 0); print("\n");
+
+    // Throw in main
+    try {
+        throw 123;
+    } catch (int e) {
+        printi(e == 123 ? 1 : 0); print("\n");
+    }
+
+    return 0;
+}

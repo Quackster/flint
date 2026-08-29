@@ -1,0 +1,32 @@
+class Inner { int x; public Inner(int n){this.x=n;} }
+class C { Inner a; public C(){} }
+
+int main() {
+    // 1. field reassignment (the original double-assignment bug)
+    C c = new C();
+    c.a = new Inner(1);
+    printi(c.a.x); print("\n");
+    c.a = new Inner(2);
+    printi(c.a.x); print("\n");
+    c.a = new Inner(3);
+    printi(c.a.x); print("\n");
+
+    // 2. heap local reassignment
+    Inner x = new Inner(10);
+    printi(x.x); print("\n");
+    x = new Inner(20);
+    printi(x.x); print("\n");
+
+    // 3. reassignment in a loop (exercises stack-region reuse)
+    int i = 0;
+    while (i < 3) {
+        c.a = new Inner(i * 100);
+        printi(c.a.x); print("\n");
+        i = i + 1;
+    }
+
+    // 4. field access on a temporary base (new)
+    int t = new Inner(99).x;
+    printi(t); print("\n");
+    return 0;
+}

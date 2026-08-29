@@ -1,0 +1,4 @@
+int main() {
+    *byte s = "unclosed
+    return 0;
+}

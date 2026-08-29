@@ -1,0 +1,7 @@
+class Vessel<T> {
+    T v;
+}
+int main() {
+    Vessel<int, string> b = new Vessel<int, string>();
+    return 0;
+}

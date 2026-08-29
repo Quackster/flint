@@ -1,0 +1,16 @@
+class Counter {
+    static int n;
+    int id;
+    void Counter(int i) { this.id = i; }
+}
+
+int main() {
+    Counter.n = 5;
+    Counter c = new Counter(1);
+    printi(Counter.n == 5 ? 1 : 0); print("\n");
+    Counter.n = Counter.n + 3;
+    printi(Counter.n == 8 ? 1 : 0); print("\n");
+    // instance fields still work alongside statics
+    printi(c.id == 1 ? 1 : 0); print("\n");
+    return 0;
+}

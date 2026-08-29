@@ -1,0 +1,29 @@
+package com.a;
+
+class A {
+    public A() {
+    }
+    public int val() {
+        return 100;
+    }
+}
+
+package com.b;
+
+import com.a.A;
+
+class B {
+    public B() {
+    }
+    public int val() {
+        return 1;
+    }
+}
+
+int main() {
+    A a = new A();
+    B b = new B();
+    printi(a.val() + b.val());
+    print("\n");
+    return 0;
+}

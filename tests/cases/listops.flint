@@ -1,0 +1,25 @@
+int main() {
+    list l = [3, 1, 2];
+    l.sort();
+    printi(l.get(0)); print("\n");
+    printi(l.get(1)); print("\n");
+    printi(l.get(2)); print("\n");
+    l.reverse();
+    printi(l.get(0)); print("\n");
+    printi(l.get(1)); print("\n");
+    printi(l.get(2)); print("\n");
+    l.insert(1, 9);
+    printi(l.size()); print("\n");
+    printi(l.get(1)); print("\n");
+    printi(l.get(2)); print("\n");
+    string j = l.join("-");
+    print(j); print("\n");
+    list<string> s = new list<string>();
+    s.add("b"); s.add("a"); s.add("c");
+    string sj = s.join("+");
+    print(sj); print("\n");
+    s.sort();
+    string sj2 = s.join("|");
+    print(sj2); print("\n");
+    return 0;
+}

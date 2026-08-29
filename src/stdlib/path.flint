@@ -1,0 +1,66 @@
+// std/path — string path utilities (import std.Path).
+package std;
+class Path {
+    static int last_slash(string p) {
+        int n = strlen(p);
+        int last = -1;
+        for (int i = 0; i < n; i = i + 1) {
+            if (sys.byte_load(p + i) == 47) {
+                last = i;
+            }
+        }
+        return last;
+    }
+    static int last_dot(string p) {
+        int n = strlen(p);
+        int last = -1;
+        for (int i = 0; i < n; i = i + 1) {
+            if (sys.byte_load(p + i) == 46) {
+                last = i;
+            }
+        }
+        return last;
+    }
+    // "a/b/c.txt" -> "c.txt" (the whole string when there is no slash).
+    static string base(string p) {
+        int i = Path.last_slash(p);
+        int n = strlen(p);
+        if (i < 0) {
+            return str.copy(p);
+        }
+        if (i == n - 1) {
+            return "";
+        }
+        return str.substring(p, i + 1, n - i - 1);
+    }
+    // "a/b/c.txt" -> "a/b" ("" for a top-level path).
+    static string dir(string p) {
+        int i = Path.last_slash(p);
+        if (i <= 0) {
+            return "";
+        }
+        return str.substring(p, 0, i);
+    }
+    // "a/b/c.txt" -> "txt"; "" when there is no extension.
+    static string ext(string p) {
+        string b = Path.base(p);
+        int n = strlen(b);
+        int i = Path.last_dot(b);
+        if (i < 1 || i == n - 1) {
+            return "";
+        }
+        return str.substring(b, i + 1, n - i - 1);
+    }
+    // Joins with exactly one slash between parts.
+    static string join(string a, string b) {
+        int na = strlen(a);
+        if (na == 0) {
+            return str.copy(b);
+        }
+        if (sys.byte_load(a + na - 1) == 47) {
+            return a + b;
+        }
+        return a + "/" + b;
+    }
+    static string parent(string p) { return Path.dir(p); }
+}

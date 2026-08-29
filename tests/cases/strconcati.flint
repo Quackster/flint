@@ -1,0 +1,23 @@
+// string + int concatenation: str.concati (s + itoa(n)), str.itoa (int -> string).
+int main() {
+    *byte s = str.concati("answer: ", 42);
+    print(s);
+    print("\n");
+    printi(strlen(s));
+    print("\n");
+
+    *byte n = str.itoa(-17);
+    print(n);
+    print("\n");
+    printi(strlen(n));
+    print("\n");
+
+    *byte z = str.itoa(0);
+    print(z);
+    print("\n");
+
+    *byte c = str.concati("n=", -5);
+    print(c);
+    print("\n");
+    return 0;
+}

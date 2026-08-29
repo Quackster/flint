@@ -1,0 +1,38 @@
+class Point {
+    int x;
+    int y;
+    public Point(int a, int b) {
+        this.x = a + 1;
+        this.y = b + 2;
+    }
+}
+class Raw {
+    int x;
+    int y;
+}
+class Counter {
+    int n;
+    public Counter() {
+        this.n = 42;
+    }
+}
+int main() {
+    Point p = new Point(3, 4);
+    printi(p.x);
+    print(",");
+    printi(p.y);
+    print("\n");
+    Raw r = new Raw(10, 20);
+    printi(r.x);
+    print(",");
+    printi(r.y);
+    print("\n");
+    Counter c = new Counter();
+    printi(c.n);
+    print("\n");
+    Counter c2 = new Counter();
+    c2.n = 100;
+    printi(c2.n);
+    print("\n");
+    return 0;
+}

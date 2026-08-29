@@ -1,0 +1,14 @@
+// prelude/io — text output and input on the standard streams.
+//
+//   print(s)     write a NUL-terminated string to stdout (fd 1)
+//   printi(n)    write an int (64-bit) in decimal to stdout
+//   (input)      read from stdin (fd 0) with:  sys.read(0, buf, n)
+//
+// `print` is `sys.write(1, s, strlen(s))`; `printi` lowers to the flint_printi64
+// intrinsic (itoa + write).
+int main() {
+    print("io: ");
+    printi(12345);
+    print("\n");
+    return 0;
+}

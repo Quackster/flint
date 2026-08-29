@@ -1,0 +1,5 @@
+int main() {
+    int x = 5;
+    printi(x[0]);
+    return 0;
+}

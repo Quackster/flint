@@ -1,0 +1,27 @@
+enum Color {
+    Red,
+    Green,
+    Blue,
+}
+
+enum Status {
+    Active = 10,
+    Inactive,
+}
+
+int main() {
+    // sequential values start at 0
+    printi(Color.Red == 0 ? 1 : 0); print("\n");
+    printi(Color.Green == 1 ? 1 : 0); print("\n");
+    printi(Color.Blue == 2 ? 1 : 0); print("\n");
+    // explicit value, then sequential from there
+    printi(Status.Active == 10 ? 1 : 0); print("\n");
+    printi(Status.Inactive == 11 ? 1 : 0); print("\n");
+    // usable in expressions
+    int x = Color.Blue + 1;
+    printi(x == 3 ? 1 : 0); print("\n");
+    // typed declaration
+    Color c = Color.Green;
+    printi(c == 1 ? 1 : 0); print("\n");
+    return 0;
+}

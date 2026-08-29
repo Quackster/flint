@@ -1,0 +1,29 @@
+// prelude/sys — raw Linux x86_64 syscall wrappers (lowered to inline `syscall`).
+//
+//   sys.write(fd, buf, len)      -> int   write bytes to file descriptor `fd`
+//   sys.read(fd, buf, len)       -> int   read bytes from file descriptor `fd`
+//   sys.open(path, flags, mode)  -> int   open a file, returns fd
+//   sys.close(fd)                -> int   close a file descriptor
+//   sys.brk(addr)                -> int   move the program break
+//   sys.socket(fam, type, proto) -> int   create a socket (AF_INET=2, SOCK_STREAM=1)
+//   sys.bind(fd, addr, len)      -> int   bind a socket to an address
+//   sys.listen(fd, backlog)      -> int   mark a socket as passive
+//   sys.accept(fd, addr, len)    -> int   accept a connection, returns the client fd
+//   sys.connect(fd, addr, len)   -> int   connect a socket to a remote address
+//   sys.sockaddr(port, o1, o2, o3, o4) -> *int  build a 16-byte AF_INET sockaddr_in
+//   sys.exit(code)                       terminate the process
+//   sys.byte_load(*byte ptr) -> int      load 1 byte from memory
+//   sys.byte_store(*byte ptr, int val)   store 1 byte to memory
+//   sys.short_load(*short ptr) -> int    load 2 bytes (LE) from memory
+//   sys.short_store(*short ptr, int val) store 2 bytes (LE) to memory
+//   sys.int_load(*int ptr) -> int        load 4 bytes (LE) from memory
+//   sys.int_store(*int ptr, int val)     store 4 bytes (LE) to memory
+//
+// Syscall convention: rax = number, args in rdi rsi rdx r10 r8 r9 (4th is r10!),
+// `syscall` clobbers rcx and r11.
+int main() {
+    // write "hi\n" to stdout (fd 1) using the raw write wrapper
+    sys.write(1, "hi", 2);
+    sys.write(1, "\n", 2);
+    return 0;
+}

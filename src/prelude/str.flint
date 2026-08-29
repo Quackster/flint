@@ -1,0 +1,19 @@
+// prelude/str — string operations on NUL-terminated (*u8) strings.
+//
+//   strlen(s) -> int   byte length (up to the first NUL)
+//   str.concat(a, b) -> *byte   a + b (both strings)
+//   str.concati(s, n) -> *byte  s + itoa(n) (string + int)
+//   str.itoa(n) -> *byte        decimal string for an int
+//
+// String literals lower to `.asciz` in .rodata; `print(s)` writes one.
+int main() {
+    printi(strlen("flint"));
+    print("\n");
+    printi(strlen("hello, world"));
+    print("\n");
+    print(str.concati("answer: ", 42));
+    print("\n");
+    print(str.itoa(-17));
+    print("\n");
+    return 0;
+}

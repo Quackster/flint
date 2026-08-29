@@ -1,0 +1,78 @@
+// std/file — file I/O over the raw syscall builtins.
+//
+// Usage:
+//   import std.File;
+//   File.write_all("/tmp/hello.txt", "hi");
+//   string data = File.read_all("/tmp/hello.txt");
+//
+// x86_64 syscalls: open=2 read=0 write=1 close=3 fstat=5
+//                  pread=17 pwrite=1 unlink=87
+package std;
+class File {
+    // O_RDWR
+    static int open(string path) { return sys.open(path, 2, 0); }
+    // O_WRONLY | O_CREAT | O_TRUNC, mode 0644
+    static int open_for_write(string path) {
+        return sys.open(path, 0x241, 0x1a4);
+    }
+    static int close(int fd) { return sys.close(fd); }
+    static int size(string path) {
+        int fd = sys.open(path, 0, 0);
+        if (fd < 0) {
+            return -1;
+        }
+        string st = alloc(280);
+        int r = sys.syscall(5, fd, st, 0, 0, 0);
+        sys.close(fd);
+        if (r < 0) {
+            return -1;
+        }
+        return st[6];  // struct stat: st_size at offset 48
+    }
+    // NUL-terminated copy of the whole file, or null if it cannot be opened.
+    static string read_all(string path) {
+        int sz = File.size(path);
+        if (sz < 0) {
+            return null;
+        }
+        string out = alloc(sz + 8);
+        int fd = sys.open(path, 0, 0);
+        if (fd < 0) {
+            return null;
+        }
+        int off = 0;
+        while (off < sz) {
+            int n = sys.syscall(17, fd, out + off, 4096, off, 0);
+            if (n <= 0) {
+                break;
+            }
+            off = off + n;
+        }
+        sys.close(fd);
+        sys.byte_store(out + off, 0);
+        return out;
+    }
+    // O_WRONLY | O_CREAT | O_TRUNC; returns the fd or a negative errno.
+    static int write_all(string path, string data) {
+        int fd = sys.open(path, 0x241, 0x1a4);
+        if (fd < 0) {
+            return fd;
+        }
+        int n = sys.write(fd, data, strlen(data));
+        sys.close(fd);
+        return n;
+    }
+    // 1 if the path opens for reading, 0 otherwise.
+    static int exists(string path) {
+        int fd = sys.open(path, 0, 0);
+        if (fd < 0) {
+            return 0;
+        }
+        sys.close(fd);
+        return 1;
+    }
+    // unlink is syscall 87 in this toolchain's kernel (not 37).
+    static int delete(string path) {
+        return sys.syscall(87, path, 0, 0, 0, 0);
+    }
+}

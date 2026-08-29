@@ -1,0 +1,13 @@
+[package]
+name = "flintc"
+version = "0.1.0"
+edition = "2021"
+description = "A small systems language that compiles to freestanding x86_64 Linux"
+
+[[bin]]
+name = "flintc"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = 3
+lto = true

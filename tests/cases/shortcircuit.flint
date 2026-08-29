@@ -1,0 +1,18 @@
+class Cnt {
+    static int n;
+}
+int bump() {
+    Cnt.n = Cnt.n + 1;
+    return 1;
+}
+int main() {
+    printi(0 && bump()); print("\n");
+    printi(0 || bump()); print("\n");
+    printi(1 || bump()); print("\n");
+    printi(1 && bump()); print("\n");
+    printi(Cnt.n); print("\n");
+    printi(5 && 7); print("\n");
+    printi(0 || 0); print("\n");
+    printi(3 || 0); print("\n");
+    return 0;
+}

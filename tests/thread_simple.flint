@@ -1,0 +1,13 @@
+// Simple test: just create a thread and join it
+package test;
+
+void thread_fn(int arg) {
+    sys.write(1, "hello", 5);
+}
+
+int main() {
+    int tid = sys.thread_create(@thread_fn, 0);
+    sys.thread_join(tid);
+    sys.write(1, "done", 4);
+    return 0;
+}

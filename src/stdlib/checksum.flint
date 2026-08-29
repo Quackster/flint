@@ -1,0 +1,63 @@
+// std/checksum — checksums (import std.Checksum).
+//
+// `crc32` uses the standard (zlib/IEEE) polynomial 0xEDB88320, reflected,
+// with initial/final value 0xFFFFFFFF; the 256-entry table is computed
+// once on first use and kept in the static field.
+package std;
+class Checksum {
+    static string crc_table;
+    static void crc_init() {
+        string t = alloc(256 * 4);
+        int c = 0;
+        int i = 0;
+        for (c = 0; c < 256; c = c + 1) {
+            int crc = c;
+            for (i = 0; i < 8; i = i + 1) {
+                if (crc & 1) {
+                    crc = (crc >> 1) ^ 0xEDB88320;
+                } else {
+                    crc = crc >> 1;
+                }
+            }
+            sys.byte_store(t + c * 4, crc & 255);
+            sys.byte_store(t + c * 4 + 1, (crc >> 8) & 255);
+            sys.byte_store(t + c * 4 + 2, (crc >> 16) & 255);
+            sys.byte_store(t + c * 4 + 3, (crc >> 24) & 255);
+        }
+        Checksum.crc_table = t;
+    }
+    static int read_u32(string p, int i) {
+        int o = i * 4;
+        return sys.byte_load(p + o) | (sys.byte_load(p + o + 1) << 8) | (sys.byte_load(p + o + 2) << 16) | (sys.byte_load(p + o + 3) << 24);
+    }
+    static int crc32(string s) {
+        if (Checksum.crc_table == null) {
+            Checksum.crc_init();
+        }
+        int crc = 0xFFFFFFFF;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            int b = sys.byte_load(s + i);
+            crc = Checksum.read_u32(Checksum.crc_table, (crc ^ b) & 255) ^ (crc >> 8);
+        }
+        return crc ^ 0xFFFFFFFF;
+    }
+    // Sum of the byte values (low 32 bits kept in a 64-bit int).
+    static int sum32(string s) {
+        int h = 0;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            h = h + sys.byte_load(s + i);
+        }
+        return h;
+    }
+    // djb2: h = h*33 + c, starting at 5381.
+    static int djb2(string s) {
+        int h = 5381;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            h = (h * 33) + sys.byte_load(s + i);
+        }
+        return h;
+    }
+}

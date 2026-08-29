@@ -1,0 +1,58 @@
+// switch: case hits, default, break inside a switch, fallthrough.
+int main() {
+    int n = 2;
+    switch (n) {
+        case 1:
+            printi(10);
+            break;
+        case 2:
+            printi(20);
+            break;
+        default:
+            printi(99);
+    }
+    print("\n");
+
+    int m = 7;
+    switch (m) {
+        case 5:
+            printi(50);
+            break;
+        case 6:
+            printi(60);
+            break;
+        default:
+            printi(70);
+            break;
+    }
+    print("\n");
+
+    // break inside a switch inside a loop exits only the switch
+    int acc = 0;
+    for (int i = 0; i < 4; i = i + 1) {
+        switch (i % 2) {
+            case 0:
+                acc = acc + 10;
+                break;
+            case 1:
+                acc = acc + 1;
+                break;
+        }
+    }
+    printi(acc);
+    print("\n");
+
+    // fallthrough: no break on case 1
+    int f = 1;
+    switch (f) {
+        case 1:
+            printi(100);
+        case 2:
+            printi(200);
+            break;
+        default:
+            printi(300);
+    }
+    print("\n");
+    return 0;
+}

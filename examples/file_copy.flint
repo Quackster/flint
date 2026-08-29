@@ -1,0 +1,32 @@
+// file_copy: copy the contents of one file to another using raw syscalls.
+// Reads `from` into a heap buffer in chunks, writes to `to`.
+int main() {
+    *byte from = "/tmp/flintc_copy_src.txt";
+    *byte to = "/tmp/flintc_copy_dst.txt";
+
+    // write a known payload to the source file first (O_WRONLY|O_CREAT|O_TRUNC)
+    int f = sys.open(from, 0x241, 0x1a4);
+    sys.write(f, "the quick brown fox", 19);
+    sys.close(f);
+
+    // copy src -> dst
+    int src = sys.open(from, 0, 0);          // O_RDONLY
+    int dst = sys.open(to, 0x241, 0x1a4);     // O_WRONLY|O_CREAT|O_TRUNC
+    *byte buf = alloc(16);
+    int n = sys.read(src, buf, 16);
+    while (n > 0) {
+        sys.write(dst, buf, n);
+        n = sys.read(src, buf, 16);
+    }
+    sys.close(src);
+    sys.close(dst);
+    free(buf);
+
+    // verify by reading dst back and printing it
+    int g = sys.open(to, 0, 0);
+    int n2 = sys.read(g, buf, 16);
+    sys.write(1, buf, n2);
+    sys.close(g);
+    print("\n");
+    return 0;
+}

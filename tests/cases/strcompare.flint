@@ -1,0 +1,14 @@
+int main() {
+    string a = "hello";
+    string b = "hello";
+    string c = "world";
+    printi(a == b); print("\n");
+    printi(a == c); print("\n");
+    printi(a != c); print("\n");
+    printi(a != b); print("\n");
+    string d = null;
+    printi(d == null); print("\n");
+    printi("" == ""); print("\n");
+    printi("a" == "ab"); print("\n");
+    return 0;
+}

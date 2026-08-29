@@ -1,0 +1,55 @@
+class Point {
+    int x;
+    int y;
+    public int getX() {
+        return this.x;
+    }
+    public int sum() {
+        return x + y;
+    }
+    public void move(int dx, int dy) {
+        this.x = this.x + dx;
+        this.y = this.y + dy;
+    }
+    public Point add(Point other) {
+        return new Point(this.x + other.x, this.y + other.y);
+    }
+}
+class Rect {
+    Point origin;
+    int w;
+    int h;
+    public int area() {
+        return w * h;
+    }
+    public int ox() {
+        return origin.getX();
+    }
+}
+int main() {
+    Point p = new Point(3, 4);
+    printi(p.getX());
+    print("\n");
+    printi(p.sum());
+    print("\n");
+    p.move(1, 2);
+    printi(p.getX());
+    print(",");
+    printi(p.y);
+    print("\n");
+    Point a = new Point(1, 2);
+    Point b = new Point(3, 4);
+    Point c = a.add(b);
+    printi(c.x);
+    print(",");
+    printi(c.y);
+    print("\n");
+    Rect r = new Rect(new Point(5, 6), 10, 20);
+    printi(r.ox());
+    print("\n");
+    printi(r.area());
+    print("\n");
+    printi(c.add(a).getX());
+    print("\n");
+    return 0;
+}

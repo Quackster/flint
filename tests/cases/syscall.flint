@@ -1,0 +1,17 @@
+int main() {
+    // getpid via the escape hatch (1st syscall arg in rdi)
+    int pid = sys.syscall(39, 0, 0, 0, 0, 0);
+    printi(pid > 0 ? 1 : 0); print("\n");
+    // open /dev/null (2nd syscall arg in rsi)
+    *byte devnull = "/dev/null";
+    int fd = sys.syscall(2, devnull, 0, 0, 0, 0);
+    printi(fd >= 0 ? 1 : 0); print("\n");
+    // select: 4th arg (exceptfds) must land in r10, 5th (timeout) in r8
+    *byte tv = alloc(16); // zeroed struct timeval
+    int r = sys.syscall(23, fd, 0, 0, 0, tv);
+    printi(r == 0 ? 1 : 0); print("\n");
+    // close (1st syscall arg)
+    int c = sys.syscall(3, fd, 0, 0, 0, 0);
+    printi(c == 0 ? 1 : 0); print("\n");
+    return 0;
+}

@@ -1,0 +1,7 @@
+T identity<T>(T x) {
+    return x;
+}
+int main() {
+    int y = identity<int, string>(5);
+    return 0;
+}

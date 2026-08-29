@@ -1,0 +1,23 @@
+// list.reverse must swap every pair; regression for the missing loop
+// back-edge that left even-length lists' middle pair unswapped.
+int main() {
+    list l = [1, 2, 3, 4];
+    l.reverse();
+    printi(l.get(0)); print(" ");
+    printi(l.get(1)); print(" ");
+    printi(l.get(2)); print(" ");
+    printi(l.get(3)); print("\n");
+
+    // odd length still works
+    list o = [1, 2, 3];
+    o.reverse();
+    printi(o.get(0)); print(" ");
+    printi(o.get(1)); print(" ");
+    printi(o.get(2)); print("\n");
+
+    // single element: no-op
+    list s = [9];
+    s.reverse();
+    printi(s.get(0)); print("\n");
+    return 0;
+}

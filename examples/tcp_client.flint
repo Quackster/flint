@@ -1,0 +1,20 @@
+// tcp_client: connects to the tcp_server on 127.0.0.1:7777, sends a message,
+// and prints the echoed reply.
+int main() {
+    int s = sys.socket(2, 1, 0);  // AF_INET, SOCK_STREAM
+
+    // build sockaddr_in: 127.0.0.1:7777
+    *int addr = sys.sockaddr(7777, 127, 0, 0, 1);
+    sys.connect(s, addr, 16);
+
+    sys.write(s, "hello", 5);
+
+    *byte buf = alloc(64);
+    int n = sys.read(s, buf, 64);
+    sys.write(1, buf, n);  // print the echoed reply
+    print("\n");
+
+    free(buf);
+    sys.close(s);
+    return 0;
+}

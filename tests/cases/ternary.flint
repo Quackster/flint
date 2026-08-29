@@ -1,0 +1,26 @@
+// ternary c ? a : b: plain, chained (right-associative), in expressions,
+// and in an if condition.
+int main() {
+    int x = 5;
+    int y = x > 3 ? 10 : 20;
+    printi(y);
+    print("\n");
+
+    int z = x > 10 ? 1 : 2;
+    printi(z);
+    print("\n");
+
+    int w = x > 100 ? 1 : x > 3 ? 2 : 3;
+    printi(w);
+    print("\n");
+
+    int v = 100 + (x > 0 ? 5 : 7) * 2;
+    printi(v);
+    print("\n");
+
+    if (x > 3 ? true : false) {
+        printi(1);
+    }
+    print("\n");
+    return 0;
+}

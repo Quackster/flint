@@ -1,0 +1,4 @@
+int main() {
+    printi(nosuchvar);
+    return 0;
+}

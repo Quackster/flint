@@ -1,0 +1,37 @@
+class Animal {
+    int id;
+    public Animal(int a) {
+        this.id = a;
+    }
+    public int speak() {
+        return 0;
+    }
+}
+class Dog extends Animal {
+    int barks;
+    public Dog(int a, int b) {
+        super(a);
+        this.barks = b;
+    }
+    public int speak() {
+        return 1;
+    }
+    public int bark() {
+        return super.speak() + this.barks;
+    }
+}
+int main() {
+    Animal a = new Dog(5, 10);
+    printi(a.speak());
+    print("\n");
+    printi(a.id);
+    print("\n");
+    Dog d = (Dog) a;
+    printi(d.bark());
+    print("\n");
+    printi(a instanceof Dog);
+    print("\n");
+    printi(a instanceof Animal);
+    print("\n");
+    return 0;
+}

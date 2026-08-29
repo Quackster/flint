@@ -1,0 +1,52 @@
+// std/bit — bitwise utilities on 64-bit integers.
+//
+// Usage:
+//   import std.Bit;
+//   printi(Bit.popcount(0xff));   // 8
+package std;
+class Bit {
+    static int popcount(int x) {
+        int c = 0;
+        for (int i = 0; i < 64; i = i + 1) {
+            c = c + ((x >> i) & 1);
+        }
+        return c;
+    }
+    // Number of leading zero bits (64 for zero).
+    static int nlz(int x) {
+        if (x == 0) {
+            return 64;
+        }
+        for (int i = 63; i >= 0; i = i - 1) {
+            if ((x >> i) & 1) {
+                return 63 - i;
+            }
+        }
+        return 64;
+    }
+    // Number of trailing zero bits (64 for zero).
+    static int ntz(int x) {
+        if (x == 0) {
+            return 64;
+        }
+        for (int i = 0; i < 64; i = i + 1) {
+            if ((x >> i) & 1) {
+                return i;
+            }
+        }
+        return 64;
+    }
+    static int set_bit(int x, int i) { return x | (1 << i); }
+    // (no `~` in v1; `x & ~m` as `x & (-1 ^ m)`)
+    static int clr_bit(int x, int i) { return x & (-1 ^ (1 << i)); }
+    static int test_bit(int x, int i) { return (x >> i) & 1; }
+    static int toggle_bit(int x, int i) { return x ^ (1 << i); }
+    // Bit-reverse all 64 bits.
+    static int bit_rev(int x) {
+        int r = 0;
+        for (int i = 0; i < 64; i = i + 1) {
+            r = (r << 1) | ((x >> i) & 1);
+        }
+        return r;
+    }
+}

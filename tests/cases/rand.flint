@@ -1,0 +1,13 @@
+int main() {
+    // two 64-bit draws differ with overwhelming probability
+    int a = rand.next();
+    int b = rand.next();
+    printi(a == b ? 0 : 1); print("\n");
+    // range is within [min, max)
+    int r1 = rand.range(10, 20);
+    printi(r1 >= 10 && r1 < 20 ? 1 : 0); print("\n");
+    // degenerate range returns min
+    int r2 = rand.range(5, 6);
+    printi(r2 == 5 ? 1 : 0); print("\n");
+    return 0;
+}

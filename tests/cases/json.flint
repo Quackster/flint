@@ -1,0 +1,22 @@
+int main() {
+    // Test JSON key-value extraction
+    // Build a JSON string: {"name":"alice","age":30}
+    int json = str.concat("{\"name\":\"alice\",\"age\":30}", "");
+    
+    // Extract "name" -> should be "alice"
+    *byte val = json.get(json, "name");
+    int len = strlen(val);
+    // Check length is 5 and first char matches via str comparison
+    int is_alice = (len == 5) && (str.cmp(val, "alice") == 0) ? 1 : 0;
+    printi(is_alice); print("\n");
+    
+    // Extract "age" -> should be 30
+    int age = json.geti(json, "age");
+    printi(age == 30 ? 1 : 0); print("\n");
+    
+    // Non-existent key -> should return ""
+    *byte missing = json.get(json, "missing");
+    printi(strlen(missing) == 0 ? 1 : 0); print("\n");
+    
+    return 0;
+}

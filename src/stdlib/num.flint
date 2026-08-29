@@ -1,0 +1,137 @@
+// std/num — number <-> string conversion (hex/oct/bin) and digit utils.
+//
+// Usage:
+//   import std.Num;
+//   print(Num.to_hex(-1));        // ffffffffffffffff (two's complement)
+//   printi(Num.from_hex("ff"));   // 255
+//
+// Negative values are rendered as 16-hex / 64-bin / 22-oct two's-complement
+// digits; non-negative values are trimmed of leading zeros.
+package std;
+class Num {
+    static string to_string(int n) { return str.itoa(n); }
+    static string hex_digit(int d) {
+        return str.substring("0123456789abcdef", d, 1);
+    }
+    static int hex_val(string c) {
+        int i = 0;
+        while (i < 16) {
+            if (str.cmp(c, str.substring("0123456789abcdef", i, 1)) == 0) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+    static string to_hex(int n) {
+        int neg = n < 0 ? 1 : 0;
+        string s = "";
+        for (int i = 15; i >= 0; i = i - 1) {
+            s = Num.hex_digit((n % 16 + 16) % 16) + s;
+            n = n >> 4;
+        }
+        if (neg == 0) {
+            s = Num.trim_leading_zeros(s);
+        }
+        return s;
+    }
+    static int from_hex(string s) {
+        int v = 0;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            int d = Num.hex_val(str.substring(s, i, 1));
+            if (d < 0) {
+                return -1;
+            }
+            v = v * 16 + d;
+        }
+        return v;
+    }
+    static string to_bin(int n) {
+        int neg = n < 0 ? 1 : 0;
+        string s = "";
+        for (int i = 0; i < 64; i = i + 1) {
+            s = str.substring("01", (n >> i) & 1, 1) + s;
+        }
+        if (neg == 0) {
+            s = Num.trim_leading_zeros(s);
+        }
+        return s;
+    }
+    static int from_bin(string s) {
+        int v = 0;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            int c = sys.byte_load(s + i);
+            if (c != 48 && c != 49) {
+                return -1;
+            }
+            v = v * 2 + (c - 48);
+        }
+        return v;
+    }
+    static string to_oct(int n) {
+        int neg = n < 0 ? 1 : 0;
+        string s = "";
+        for (int i = 0; i < 22; i = i + 1) {
+            s = str.substring("01234567", (n >> (i * 3)) & 7, 1) + s;
+        }
+        if (neg == 0) {
+            s = Num.trim_leading_zeros(s);
+        }
+        return s;
+    }
+    static int from_oct(string s) {
+        int v = 0;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            int c = sys.byte_load(s + i);
+            if (c < 48 || c > 55) {
+                return -1;
+            }
+            v = v * 8 + (c - 48);
+        }
+        return v;
+    }
+    static int sum_digits(int n) {
+        if (n == 0) {
+            return 0;
+        }
+        n = Math.abs(n);
+        int s = 0;
+        while (n != 0) {
+            s = s + n % 10;
+            n = n / 10;
+        }
+        return s;
+    }
+    static int digit_count(int n) {
+        if (n == 0) {
+            return 1;
+        }
+        n = Math.abs(n);
+        int c = 0;
+        while (n != 0) {
+            c = c + 1;
+            n = n / 10;
+        }
+        return c;
+    }
+    // "-123" -> "321-"; "0" -> "0".
+    static string reverse_digits(int n) {
+        string s = str.itoa(n);
+        string r = "";
+        for (int i = strlen(s) - 1; i >= 0; i = i - 1) {
+            r = r + str.substring(s, i, 1);
+        }
+        return r;
+    }
+    static string trim_leading_zeros(string s) {
+        int l = strlen(s);
+        while (l > 1 && sys.byte_load(s) == 48) {
+            s = str.substring(s, 1, l - 1);
+            l = l - 1;
+        }
+        return s;
+    }
+}

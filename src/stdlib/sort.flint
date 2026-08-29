@@ -1,0 +1,120 @@
+// std/sort — sorting and scanning for int arrays.
+//
+// Usage:
+//   import std.Sort;
+//   int a[] = [3, 1, 2];
+//   Sort.sort(a);            // [1, 2, 3]
+//
+// `sort`/`sort_desc` are a merge sort (stable); the scratch buffer is
+// `alloc`ed per merge step and `free`d (a no-op in v1).
+package std;
+class Sort {
+    static void sort(int a[]) { Sort.sort_impl(a, 0, len(a), 0); }
+    static void sort_desc(int a[]) { Sort.sort_impl(a, 0, len(a), 1); }
+    static void sort_impl(int a[], int lo, int hi, int desc) {
+        if (hi - lo < 2) {
+            return;
+        }
+        int n = hi - lo;
+        int mid = lo + n / 2;
+        Sort.sort_impl(a, lo, mid, desc);
+        Sort.sort_impl(a, mid, hi, desc);
+        string scratch = alloc(n * 8);
+        int i = lo;
+        int j = mid;
+        int k = 0;
+        while (i < mid && j < hi) {
+            int take_left = desc == 1 ? a[i] >= a[j] : a[i] <= a[j];
+            if (take_left) {
+                scratch[k] = a[i];
+                i = i + 1;
+            } else {
+                scratch[k] = a[j];
+                j = j + 1;
+            }
+            k = k + 1;
+        }
+        while (i < mid) { scratch[k] = a[i]; i = i + 1; k = k + 1; }
+        while (j < hi) { scratch[k] = a[j]; j = j + 1; k = k + 1; }
+        i = 0;
+        while (i < n) {
+            a[lo + i] = scratch[i];
+            i = i + 1;
+        }
+        free(scratch);
+    }
+    static void reverse(int a[]) {
+        int n = len(a);
+        int i = 0;
+        while (i < n / 2) {
+            int t = a[i];
+            a[i] = a[n - 1 - i];
+            a[n - 1 - i] = t;
+            i = i + 1;
+        }
+    }
+    // Empty arrays return 0 for min/max/sum.
+    static int min(int a[]) {
+        int n = len(a);
+        if (n == 0) {
+            return 0;
+        }
+        int m = a[0];
+        for (int i = 1; i < n; i = i + 1) {
+            if (a[i] < m) {
+                m = a[i];
+            }
+        }
+        return m;
+    }
+    static int max(int a[]) {
+        int n = len(a);
+        if (n == 0) {
+            return 0;
+        }
+        int m = a[0];
+        for (int i = 1; i < n; i = i + 1) {
+            if (a[i] > m) {
+                m = a[i];
+            }
+        }
+        return m;
+    }
+    static int sum(int a[]) {
+        int s = 0;
+        for (int v : a) {
+            s = s + v;
+        }
+        return s;
+    }
+    static int contains(int a[], int v) {
+        for (int i = 0; i < len(a); i = i + 1) {
+            if (a[i] == v) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+    static int index_of(int a[], int v) {
+        for (int i = 0; i < len(a); i = i + 1) {
+            if (a[i] == v) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    static int count(int a[], int v) {
+        int c = 0;
+        for (int i = 0; i < len(a); i = i + 1) {
+            if (a[i] == v) {
+                c = c + 1;
+            }
+        }
+        return c;
+    }
+    static void fill(int a[], int v) {
+        for (int i = 0; i < len(a); i = i + 1) {
+            a[i] = v;
+        }
+    }
+}

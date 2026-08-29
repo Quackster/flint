@@ -1,0 +1,9 @@
+package com.example;
+
+class Util {
+    public Util() {
+    }
+    public int doubleIt(int x) {
+        return x * 2;
+    }
+}

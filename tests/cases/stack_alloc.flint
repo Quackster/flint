@@ -1,0 +1,57 @@
+// Automatic memory: stack-allocated non-escaping objects and heap
+// refcounted escaping objects. No manual alloc/free anywhere.
+class Pair {
+    int a;
+    int b;
+    public Pair(int x, int y) { this.a = x; this.b = y; }
+}
+class Inner {
+    int v;
+    public Inner(int x) { this.v = x; }
+}
+class Box {
+    Inner in;
+    int n;
+    public Box(Inner i, int n) { this.in = i; this.n = n; }
+}
+int sum_of(Pair p) { return p.a + p.b; }
+Pair make() {
+    // p escapes via return, so it is heap refcounted
+    Pair p = new Pair(9, 8);
+    return p;
+}
+int main() {
+    // stack-allocated: top level, field access only, non-escaping ctor
+    Pair s = new Pair(3, 4);
+    printi(s.a);
+    print(",");
+    printi(s.b);
+    print("\n");
+    s.a = 10;
+    printi(s.a + s.b);
+    print("\n");
+    // alias of a stack object: plain address, no refcount traffic
+    Pair r = s;
+    printi(r.b);
+    print("\n");
+    // heap: escapes into a function
+    Pair h = new Pair(5, 6);
+    printi(sum_of(h));
+    print("\n");
+    // heap alias: both hold refcounted references
+    Pair c = h;
+    c.b = 100;
+    printi(h.b);
+    print("\n");
+    // stack object with a class field: the field is a heap refcount
+    Box o = new Box(new Inner(42), 7);
+    printi(o.in.v);
+    print(",");
+    printi(o.n);
+    print("\n");
+    // class value returned from a function: fresh reference
+    Pair t = make();
+    printi(t.a + t.b);
+    print("\n");
+    return 0;
+}

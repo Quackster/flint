@@ -1,0 +1,20 @@
+// prelude/mem — heap memory and byte operations.
+//
+//   alloc(n) -> ptr   request n bytes from the heap (mmap-backed, 16-byte aligned)
+//   free(p)          release p (no-op in v1; the process reclaims it at exit)
+//   memcpy(d, s, n)  copy n bytes from s to d
+//   strlen(s) -> int  byte length of a NUL-terminated string
+//
+// Pointers are 64-bit; a buffer from `alloc` is indexed as 8-byte elements:
+//   buf[i]  loads/stores the int at byte offset i*8.
+int main() {
+    *byte s = "memory";
+    printi(strlen(s));
+    print("\n");
+    *int buf = alloc(8);
+    buf[0] = 7;
+    printi(buf[0]);
+    print("\n");
+    free(buf);
+    return 0;
+}

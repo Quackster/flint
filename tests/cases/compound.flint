@@ -1,0 +1,31 @@
+// compound assignment += -= *= /= on locals, array elements, and for-updates.
+int main() {
+    int a = 10;
+    a += 5;
+    printi(a);
+    print("\n");
+    a -= 3;
+    printi(a);
+    print("\n");
+    a *= 4;
+    printi(a);
+    print("\n");
+    a /= 7;
+    printi(a);
+    print("\n");
+
+    int b[] = [2, 3, 4];
+    b[0] += 10;
+    b[1] *= 3;
+    b[2] -= 1;
+    printi(b[0] + b[1] + b[2]);
+    print("\n");
+
+    int c = 100;
+    for (int i = 0; i < 5; i += 1) {
+        c -= i;
+    }
+    printi(c);
+    print("\n");
+    return 0;
+}

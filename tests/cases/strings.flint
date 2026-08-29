@@ -1,0 +1,13 @@
+int main() {
+    print("strings work");
+    print("\n");
+    *byte s = "hello";
+    printi(strlen(s));
+    print("\n");
+    *byte a = "ab";
+    *byte b = "cd";
+    print(a);
+    print(b);
+    print("\n");
+    return 0;
+}
