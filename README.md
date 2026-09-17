@@ -4,6 +4,8 @@ A small, statically-typed, systems-level language that compiles to
 freestanding x86_64 Linux assembly (no libc). The `flintc` compiler is written
 in Rust with zero external dependencies.
 
+- Syntax: Java style conventions (classes, `int`/`void`, braces, 4-space
+  indent); all code samples below are Java and highlighted as such.
 - Source: `*.flint`
 - Pipeline: `lexer -> parser -> monomorphize -> codegen -> .s -> as -> ld -e _start`
 - Runtime: a hand-written freestanding `intrinsics.s` + `collections.s`
@@ -62,7 +64,7 @@ A compact overview; each category is expandable.
   set them explicitly).
 - Comments: `// line` and `/* block */`.
 
-```
+```java
 enum Color { Red, Green, Blue }
 int main() {
     int n = 42;
@@ -91,16 +93,28 @@ int main() {
 - Constructors: a method named after the class; `new Name(args)` routes by arity.
 - Varargs-style formatting: `str.format("%d + %d = %d", a, b, c)` (`%d`, `%s`, `%b`).
 
-```
+```java
 int fib(int n) {
-    if (n < 2) { return n; }
+    if (n < 2) {
+        return n;
+    }
     return fib(n - 1) + fib(n - 2);
 }
+
 class Point {
-    int x; int y;
-    public Point(int a, int b) { this.x = a; this.y = b; }
-    public int sum() { return x + y; }
+    int x;
+    int y;
+
+    public Point(int a, int b) {
+        this.x = a;
+        this.y = b;
+    }
+
+    public int sum() {
+        return x + y;
+    }
 }
+
 int main() {
     printi(fib(10));          // 55
     Point p = new Point(3, 4);
@@ -121,20 +135,46 @@ int main() {
   called as `Math.abs(7)`.
 - Generics: `class Vessel<T>`, `T identity<T>(T x)`: monomorphized at compile time.
 
-```
+```java
 class Animal {
     int id;
-    public Animal(int a) { this.id = a; }
-    public int speak() { return 0; }
+
+    public Animal(int a) {
+        this.id = a;
+    }
+
+    public int speak() {
+        return 0;
+    }
 }
+
 class Dog extends Animal {
     int barks;
-    public Dog(int a, int b) { super(a); this.barks = b; }
-    public int speak() { return 1; }            // override
+
+    public Dog(int a, int b) {
+        super(a);
+        this.barks = b;
+    }
+
+    public int speak() {            // override
+        return 1;
+    }
 }
-interface Speaker { int speak(); }
-class Robot implements Speaker { public int speak() { return 10; } }
-class Vessel<T> { T v; }
+
+interface Speaker {
+    int speak();
+}
+
+class Robot implements Speaker {
+    public int speak() {
+        return 10;
+    }
+}
+
+class Vessel<T> {
+    T v;
+}
+
 int main() {
     Animal a = new Dog(5, 2);
     printi(a.speak());                 // 1  (virtual dispatch)
@@ -157,20 +197,26 @@ int main() {
 - Structs: classes with plain fields, including nested object fields.
 - `len(a)` / `len(c)` for array and collection size.
 
-```
+```java
 int main() {
     list l = [10, 20, 30];
-    l.add(40); l.sort(); l.reverse();
-    print(l.join("-")); print("\n");    // 40-30-20-10
+    l.add(40);
+    l.sort();
+    l.reverse();
+    print(l.join("-"));
+    print("\n");                   // 40-30-20-10
     hashmap m = new hashmap();
-    m.put("apple", 1); m.put("banana", 2);
+    m.put("apple", 1);
+    m.put("banana", 2);
     printi(m.get("banana"));           // 2
     printi(len(m));                   // 2
     hashset s = new hashset();
-    s.add(5); s.add(5);
+    s.add(5);
+    s.add(5);
     printi(len(s));                   // 1  (unique)
     queue q = new queue();
-    q.push(1); q.push(2);
+    q.push(1);
+    q.push(2);
     printi(q.pop());                 // 1  (FIFO)
     return 0;
 }
@@ -187,18 +233,24 @@ int main() {
 - Compound assign `+= -= *= /=`, ternary `c ? a : b`.
 - `&&`/`||` are logical with short-circuit (return `0`/`1`).
 
-```
+```java
 int main() {
     int x = 0;
     for (int i = 0; i < 5; i = i + 1) {
-        if (i == 2) { continue; }
-        if (i == 4) { break; }
+        if (i == 2) {
+            continue;
+        }
+        if (i == 4) {
+            break;
+        }
         x += i;
     }
     printi(x);                    // 4  (0 + 1 + 3)
     int a[] = [1, 2, 3];
     int s = 0;
-    for (int v : a) { s += v; }
+    for (int v : a) {
+        s += v;
+    }
     printi(s);                   // 6
     switch (s) {
         case 6:
@@ -229,9 +281,21 @@ int main() {
   code addresses memory through `string` (`buf[i]` = 8-byte slot,
   `sys.byte_*` = sub-word cells).
 
-```
-class Pair { int a; int b; public Pair(int x, int y) { this.a = x; this.b = y; } }
-int use(Pair p) { return p.a + p.b; }
+```java
+class Pair {
+    int a;
+    int b;
+
+    public Pair(int x, int y) {
+        this.a = x;
+        this.b = y;
+    }
+}
+
+int use(Pair p) {
+    return p.a + p.b;
+}
+
 int main() {
     Pair p = new Pair(3, 4);   // escapes into use() -> heap + refcount
     printi(use(p));            // 7
@@ -255,7 +319,7 @@ int main() {
 - Catch a primitive (e.g. `int`) or a class error type.
 - A `try` that does not throw returns normally.
 
-```
+```java
 int main() {
     try {
         throw 42;
@@ -282,7 +346,7 @@ int main() {
 - Synchronization: `sys.mutex_lock/unlock(&m)`, `sys.atomic_cas(&v, old, new)`.
 - Lower-level: `sys.clone`, `sys.futex`, `sys.nanosleep(sec, nsec)`.
 
-```
+```java
 void thread_fn(int arg) {
     printi(arg);             // 7
 }
@@ -305,7 +369,7 @@ int main() {
 - Read/write over a socket fd; `sys.close` to release.
 - I/O multiplexing: `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
 
-```
+```java
 int main() {
     int s = sys.socket(2, 1, 0);            // AF_INET, SOCK_STREAM
     sys.bind(s, sys.sockaddr(7777, 0, 0, 0, 0), 16);
@@ -332,7 +396,7 @@ int main() {
 - `b64.encode/decode`, `json.get(s, key)` / `json.geti(s, key)`.
 - Generic syscall escape hatch: `sys.syscall(num, a1, a2, a3, a4, a5)`.
 
-```
+```java
 int main() {
     int f = sys.open("/tmp/flintc_demo.txt", 0x241, 0x1a4);
     sys.write(f, "hi", 2);
@@ -359,7 +423,7 @@ int main() {
 - `str.format(fmt, a, b, c, d)`: printf-style `%d`, `%s`, `%b`.
 - `strlen(s)`; passed and stored by pointer.
 
-```
+```java
 int main() {
     string s = "hello" + " world";        // "hello world"
     print(s); print("\n");
@@ -385,7 +449,7 @@ int main() {
   `math.itof`, `math.ftoi`, `math.fadd`, `math.fsub`, `math.fmul`,
   `math.fdiv`, `math.fcmp`.
 
-```
+```java
 int main() {
     int a = math.itof(3);
     int b = math.itof(2);
@@ -404,16 +468,22 @@ int main() {
 - Compile multiple files at once, or via a TOML manifest / a directory.
 - Each source file keeps its own `package` header.
 
-```
+```java
 // util.flint
 package com.example;
+
 class Util {
-    public Util() { }
-    public int doubleIt(int x) { return x * 2; }
+    public Util() {
+    }
+
+    public int doubleIt(int x) {
+        return x * 2;
+    }
 }
 
 // main.flint  (compile:  flintc util.flint main.flint -o out)
 import com.example.Util;
+
 int main() {
     Util u = new Util();
     printi(u.doubleIt(21));   // 42
@@ -434,7 +504,7 @@ flintc src/stdlib/*.flint myapp.flint -o myapp
 
 then `import std.X;` and call `X.method(...)` (static methods, no instance):
 
-```
+```java
 import std.Math;
 import std.Sort;
 import std.Num;
@@ -481,12 +551,17 @@ Detailed per-topic reference; each topic is expandable.
 - `void` returns nothing.
 - `null` is the null value; class, `*T`, and `T a[]` locals and fields start as `null`.
 
-```
+```java
 enum Color { Red, Green, Blue }
+
 class Point {
     int x;
-    public Point(int a) { this.x = a; }
+
+    public Point(int a) {
+        this.x = a;
+    }
 }
+
 int main() {
     int n = 42;
     boolean flag = 1;              // i8, 0/1
@@ -511,12 +586,19 @@ int main() {
 - `return e;` exits with a value; `return;` for `void`.
 - Top-level functions are free functions; call them by name.
 
-```
+```java
 int fib(int n) {
-    if (n < 2) { return n; }
+    if (n < 2) {
+        return n;
+    }
     return fib(n - 1) + fib(n - 2);
 }
-void greet() { print("hi"); print("\n"); }
+
+void greet() {
+    print("hi");
+    print("\n");
+}
+
 int main() {
     printi(fib(10));   // 55
     greet();
@@ -535,7 +617,7 @@ int main() {
 - `p.x` reads and writes a field on `p`.
 - Field order in `new` follows declaration order.
 
-```
+```java
 class Point {
     int x;
     int y;
@@ -560,18 +642,27 @@ int main() {
 - Calls chain: `p.move(1, 1).getX()` is valid.
 - Method names are mangled to `Class_method` in the assembly.
 
-```
+```java
 class Point {
     int x;
     int y;
-    public Point(int a, int b) { this.x = a; this.y = b; }
-    public int sum() { return x + y; }          // bare x = this.x
+
+    public Point(int a, int b) {
+        this.x = a;
+        this.y = b;
+    }
+
+    public int sum() {                 // bare x = this.x
+        return x + y;
+    }
+
     public Point move(int dx, int dy) {
         this.x = this.x + dx;
         this.y = this.y + dy;
-        return this;                           // enables chaining
+        return this;                 // enables chaining
     }
 }
+
 int main() {
     Point p = new Point(1, 2);
     printi(p.sum());                          // 3
@@ -589,13 +680,21 @@ int main() {
 - A `private` member is reachable only from inside the same class.
 - Access from another class is a compile error with a span.
 
-```
+```java
 class Safe {
     private int secret;
     public int open;
-    public Safe(int s, int o) { this.secret = s; this.open = o; }
-    public int peek() { return secret; }   // ok: inside the class
+
+    public Safe(int s, int o) {
+        this.secret = s;
+        this.open = o;
+    }
+
+    public int peek() {            // ok: inside the class
+        return secret;
+    }
 }
+
 int main() {
     Safe s = new Safe(7, 3);
     printi(s.peek());   // 7
@@ -617,7 +716,7 @@ conventional, not required.
 - `set` generates `void setName(Ty value)`.
 - `getset` generates both.
 
-```
+```java
 class User {
     private get int _age;        // _age -> getAge()
     private getset string _name; // _name -> getName(), setName()
@@ -643,20 +742,30 @@ int main() {
 - `new Counter()` with a zero-arg constructor calls the constructor.
 - A constructor arity mismatch is a compile error.
 
-```
+```java
 class Point {
     int x;
     int y;
-    public Point(int a, int b) { this.x = a; this.y = b; }
+
+    public Point(int a, int b) {
+        this.x = a;
+        this.y = b;
+    }
 }
+
 class Size {
     int w;
     int h;
 }
+
 class Counter {
     int n;
-    public Counter() { this.n = 100; }
+
+    public Counter() {
+        this.n = 100;
+    }
 }
+
 int main() {
     Point p = new Point(3, 4);    // routes to the 2-arg constructor
     Size s = new Size(800, 600);  // no constructor: positional field init
@@ -670,32 +779,68 @@ int main() {
 <details>
 <summary>Inheritance, abstract & interfaces</summary>
 
-```
+```java
 class Animal {
     int id;
-    public Animal(int a) { this.id = a; }
-    public int speak() { return 0; }
+
+    public Animal(int a) {
+        this.id = a;
+    }
+
+    public int speak() {
+        return 0;
+    }
 }
+
 class Dog extends Animal {
     int barks;
-    public Dog(int a, int b) { super(a); this.barks = b; }
-    public int speak() { return 1; }                 // override
-    public int bark() { return super.speak() + this.barks; }
+
+    public Dog(int a, int b) {
+        super(a);
+        this.barks = b;
+    }
+
+    public int speak() {                    // override
+        return 1;
+    }
+
+    public int bark() {
+        return super.speak() + this.barks;
+    }
 }
+
 abstract class Shape {
-    abstract int area();                              // abstract method
+    abstract int area();                    // abstract method
 }
+
 class Circle extends Shape {
     int r;
-    public Circle(int x) { this.r = x; }
-    public int area() { return this.r * this.r; }
+
+    public Circle(int x) {
+        this.r = x;
+    }
+
+    public int area() {
+        return this.r * this.r;
+    }
 }
-interface Speaker { int speak(); }
+
+interface Speaker {
+    int speak();
+}
+
 class Robot implements Speaker {
     int level;
-    public Robot(int l) { this.level = l; }
-    public int speak() { return this.level * 10; }
+
+    public Robot(int l) {
+        this.level = l;
+    }
+
+    public int speak() {
+        return this.level * 10;
+    }
 }
+
 int main() {
     Dog d = new Dog(5, 2);
     printi(d.speak());             // 1  (override)
@@ -720,12 +865,16 @@ int main() {
 <details>
 <summary>Static fields</summary>
 
-```
+```java
 class Counter {
     static int n;
     int id;
-    void Counter(int i) { this.id = i; }
+
+    void Counter(int i) {
+        this.id = i;
+    }
 }
+
 int main() {
     Counter.n = 5;                 // accessed via the class name
     Counter c = new Counter(1);
@@ -744,7 +893,7 @@ int main() {
 <details>
 <summary>Enums</summary>
 
-```
+```java
 enum Color {
     Red, Green, Blue,            // sequential from 0
 }
@@ -767,7 +916,7 @@ int main() {
 <details>
 <summary>Exceptions</summary>
 
-```
+```java
 int main() {
     try {
         throw 42;
@@ -798,12 +947,19 @@ int main() {
 - Primitives are always value types on the stack.
 - Cycles leak in v1; there is no weak reference.
 
-```
+```java
 class Box {
     int v;
-    public Box(int x) { this.v = x; }
+
+    public Box(int x) {
+        this.v = x;
+    }
 }
-int use(Box b) { return b.v * 2; }
+
+int use(Box b) {
+    return b.v * 2;
+}
+
 int main() {
     Box local = new Box(21);     // does not escape -> stack slot
     printi(local.v);            // 21
@@ -829,27 +985,41 @@ int main() {
   `e` against each case; a case with no `break` falls through to the next case.
 - `return` exits the current function.
 
-```
+```java
 int main() {
     int x = 0;
     for (int i = 0; i < 5; i = i + 1) {
-        if (i == 2) { continue; }
-        if (i == 4) { break; }
+        if (i == 2) {
+            continue;
+        }
+        if (i == 4) {
+            break;
+        }
         x += i;
     }
     printi(x);                    // 4  (0 + 1 + 3)
     int i = 0;
-    while (i < 3) { i = i + 1; }
+    while (i < 3) {
+        i = i + 1;
+    }
     printi(i);                   // 3
     int a[] = [1, 2, 3];
     int s = 0;
-    for (int v : a) { s = s + v; }
+    for (int v : a) {
+        s = s + v;
+    }
     printi(s);                   // 6  (range-for)
     switch (3) {
-        case 2: printi(100); break;
-        case 3: printi(300);    // no break: falls through
-        case 4: printi(400); break;
-        default: printi(0);
+        case 2:
+            printi(100);
+            break;
+        case 3:                 // no break: falls through
+            printi(300);
+        case 4:
+            printi(400);
+            break;
+        default:
+            printi(0);
     }
     return 0;
 }
@@ -870,7 +1040,7 @@ int main() {
 - Ternary: `c ? a : b` (right-associative, no short-circuit on the branches).
 - `/` and `%` truncate toward zero (C semantics): `-7 / 2 == -3`, `-7 % 2 == -1`.
 
-```
+```java
 int main() {
     int x = 5;
     int y = 3;
@@ -911,7 +1081,7 @@ sized `sys.*` builtins; reach for raw pointers only when you need the
 - Sized access: `sys.byte_load/store`, `sys.short_load/store`,
   `sys.int_load/store` (little-endian) for sub-word cells.
 
-```
+```java
 int main() {
     int x = 10;
     *int p = &x;
@@ -944,8 +1114,11 @@ int main() {
 - `for (int x : a)` range-for desugars to an index loop over `len(a)`.
 - No bounds checks and no refcount on elements in v1.
 
-```
-int sum3(int a[]) { return a[0] + a[1] + a[2]; }
+```java
+int sum3(int a[]) {
+    return a[0] + a[1] + a[2];
+}
+
 int main() {
     int a[] = [10, 20, 30];
     a[1] = 25;
@@ -955,7 +1128,9 @@ int main() {
     printi(g[1][0]);          // 3
     printi(sum3(a));          // 65  (arrays pass by pointer)
     int s = 0;
-    for (int v : a) { s = s + v; }
+    for (int v : a) {
+        s = s + v;
+    }
     printi(s);               // 65
     return 0;
 }
@@ -993,7 +1168,7 @@ string, everything else as an int).
 - `contains`/`remove` match on the value's flavour: `m.contains("a")` looks for a
   string key, `m.contains(1)` for an int key.
 
-```
+```java
 int main() {
     list l = [10, 20, 30];
     l.add(40);
@@ -1036,9 +1211,15 @@ name (`Vessel_int`, `identity_int`); there is no runtime type erasure.
 - Nested instantiations are expanded to a fixpoint, so
   `Vessel<Pair<int, int>>` works.
 
-```
-class Vessel<T> { T v; }
-T identity<T>(T x) { return x; }
+```java
+class Vessel<T> {
+    T v;
+}
+
+T identity<T>(T x) {
+    return x;
+}
+
 int main() {
     Vessel<int> a = new Vessel<int>(41);
     printi(a.v);                // 41
@@ -1073,7 +1254,7 @@ int main() {
 - `str.format(fmt, a, b, c, d)`: printf-style with `%d`, `%s`, `%b` placeholders.
 - Strings are passed and stored by pointer.
 
-```
+```java
 int main() {
     string s = "hello" + " world";
     print(s);
@@ -1102,7 +1283,7 @@ fraction. `0.5` is `32768`. Provided by the `math.*` builtins:
 - `math.fadd`, `math.fsub`, `math.fmul`, `math.fdiv`: arithmetic.
 - `math.fcmp(a, b)`: returns `< 0`, `0`, or `> 0`.
 
-```
+```java
 int main() {
     int a = math.itof(3);
     int b = math.itof(2);
@@ -1116,7 +1297,7 @@ int main() {
 <details>
 <summary>Concurrency</summary>
 
-```
+```java
 void thread_fn(int arg) {
     sys.write(1, "hello from thread", 19);
 }
@@ -1137,7 +1318,7 @@ int main() {
 <details>
 <summary>Networking (TCP)</summary>
 
-```
+```java
 int main() {
     int s = sys.socket(2, 1, 0);           // AF_INET, SOCK_STREAM
     sys.bind(s, sys.sockaddr(7777, 127, 0, 0, 1), 16);
@@ -1174,7 +1355,7 @@ int main() {
 - `sys.brk(addr)`: move the program break.
 - `sys.syscall(num, a1, a2, a3, a4, a5)`: a generic raw-syscall escape hatch.
 
-```
+```java
 int main() {
     int f = sys.open("/tmp/flint_io.txt", 0x241, 0x1a4);  // O_RDWR|O_CREAT|O_TRUNC
     sys.write(f, "hi", 2);
@@ -1195,16 +1376,22 @@ int main() {
 <details>
 <summary>Modules (package & import)</summary>
 
-```
+```java
 // util.flint
 package com.example;
+
 class Util {
-    public Util() { }
-    public int doubleIt(int x) { return x * 2; }
+    public Util() {
+    }
+
+    public int doubleIt(int x) {
+        return x * 2;
+    }
 }
 
 // main.flint
 import com.example.Util;
+
 int main() {
     Util u = new Util();
     printi(u.doubleIt(21));
@@ -1226,7 +1413,7 @@ int main() {
 <details>
 <summary>Comments</summary>
 
-```
+```java
 // line comment
 /* block
    comment */
@@ -1273,7 +1460,7 @@ Builtins, grouped by module:
 
 Examples (each block is a complete, runnable `main`):
 
-```
+```java
 // Text, numbers, and fixed-point (str / conv / math / len)
 int main() {
     string s = "hello" + " world";
@@ -1290,7 +1477,7 @@ int main() {
 }
 ```
 
-```
+```java
 // Clock, randomness, environment, encoding, json, logging
 int main() {
     printi(time.millis() > 1000000000000 ? 1 : 0);   // 1
@@ -1305,7 +1492,7 @@ int main() {
 }
 ```
 
-```
+```java
 // Files and sized memory access (sys / mem)
 int main() {
     int fd = sys.open("/tmp/flint_builtin.txt", 0x241, 0x1a4);
