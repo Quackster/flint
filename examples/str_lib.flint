@@ -1,0 +1,19 @@
+// str_lib: the std.Str class (import std.Str) — string utilities.
+import std.Str;
+
+int main() {
+    print(Str.upper("flint")); print(" ");      // FLINT
+    print(Str.lower("FlInT")); print(" ");      // flint
+    print(Str.reverse("abc")); print(" ");      // cba
+    print(Str.trim("  hi  ")); print(" ");     // hi
+    printi(Str.count("banana", "an")); print(" "); // 2
+    printi(Str.contains("banana", "nana")); print(" "); // 1
+    printi(Str.last_index_of("banana", "an")); print(" "); // 3 ("an" at index 3)
+    printi(Str.starts_with("flint", "fli")); print(" "); // 1
+    printi(Str.ends_with("flint", "nt")); print(" "); // 1
+    print(Str.replace_all("a-b-c", "-", "+")); print(" "); // a+b+c
+    print(Str.repeat("ab", 3)); print(" ");    // ababab
+    print(Str.rjust("7", 5, 48)); print(" ");  // 00007  (48 is '0')
+    print(Str.ljust("7", 5, 48)); print("\n"); // 70000
+    return 0;
+}

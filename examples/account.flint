@@ -1,0 +1,31 @@
+// properties: an accessor prefix on a field generates methods from the
+// field name. `get` -> getOwner(); `set` -> setBalance(v); `getset` ->
+// both. The generated name is PascalCase after stripping leading
+// underscores (the underscore prefix is conventional, not required).
+class Account {
+    private get string _owner;
+    private getset int balance;
+    public Account(string o, int b) {
+        this._owner = o;
+        this.balance = b;
+    }
+    public int deposit(int amt) {
+        this.balance = this.balance + amt;
+        return this.balance;
+    }
+}
+
+int main() {
+    Account a = new Account("alice", 100);
+    print(a.getOwner());            // alice
+    print("\n");
+    printi(a.getBalance());       // 100
+    print("\n");
+    a.deposit(50);
+    printi(a.getBalance());       // 150
+    print("\n");
+    a.setBalance(7);
+    printi(a.getBalance());       // 7
+    print("\n");
+    return 0;
+}

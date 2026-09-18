@@ -1,0 +1,21 @@
+// format: varargs-style formatting. str.format(fmt, a, b, c, d) fills
+// %d (decimal int), %s (string) and %b (0/1 boolean) placeholders, left
+// to right, with the four extra arguments.
+int main() {
+    string s1 = str.format("hello %s", "world", 0, 0, 0);
+    print(s1);                       // hello world
+    print("\n");
+    string s2 = str.format("%d + %d = %d", 1, 2, 3, 0);
+    print(s2);                       // 1 + 2 = 3
+    print("\n");
+    string s3 = str.format("%b %b", 1, 0, 0, 0);
+    print(s3);                       // 1 0
+    print("\n");
+    string s4 = str.format("%s=%d", "n", 42, 0, 0);
+    print(s4);                       // n=42
+    print("\n");
+    string s5 = str.format("%d-%s-%b", 7, "x", 1, 0);
+    print(s5);                       // 7-x-1
+    print("\n");
+    return 0;
+}

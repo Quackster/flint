@@ -1,0 +1,46 @@
+// labels: named loops. `label:` before a for/while; `break label` exits
+// that loop from anywhere inside it; `continue label` jumps to the next
+// iteration of that (outer) loop.
+int main() {
+    // break outer: stop the whole nested pair on the first j == 1
+    int i = 0;
+    int j = 0;
+    outer:
+    for (i = 0; i < 3; i = i + 1) {
+        for (j = 0; j < 3; j = j + 1) {
+            if (j == 1) {
+                break outer;
+            }
+        }
+    }
+    printi(i * 10 + j);            // 01 -> 1 (stopped at i=0, j=1)
+    print("\n");
+
+    // continue outer2: when n == 2, skip the rest of that outer round
+    int n = 0;
+    int k = 0;
+    outer2:
+    for (n = 0; n < 4; n = n + 1) {
+        for (k = 0; k < 2; k = k + 1) {
+            if (n == 2) {
+                continue outer2;
+            }
+            printi(n * 10 + k);
+            print("\n");
+        }
+    }
+    // prints: 0, 1, 10, 11, 30, 31 (the n == 2 round is skipped)
+
+    // break on a labeled while
+    int m = 0;
+    lbl:
+    while (m < 10) {
+        m = m + 1;
+        if (m == 3) {
+            break lbl;
+        }
+    }
+    printi(m);                   // 3
+    print("\n");
+    return 0;
+}

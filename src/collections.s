@@ -187,7 +187,7 @@ flint_list_remove:
     mov %rdi, %rbx
     movq 8(%rbx), %rax            # len
     cmp %rax, %rsi               # i - len
-    jae .lr_done                 # i >= len: no-op
+    jae .lr_noop                 # i >= len: no-op
     movq 24(%rbx), %r12          # data
     movq (%r12, %rsi, 8), %r14    # removed element
     movq 8(%rbx), %rdx           # len
@@ -205,6 +205,7 @@ flint_list_remove:
     movq 8(%rbx), %rax
     dec %rax
     movq %rax, 8(%rbx)
+    mov $1, %rax                 # removed
     # release removed element if object
     movq 32(%rbx), %r10          # elem_release
     test %r10, %r10
@@ -213,6 +214,11 @@ flint_list_remove:
     jz .lr_done
     mov %r14, %rdi
     call *%r10
+    mov $1, %rax                 # call clobbers rax
+    jmp .lr_done
+.lr_noop:
+    xor %rax, %rax             # not removed
+    jmp .lr_done
 .lr_done:
     pop %r14
     pop %r12
@@ -771,6 +777,7 @@ flint_hashset_remove:
     movq 8(%rbx), %rax
     dec %rax
     movq %rax, 8(%rbx)
+    mov $1, %rax                 # removed
     movq 32(%rbx), %r11          # elem_release
     test %r11, %r11
     jz .hsm_done
@@ -1219,6 +1226,7 @@ flint_hashmap_remove:
     movq 8(%rbx), %rax
     dec %rax
     movq %rax, 8(%rbx)
+    mov $1, %rax                 # removed
     movq 32(%rbx), %r13          # elem_release
     test %r13, %r13
     jz .hmr2_done

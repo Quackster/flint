@@ -1,0 +1,13 @@
+// checksum_lib: the std.Checksum class (import std.Checksum) —
+// several checksums/hashes of a byte buffer.
+import std.Checksum;
+
+int main() {
+    string s = "hello";
+    printi(Checksum.sum32(s)); print(" ");    // 104+101+108+108+111 = 532
+    printi(Checksum.crc32(s) & 0xFFFF); print(" ");  // crc32("hello") low 16 bits
+    printi(Checksum.djb2(s) & 0xFFFF); print(" ");
+    printi(Checksum.fnv1a32(s) & 0xFFFF); print(" ");
+    printi(Checksum.adler32(s)); print("\n");
+    return 0;
+}

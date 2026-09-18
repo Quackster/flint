@@ -1,0 +1,46 @@
+// abstract: an `abstract class` cannot be instantiated; its `abstract`
+// methods have no body. Concrete subclasses must declare them, and the
+// call dispatches virtually through the abstract type.
+abstract class Shape {
+    abstract int area();
+}
+
+class Circle extends Shape {
+    int r;
+    public Circle(int x) {
+        this.r = x;
+    }
+    public int area() {
+        return this.r * this.r;
+    }
+}
+
+class Square extends Shape {
+    int s;
+    public Square(int x) {
+        this.s = x;
+    }
+    public int area() {
+        return this.s * this.s;
+    }
+}
+
+int total(Shape sh) {
+    return sh.area();              // virtual dispatch
+}
+
+int main() {
+    Circle c = new Circle(3);
+    Square q = new Square(4);
+    printi(c.area());             // 9
+    print("\n");
+    printi(q.area());             // 16
+    print("\n");
+    printi(total(c));           // 9 (through the abstract type)
+    print("\n");
+    printi(total(q));           // 16
+    print("\n");
+    printi(c.area() + q.area());  // 25
+    print("\n");
+    return 0;
+}

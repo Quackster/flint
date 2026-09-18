@@ -1,0 +1,51 @@
+// monthdays: switch/case with fall-through. A case with no `break`
+// drops into the next case body; `break` exits the switch.
+int daysInMonth(int m) {
+    int d = -1;
+    switch (m) {
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+        case 8:
+        case 10:
+        case 12:
+            d = 31;
+            break;
+        case 4:
+        case 6:
+        case 9:
+        case 11:
+            d = 30;
+            break;
+        case 2:
+            d = 28;
+            break;
+        default:
+            d = 0;
+    }
+    return d;
+}
+
+int main() {
+    printi(daysInMonth(1));        // 31
+    print("\n");
+    printi(daysInMonth(4));        // 30
+    print("\n");
+    printi(daysInMonth(2));        // 28
+    print("\n");
+    printi(daysInMonth(99));      // 0 (default)
+    print("\n");
+    // explicit fall-through: case 4 matches, prints, falls into case 5
+    switch (4) {
+        case 4:
+            printi(100);
+        case 5:
+            printi(200);          // reached by fall-through
+            break;
+        default:
+            printi(0);
+    }
+    print("\n");
+    return 0;
+}

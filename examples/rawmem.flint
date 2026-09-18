@@ -1,0 +1,63 @@
+// rawmem: raw pointers (*T, &x, *p) and the heap (alloc/free/memcpy)
+// are the low-level escape hatch. buf[i] reads/writes the 8-byte slot
+// at i; sys.byte/short/int_load/store do sub-word little-endian access.
+// sys.syscall(num, a1..a5) is the generic raw-syscall escape hatch
+// (args land in rdi rsi rdx r10 r8 r9; the 4th is r10).
+int main() {
+    // *int pointer to a local: writes go through the address
+    int x = 10;
+    *int p = &x;
+    *p = 99;
+    printi(x);                     // 99
+    print("\n");
+    // dynamic array over alloc(); buf[i] is an 8-byte slot
+    int n = 5;
+    *int fib = alloc(n * 8);
+    fib[0] = 0;
+    fib[1] = 1;
+    int i = 2;
+    while (i < n) {
+        fib[i] = fib[i - 1] + fib[i - 2];
+        i = i + 1;
+    }
+    int s = 0;
+    i = 0;
+    while (i < n) {
+        s = s + fib[i];
+        i = i + 1;
+    }
+    printi(s);                     // 0+1+1+2+3 = 7
+    print("\n");
+    free(fib);
+    // sub-word little-endian access into a buffer
+    *byte buf = alloc(16);
+    sys.byte_store(buf + 8, 65);
+    printi(sys.byte_load(buf + 8));   // 65 ('A')
+    print("\n");
+    sys.short_store(buf, 1000);
+    printi(sys.short_load(buf));      // 1000
+    print("\n");
+    sys.int_store(buf + 12, 0x12345678);
+    printi(sys.int_load(buf + 12));   // 305419896 (== 0x12345678)
+    print("\n");
+    // memcpy: copy 16 bytes
+    *byte src = alloc(16);
+    src[0] = 111;
+    src[1] = 222;
+    *byte dst = alloc(16);
+    memcpy(dst, src, 16);
+    printi(dst[0] * 1000 + dst[1]);   // 111222
+    print("\n");
+    free(src);
+    free(dst);
+    // generic syscall escape hatch: getpid (39), open (2), close (3)
+    int pid = sys.syscall(39, 0, 0, 0, 0, 0);
+    printi(pid > 0 ? 1 : 0);        // 1
+    print("\n");
+    int fd = sys.syscall(2, "/dev/null", 0, 0, 0, 0);
+    printi(fd >= 0 ? 1 : 0);        // 1
+    print("\n");
+    printi(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
+    print("\n");
+    return 0;
+}

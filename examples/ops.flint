@@ -1,0 +1,56 @@
+// ops: operator kitchen-sink with expected values.
+// / and % truncate toward zero (C semantics); && / || short-circuit
+// and yield 0/1; ternary is right-associative.
+int main() {
+    printi(2 + 3 * 4);                    // 14 (precedence)
+    print("\n");
+    printi((2 + 3) * 4);                // 20 (parentheses)
+    print("\n");
+    printi(-7 / 2);                     // -3 (truncate toward zero)
+    print("\n");
+    printi(-7 % 2);                     // -1 (sign of the dividend)
+    print("\n");
+    printi(7 / 2);                     // 3
+    print("\n");
+    printi(7 % 2);                     // 1
+    print("\n");
+    printi(1 << 4);                     // 16
+    print("\n");
+    printi(40 >> 2);                    // 10
+    print("\n");
+    printi(5 & 3);                     // 1
+    print("\n");
+    printi(5 | 3);                     // 7
+    print("\n");
+    printi(5 ^ 3);                     // 6
+    print("\n");
+    int x = 5;
+    x += 2;                           // x = 7
+    printi(x++);                       // 8 (x++: value after increment)
+    print("\n");
+    printi(++x);                      // 9 (++x: same post-increment value)
+    print("\n");
+    printi(1 ? 10 : 20);              // 10
+    print("\n");
+    printi(0 ? 10 : (1 ? 30 : 40));  // 30 (right-associative)
+    print("\n");
+    printi(1 || 0);                    // 1 (short-circuit)
+    print("\n");
+    printi(0 && 7);                   // 0 (right side not evaluated)
+    print("\n");
+    printi(!0);                       // 1
+    print("\n");
+    printi(3 > 2);                    // 1
+    print("\n");
+    printi(2 <= 2);                   // 1
+    print("\n");
+    printi(2 != 3);                   // 1
+    print("\n");
+    printi(4 == 4);                   // 1
+    print("\n");
+    int y = 10;
+    y /= 2;
+    printi(y);                       // 5 (compound assign)
+    print("\n");
+    return 0;
+}

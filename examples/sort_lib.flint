@@ -1,0 +1,33 @@
+// sort_lib: the std.Sort class (import std.Sort) — in-place array
+// sorting plus array queries. Sorting is done on the array itself.
+import std.Sort;
+
+int main() {
+    int a[] = [5, 2, 9, 1, 7];
+    Sort.sort(a);
+    printi(a[0]); print(" ");
+    printi(a[1]); print(" ");
+    printi(a[4]); print("\n");            // 1 2 9
+
+    int d[] = [3, 8, 1, 6];
+    Sort.sort_desc(d);
+    printi(d[0]); print(" ");
+    printi(d[3]); print("\n");            // 8 1
+
+    int q[] = [4, 9, 2, 7];
+    printi(Sort.min(q)); print(" ");      // 2
+    printi(Sort.max(q)); print(" ");      // 9
+    printi(Sort.sum(q)); print(" ");      // 22
+    printi(Sort.avg(q)); print(" ");      // 5
+    printi(Sort.contains(q, 7)); print(" "); // 1
+    printi(Sort.contains(q, 8)); print(" "); // 0
+    printi(Sort.index_of(q, 9)); print(" "); // 1
+    printi(Sort.count(q, 4)); print(" ");  // 1
+    printi(Sort.argmax(q)); print("\n");   // 1
+
+    // binary_search needs a sorted array
+    int s[] = [1, 3, 5, 7, 9];
+    printi(Sort.binary_search(s, 7)); print(" "); // 3
+    printi(Sort.binary_search(s, 8)); print("\n"); // -1 (not found)
+    return 0;
+}

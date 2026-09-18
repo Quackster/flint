@@ -1,0 +1,33 @@
+// functions: function definitions, arguments, return values, recursion, and
+// the @ operator (function address, used for threads).
+int doubleIt(int x) {
+    return x * 2;
+}
+
+// Recursion: factorial.
+int factorial(int n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+// A void function that mutates its caller's world via a pointer argument.
+void increment(*int p) {
+    *p = *p + 1;
+}
+
+int main() {
+    // basic call
+    printi(doubleIt(21)); print(" ");        // 42
+    // recursion
+    printi(factorial(5)); print(" ");        // 120
+    // void function with a pointer argument
+    int x = 10;
+    increment(&x);
+    printi(x); print(" ");                  // 11
+    // @ yields a function's address (an int); sys.thread_create takes it
+    // int tid = sys.thread_create(@doubleIt, 0);
+    printi(1); print("\n");
+    return 0;
+}

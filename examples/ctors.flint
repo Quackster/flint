@@ -1,0 +1,43 @@
+// ctors: three ways an object gets its initial values. (1) a method
+// named after the class runs when the `new` arity matches (it may
+// transform the arguments); (2) with no constructor, `new` fills the
+// fields positionally; (3) a zero-arg constructor runs for `new Name()`.
+class Point {
+    int x;
+    int y;
+    public Point(int a, int b) {
+        this.x = a + 1;      // the constructor transforms the args
+        this.y = b + 2;
+    }
+}
+
+class Raw {
+    int x;
+    int y;
+}
+
+class Counter {
+    int n;
+    public Counter() {
+        this.n = 42;
+    }
+}
+
+int main() {
+    Point p = new Point(3, 4);   // (1) routes to the 2-arg constructor
+    printi(p.x);                // 4 (3 + 1)
+    print("\n");
+    printi(p.y);                // 6 (4 + 2)
+    print("\n");
+    Raw r = new Raw(10, 20);    // (2) no constructor: positional field init
+    printi(r.x * 100 + r.y);   // 1020
+    print("\n");
+    Counter c = new Counter();  // (3) zero-arg constructor
+    printi(c.n);               // 42
+    print("\n");
+    Counter c2 = new Counter();
+    c2.n = 100;
+    printi(c2.n);             // 100 (mutable after construction)
+    print("\n");
+    return 0;
+}

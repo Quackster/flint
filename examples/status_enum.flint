@@ -1,0 +1,35 @@
+// enum: values default to a sequence from 0 (or continue after an
+// explicit value). An enum value is a named int: usable in expressions,
+// stored in a typed variable, and switched on.
+enum Color {
+    Red, Green, Blue,            // 0, 1, 2
+}
+enum Status {
+    Active = 10,               // explicit value
+    Inactive,                 // continues: 11
+}
+
+int main() {
+    Color c = Color.Green;
+    printi(c);                      // 1
+    print("\n");
+    printi(Color.Blue + 1);         // 3 (usable in expressions)
+    print("\n");
+    printi(Status.Inactive);        // 11
+    print("\n");
+    int s = Status.Active;
+    switch (s) {
+        case 10:
+            printi(1);              // matches the explicit value
+            break;
+        case 11:
+            printi(2);
+            break;
+        default:
+            printi(0);
+    }
+    print("\n");
+    printi(Status.Active + Status.Inactive);  // 21
+    print("\n");
+    return 0;
+}

@@ -299,6 +299,13 @@ impl Ctx<'_> {
                     self.emit("\tpop %rsi"); // index
                     self.emit("\tpop %rdi"); // list
                     self.emit("\tcall flint_list_get");
+                    if matches!(
+                        self.coll_expect,
+                        Some(Ty::Struct(_)) | Some(Ty::Interface(_))
+                    ) {
+                        self.emit("\tmov %rax, %rdi");
+                        self.emit("\tcall flint_retain"); // caller owns a reference
+                    }
                     self.emit("\tpush %rax");
                     let want_str = match self.coll_flags(&bty) {
                         Some((_, v)) => v == 2,

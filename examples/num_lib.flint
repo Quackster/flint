@@ -1,0 +1,18 @@
+// num_lib: the std.Num class (import std.Num) — base conversion and
+// digit math.
+import std.Num;
+
+int main() {
+    print(Num.to_hex(255)); print(" ");    // ff
+    print(Num.to_upper_hex(255)); print(" "); // FF
+    printi(Num.from_hex("ff")); print(" ");   // 255
+    print(Num.to_bin(5)); print(" ");         // 101
+    printi(Num.from_bin("101")); print(" ");  // 5
+    print(Num.to_oct(8)); print(" ");         // 10
+    printi(Num.from_oct("10")); print(" ");   // 8
+    printi(Num.sum_digits(1234)); print(" "); // 10
+    printi(Num.digit_count(1000)); print(" "); // 4
+    print(Num.reverse_digits(1234)); print(" "); // 4321
+    printi(Num.is_palindrome(1221)); print("\n"); // 1
+    return 0;
+}

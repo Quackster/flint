@@ -1,0 +1,38 @@
+// structs: a class with plain fields is a struct. Objects can hold
+// object fields; `new` without a constructor fills fields positionally,
+// including nested objects. Field objects can be re-assigned.
+class Point {
+    int x;
+    int y;
+}
+
+class Rect {
+    Point origin;
+    int w;
+    int h;
+}
+
+int main() {
+    Point p = new Point(3, 4);
+    printi(p.x * 100 + p.y);      // 304
+    print("\n");
+    p.x = 10;
+    printi(p.x + p.y);           // 14
+    print("\n");
+    // nested object literal: first field is itself a Point
+    Rect r = new Rect(new Point(1, 2), 30, 40);
+    printi(r.origin.x);          // 1
+    print("\n");
+    printi(r.origin.y);          // 2
+    print("\n");
+    printi(r.w + r.h);           // 70
+    print("\n");
+    r.w = 50;
+    printi(r.w);               // 50
+    print("\n");
+    // an object field can be re-pointed at a different object
+    r.origin = new Point(9, 9);
+    printi(r.origin.x * 10 + r.origin.y);  // 99
+    print("\n");
+    return 0;
+}

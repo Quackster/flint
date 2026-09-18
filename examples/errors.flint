@@ -1,0 +1,64 @@
+// exceptions: `throw <value>` raises (int or object); `try / catch`
+// dispatches by position — the first catch receives any thrown value
+// (the declared catch type names the variable's type; v1 performs no
+// runtime type check). `finally` always runs, even on return. An
+// uncaught throw silently returns from the enclosing function.
+class MyError {
+    int code;
+    public MyError(int c) {
+        this.code = c;
+    }
+}
+
+int caught_int() {
+    try {
+        throw 42;
+    } catch (int e) {
+        return e;
+    }
+    return -1;
+}
+
+int no_throw() {
+    try {
+        return 7;               // no throw: normal flow
+    } catch (int e) {
+        return -1;
+    }
+}
+
+int fin_ret() {
+    try {
+        return 5;
+    } catch (int e) {
+        return e;
+    } finally {
+        printi(3);             // runs even though the try returned
+    }
+}
+
+int uncaught() {
+    throw 9;
+    printi(12345);           // never reached
+}
+
+int main() {
+    printi(caught_int() == 42 ? 1 : 0);   // 1
+    print("\n");
+    printi(no_throw());         // 7
+    print("\n");
+    // throw an object; catch it by a class-typed variable
+    try {
+        throw new MyError(77);
+    } catch (MyError e) {
+        printi(e.code);      // 77
+    }
+    print("\n");
+    printi(fin_ret());         // 5 (the 3 above came from finally)
+    print("\n");
+    // uncaught throw: the function returns silently, main continues
+    uncaught();
+    printi(1);                  // reached
+    print("\n");
+    return 0;
+}

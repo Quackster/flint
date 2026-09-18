@@ -1,0 +1,45 @@
+// sysio: the I/O-related builtin namespaces (b64, json, env, log) plus
+// raw file I/O through the sys.* syscalls. Output is stable 1/0 checks
+// (env values and log lines are verified, not printed verbatim).
+int main() {
+    // ---- b64 ----
+    // "hello" encodes to "aGVsbG8="; decoding round-trips.
+    string e = b64.encode("hello");
+    printi(str.cmp(e, "aGVsbG8=") == 0 ? 1 : 0); print(" "); // 1
+    string d = b64.decode(e);
+    printi(str.cmp(d, "hello") == 0 ? 1 : 0); print(" ");    // 1
+    printi(str.cmp(b64.decode("aGVsbG8="), "hello") == 0 ? 1 : 0); print(" "); // 1
+
+    // ---- json ----
+    // Extract values from a JSON string by key.
+    string js = "{\"name\":\"alice\",\"age\":30}";
+    string name = json.get(js, "name");
+    printi(str.cmp(name, "alice") == 0 ? 1 : 0); print(" "); // 1
+    printi(json.geti(js, "age") == 30 ? 1 : 0); print(" ");  // 1
+    // A missing key yields the empty string.
+    printi(strlen(json.get(js, "missing")) == 0 ? 1 : 0); print(" "); // 1
+
+    // ---- env ----
+    // A present variable is non-null; an absent one is null.
+    printi(env.get("PATH") != null ? 1 : 0); print(" ");    // 1 (usually)
+    printi(env.get("FLINT_SIO_NOPE_XYZ") == null ? 1 : 0); print(" "); // 1
+
+    // ---- log ----
+    // Writes a tagged line to stderr (shown in the captured output).
+    log.info("sio ok");
+    log.warn("sio warn");
+
+    // ---- raw file I/O via syscalls ----
+    // O_WRONLY|O_CREAT|O_TRUNC = 1|64|512 = 577; mode 0644 (octal) = 420.
+    int fd = sys.open("/tmp/flint_sysio.txt", 577, 420);
+    printi(fd >= 0 ? 1 : 0); print(" ");                  // 1
+    sys.write(fd, "raw io", 6);
+    sys.close(fd);
+    int fd2 = sys.open("/tmp/flint_sysio.txt", 0, 0);    // O_RDONLY
+    string buf = alloc(16);
+    int n = sys.read(fd2, buf, 16);
+    sys.close(fd2);
+    printi(n == 6 ? 1 : 0); print(" ");                  // 1
+    free(buf);
+    return 0;
+}

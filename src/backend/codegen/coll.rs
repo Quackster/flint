@@ -124,6 +124,56 @@ impl Ctx<'_> {
         }
     }
 
+    /// The per-class element-release function name for a class-object
+    /// expression (an existing reference, `this`, or a fresh `new`).
+    /// `None` when the expression is not a concrete class object. Used to
+    /// record `elem_release` on untyped collections that store objects.
+    fn expr_release_fn(&self, e: &Expr, frame: &Frame) -> Option<String> {
+        match e {
+            Expr::Ident { name, .. } => {
+                if let Some(l) = frame.find(name) {
+                    if let Ty::Struct(s) = l.ty {
+                        return Some(format!(
+                            "flint_release_{}",
+                            self.prog.structs[s].name
+                        ));
+                    }
+                }
+                if let Some(sidx) = frame.this_class {
+                    if let Ok(t) = self.struct_field_type(sidx, name) {
+                        if let Ty::Struct(s) = t {
+                            return Some(format!(
+                                "flint_release_{}",
+                                self.prog.structs[s].name
+                            ));
+                        }
+                    }
+                }
+                None
+            }
+            Expr::This { .. } | Expr::SuperBase { .. } => frame
+                .this_class
+                .map(|s| format!("flint_release_{}", self.prog.structs[s].name)),
+            Expr::Field { base, name, .. } => self
+                .expr_struct_type(base, frame)
+                .ok()
+                .flatten()
+                .and_then(|s| self.struct_field_type(s, name).ok())
+                .and_then(|t| {
+                    if let Ty::Struct(s) = t {
+                        Some(format!("flint_release_{}", self.prog.structs[s].name))
+                    } else {
+                        None
+                    }
+                }),
+            Expr::StructLit { name, .. } => self
+                .struct_idx_by_name(name)
+                .map(|s| format!("flint_release_{}", self.prog.structs[s].name)),
+            Expr::Cast { e, .. } => self.expr_release_fn(e, frame),
+            _ => None,
+        }
+    }
+
     /// Element (or value, for maps) type of a typed collection, or None when
     /// the collection is untyped (element type not statically known).
     pub(crate) fn coll_elem_type(&self, cty: &Ty, is_map: bool) -> Option<Ty> {
@@ -263,12 +313,23 @@ impl Ctx<'_> {
 
         match op {
             CollOp::ListAdd | CollOp::QueuePush => {
+                // untyped collection storing a class object: retain existing
+                // references and record elem_release so destroy drops them
+                let off = if op == CollOp::QueuePush { 40 } else { 32 };
+                let untyped = self.expr_release_fn(&args[0], frame);
                 self.emit("\tpop %rsi"); // value
                 if self.coll_elem_obj(&cty, 0) {
                     self.emit("\tmov %rsi, %rdi");
                     self.emit("\tcall flint_retain"); // collection owns a reference
+                } else if untyped.is_some() && self.should_retain(&args[0], frame) {
+                    self.emit("\tmov %rsi, %rdi");
+                    self.emit("\tcall flint_retain"); // collection owns a reference
                 }
                 self.emit("\tmov (%rsp), %rdi"); // collection
+                if let Some(rfn) = untyped {
+                    self.emit(&format!("\tmov ${}, %r11", rfn));
+                    self.emit(&format!("\tmov %r11, {}(%rdi)", off));
+                }
                 self.emit(&format!("\tcall {}", if op == CollOp::ListAdd { "flint_list_add" } else { "flint_queue_push" }));
                 self.emit("\tpop %r10"); // collection back out
                 self.emit("\tpush %rax"); // 1/0
@@ -278,7 +339,12 @@ impl Ctx<'_> {
                 self.emit("\tpop %rsi"); // index
                 self.emit("\tmov (%rsp), %rdi"); // list
                 self.emit("\tcall flint_list_get");
-                if self.coll_elem_obj(&cty, 0) {
+                if self.coll_elem_obj(&cty, 0)
+                    || matches!(
+                        self.coll_expect,
+                        Some(Ty::Struct(_)) | Some(Ty::Interface(_))
+                    )
+                {
                     self.emit("\tmov %rax, %rdi");
                     self.emit("\tcall flint_retain"); // caller owns a reference
                 }
@@ -287,13 +353,21 @@ impl Ctx<'_> {
                 Ok(if want_str { Ty::Str } else { Ty::Int })
             }
             CollOp::ListSet => {
+                let untyped = self.expr_release_fn(&args[1], frame);
                 self.emit("\tpop %rdx"); // value
                 if self.coll_elem_obj(&cty, 0) {
                     self.emit("\tmov %rdx, %rdi");
-                    self.emit("\tcall flint_retain"); // collection owns a reference
+                    self.emit("\tcall flint_retain"); // set owns a reference
+                } else if untyped.is_some() && self.should_retain(&args[1], frame) {
+                    self.emit("\tmov %rdx, %rdi");
+                    self.emit("\tcall flint_retain"); // set owns a reference
                 }
                 self.emit("\tpop %rsi"); // index
                 self.emit("\tmov (%rsp), %rdi"); // list
+                if let Some(rfn) = untyped {
+                    self.emit(&format!("\tmov ${}, %r11", rfn));
+                    self.emit("\tmov %r11, 32(%rdi)");
+                }
                 self.emit("\tcall flint_list_set");
                 self.emit("\tpop %rax"); // collection
                 self.emit("\txor %eax, %eax");
@@ -339,13 +413,21 @@ impl Ctx<'_> {
                 Ok(Ty::Int)
             }
             CollOp::ListInsert => {
+                let untyped = self.expr_release_fn(&args[1], frame);
                 self.emit("\tpop %rdx"); // value
                 if self.coll_elem_obj(&cty, 0) {
+                    self.emit("\tmov %rdx, %rdi");
+                    self.emit("\tcall flint_retain"); // collection owns a reference
+                } else if untyped.is_some() && self.should_retain(&args[1], frame) {
                     self.emit("\tmov %rdx, %rdi");
                     self.emit("\tcall flint_retain"); // collection owns a reference
                 }
                 self.emit("\tpop %rsi"); // index
                 self.emit("\tmov (%rsp), %rdi"); // list
+                if let Some(rfn) = untyped {
+                    self.emit(&format!("\tmov ${}, %r11", rfn));
+                    self.emit("\tmov %r11, 32(%rdi)");
+                }
                 self.emit("\tcall flint_list_insert");
                 self.emit("\tpop %rax"); // list
                 self.emit("\txor %eax, %eax");
@@ -366,7 +448,12 @@ impl Ctx<'_> {
             CollOp::QueuePop | CollOp::QueuePeek => {
                 self.emit("\tmov (%rsp), %rdi"); // queue
                 self.emit(&format!("\tcall {}", if op == CollOp::QueuePop { "flint_queue_pop" } else { "flint_queue_peek" }));
-                if self.coll_elem_obj(&cty, 0) {
+                if self.coll_elem_obj(&cty, 0)
+                    || matches!(
+                        self.coll_expect,
+                        Some(Ty::Struct(_)) | Some(Ty::Interface(_))
+                    )
+                {
                     self.emit("\tmov %rax, %rdi");
                     self.emit("\tcall flint_retain"); // caller owns a reference
                 }
@@ -379,13 +466,21 @@ impl Ctx<'_> {
                 let kf = if kflag != 0 { kflag } else { self.value_flag(&args[0], frame) };
                 self.emit(&format!("\tmovq ${}, %r8", vf));
                 self.emit(&format!("\tmovq ${}, %rdx", kf));
+                let untyped = self.expr_release_fn(&args[1], frame);
                 self.emit("\tpop %rcx"); // value
                 if self.coll_elem_obj(&cty, 1) {
+                    self.emit("\tmov %rcx, %rdi");
+                    self.emit("\tcall flint_retain"); // map owns a reference
+                } else if untyped.is_some() && self.should_retain(&args[1], frame) {
                     self.emit("\tmov %rcx, %rdi");
                     self.emit("\tcall flint_retain"); // map owns a reference
                 }
                 self.emit("\tpop %rsi"); // key
                 self.emit("\tmov (%rsp), %rdi"); // map
+                if let Some(rfn) = untyped {
+                    self.emit(&format!("\tmov ${}, %r11", rfn));
+                    self.emit("\tmov %r11, 32(%rdi)");
+                }
                 self.emit("\tcall flint_hashmap_put");
                 self.emit("\tpop %r10"); // map back out
                 self.emit("\tpush %rax"); // 1/0
@@ -397,17 +492,22 @@ impl Ctx<'_> {
                 let kf = if kflag != 0 { kflag } else { self.value_flag(&args[0], frame) };
                 self.emit(&format!("\tmovq ${}, %r8", u64::from(want_str)));
                 self.emit(&format!("\tmovq ${}, %rdx", kf));
-                self.emit("\tpop %rsi"); // key
-                self.emit("\tmov (%rsp), %rdi"); // map
-                self.emit("\tcall flint_hashmap_get");
-                if self.coll_elem_obj(&cty, 1) {
-                    self.emit("\tmov %rax, %rdi");
-                    self.emit("\tcall flint_retain"); // caller owns a reference
-                }
-                self.emit("\tpop %r10");
-                self.emit("\tpush %rax");
-                Ok(if want_str { Ty::Str } else { Ty::Int })
-            }
+    self.emit("\tpop %rsi"); // key
+    self.emit("\tmov (%rsp), %rdi"); // map
+    self.emit("\tcall flint_hashmap_get");
+    if self.coll_elem_obj(&cty, 1)
+        || matches!(
+            self.coll_expect,
+            Some(Ty::Struct(_)) | Some(Ty::Interface(_))
+        )
+    {
+        self.emit("\tmov %rax, %rdi");
+        self.emit("\tcall flint_retain"); // caller owns a reference
+    }
+    self.emit("\tpop %r10");
+    self.emit("\tpush %rax");
+    Ok(if want_str { Ty::Str } else { Ty::Int })
+}
             CollOp::MapContains | CollOp::SetContains => {
                 let cf = if op == CollOp::MapContains {
                     if kflag != 0 { kflag } else { self.value_flag(&args[0], frame) }

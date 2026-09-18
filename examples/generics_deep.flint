@@ -1,0 +1,45 @@
+// generics: generic classes and functions are monomorphized at compile
+// time (no runtime type erasure): each (template, type-args) pair
+// expands to a concrete type/function with a mangled name
+// (Vessel_int, identity_int). Nested instantiations expand to a fixpoint.
+class Vessel<T> {
+    T v;
+}
+
+class Pair<A, B> {
+    A a;
+    B b;
+}
+
+T identity<T>(T x) {
+    return x;
+}
+
+int main() {
+    Vessel<int> a = new Vessel<int>(41);
+    printi(a.v);                 // 41
+    print("\n");
+    Vessel<string> s = new Vessel<string>("hi");
+    print(s.v);               // hi
+    print("\n");
+    int x = identity(7);        // 7 (type inferred from the argument)
+    printi(x);
+    print("\n");
+    int y = identity<int>(9);   // 9 (explicit type args)
+    printi(y);
+    print("\n");
+    // two type parameters
+    Pair<int, string> p = new Pair<int, string>(5, "ok");
+    printi(p.a);
+    print(" ");
+    print(p.b);
+    print("\n");
+    // nested instantiation: a Vessel holding a Pair
+    Vessel<Pair<int, int>> np =
+        new Vessel<Pair<int, int>>(new Pair<int, int>(3, 4));
+    printi(np.v.a);              // 3
+    print("\n");
+    printi(np.v.b);              // 4
+    print("\n");
+    return 0;
+}

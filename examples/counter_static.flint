@@ -1,0 +1,38 @@
+// statics: a `static` field is a single slot shared by all instances
+// (read/written through the class name); a `static` method takes no
+// `this` and is called through the class name. Instance fields stay
+// per-object.
+class Counter {
+    static int n;
+    int id;
+    public Counter(int i) {
+        this.id = i;
+    }
+}
+
+class Util {
+    static int square(int x) {
+        return x * x;
+    }
+    static int sum2(int a, int b) {
+        return a + b;
+    }
+}
+
+int main() {
+    Counter.n = 5;
+    Counter c1 = new Counter(1);
+    Counter c2 = new Counter(2);
+    printi(c1.id + c2.id);         // 3 (instance fields are per-object)
+    print("\n");
+    printi(Counter.n);           // 5
+    print("\n");
+    Counter.n = Counter.n + 3;    // shared across all instances
+    printi(Counter.n);           // 8
+    print("\n");
+    printi(Util.square(7));      // 49 (no instance needed)
+    print("\n");
+    printi(Util.sum2(20, 22));   // 42
+    print("\n");
+    return 0;
+}

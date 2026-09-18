@@ -1,0 +1,43 @@
+// concurrency: locks and atomics. sys.mutex_lock/unlock(&m) guard a
+// mutex (an int: 0 = unlocked, 1 = locked); sys.atomic_cas(&x, old,
+// new) returns 1 on success / 0 on failure and leaves x updated on
+// success. sys.thread_create(@fn, arg) starts a thread (@ = fn address);
+// sys.thread_join(tid) waits — see the docs note on join in this
+// environment. Lower-level: sys.clone, sys.futex, sys.nanosleep(sec, nsec).
+class State {
+    int counter;
+    int mutex;
+    void State() {
+        this.counter = 0;
+        this.mutex = 0;
+    }
+}
+
+int main() {
+    State s = new State();
+    // mutex lock/unlock on a fresh (unlocked) mutex
+    sys.mutex_lock(&s.mutex);
+    sys.mutex_unlock(&s.mutex);
+    printi(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
+    print("\n");
+    // atomic CAS: 5 -> 10 succeeds
+    int val = 5;
+    int r1 = sys.atomic_cas(&val, 5, 10);
+    printi(r1 == 1 ? 1 : 0);       // 1 (success)
+    printi(val == 10 ? 1 : 0);     // 1 (updated)
+    print("\n");
+    // a CAS that does not match the current value fails
+    int r2 = sys.atomic_cas(&val, 5, 20);
+    printi(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
+    printi(val == 10 ? 1 : 0);     // 1 (unchanged)
+    print("\n");
+    // a thread can be spawned (join is a known limitation here)
+    // int tid = sys.thread_create(@spin, 0);
+    // sys.thread_join(tid);
+    printi(1); print("\n");
+    return 0;
+}
+
+void spin(int arg) {
+    sys.write(1, "t", 1);
+}

@@ -1,0 +1,48 @@
+// interfaces: an `interface` declares a method set; a class that
+// `implements` it must provide the method. `instanceof` tests both the
+// concrete type and the interface name.
+interface Speaker {
+    int speak();
+}
+
+class Robot implements Speaker {
+    int level;
+    public Robot(int l) {
+        this.level = l;
+    }
+    public int speak() {
+        return this.level * 10;
+    }
+}
+
+class Human implements Speaker {
+    int vol;
+    public Human(int v) {
+        this.vol = v;
+    }
+    public int speak() {
+        return this.vol + 100;
+    }
+}
+
+int loudest(Speaker s) {
+    return s.speak();             // dispatch through the interface
+}
+
+int main() {
+    Speaker r = new Robot(3);
+    Speaker h = new Human(5);
+    printi(r.speak());            // 30
+    print("\n");
+    printi(h.speak());            // 105
+    print("\n");
+    printi(loudest(r));         // 30
+    print("\n");
+    printi(r instanceof Robot);  // 1
+    print("\n");
+    printi(r instanceof Speaker);  // 1 (interface test)
+    print("\n");
+    printi(h instanceof Robot);  // 0
+    print("\n");
+    return 0;
+}

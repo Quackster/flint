@@ -1,0 +1,15 @@
+// path_lib: the std.Path class (import std.Path) — pure string
+// path manipulation (no filesystem access).
+import std.Path;
+
+int main() {
+    print(Path.base("/a/b/c.txt")); print(" ");    // c.txt
+    print(Path.dir("/a/b/c.txt")); print(" ");    // /a/b
+    print(Path.ext("/a/b/c.txt")); print(" ");    // txt (no dot)
+    print(Path.join("/a/b", "c.txt")); print(" "); // /a/b/c.txt
+    print(Path.parent("/a/b/c.txt")); print(" ");  // /a/b
+    printi(Path.is_absolute("/a/b")); print(" ");  // 1
+    printi(Path.is_absolute("a/b")); print(" ");   // 0
+    print(Path.normalize("/a/b/../c/./d")); print("\n"); // a/c/d (relative form)
+    return 0;
+}

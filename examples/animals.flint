@@ -1,0 +1,57 @@
+// inheritance: `extends` inherits fields and methods; `super(args)`
+// calls the parent constructor; a re-declared method overrides the
+// parent's and dispatches virtually through a parent-typed reference.
+// `super.method()` calls the parent's method; `(Dog) a` narrows.
+class Animal {
+    int id;
+    public Animal(int a) {
+        this.id = a;
+    }
+    public int speak() {
+        return 0;
+    }
+}
+
+class Dog extends Animal {
+    int barks;
+    public Dog(int a, int b) {
+        super(a);
+        this.barks = b;
+    }
+    public int speak() {            // override
+        return 1;
+    }
+    public int bark() {
+        return super.speak() + this.barks;   // parent method via super
+    }
+}
+
+class Cat extends Animal {
+    int meows;
+    public Cat(int a, int m) {
+        super(a);
+        this.meows = m;
+    }
+    public int speak() {           // override
+        return 2;
+    }
+}
+
+int main() {
+    Animal a = new Dog(5, 3);
+    printi(a.speak());             // 1 (virtual dispatch through Animal)
+    print("\n");
+    Animal c = new Cat(6, 2);
+    printi(c.speak());             // 2
+    print("\n");
+    printi(a.id);                // 5 (inherited field)
+    print("\n");
+    Dog d = (Dog) a;             // narrowing cast
+    printi(d.bark());            // 3 (super.speak() + barks = 0 + 3)
+    print("\n");
+    printi(a instanceof Dog);    // 1
+    print("\n");
+    printi(c instanceof Dog);    // 0
+    print("\n");
+    return 0;
+}

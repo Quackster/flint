@@ -1,0 +1,29 @@
+// rand_lib: the std.Rand class (import std.Rand) — a xorshift64
+// PRNG. We seed it with a fixed value so the output is
+// fully deterministic and reproducible.
+import std.Rand;
+
+int main() {
+    Rand.init(42);
+    // range(lo, hi) is uniform in [lo, hi); coin() is 0 or 1.
+    printi(Rand.range(1, 1000)); print(" ");
+    printi(Rand.range(1, 1000)); print(" ");
+    printi(Rand.coin()); print(" ");
+    printi(Rand.coin()); print(" ");
+    // shuffle (Fisher-Yates, in place) then print the order.
+    int a[] = [0, 1, 2, 3, 4];
+    Rand.shuffle(a);
+    int i = 0;
+    while (i < 5) {
+        printi(a[i]);
+        if (i < 4) {
+            print(" ");
+        }
+        i = i + 1;
+    }
+    print("\n");
+    // pick returns a uniformly random element.
+    int b[] = [10, 20, 30];
+    printi(Rand.pick(b)); print("\n");
+    return 0;
+}

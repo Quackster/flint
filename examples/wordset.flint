@@ -1,0 +1,58 @@
+// wordset: hashset deduplicates a stream of values. add returns 1 when
+// inserted and 0 when already present; contains matches by value
+// (string content compare); remove leaves a tombstone; the bucket array
+// rehashes (doubles) when count*2 >= cap.
+int main() {
+    hashset s = new hashset();
+    // int elements: duplicates collapse
+    printi(s.add(5));        // 1 (inserted)
+    print("\n");
+    printi(s.add(10));      // 1
+    print("\n");
+    printi(s.add(15));      // 1
+    print("\n");
+    printi(s.add(10));      // 0 (already present)
+    print("\n");
+    printi(len(s));        // 3
+    print("\n");
+    printi(s.contains(10));  // 1
+    print("\n");
+    printi(s.contains(99));  // 0
+    print("\n");
+    // remove (tombstone) then re-add
+    printi(s.remove(10));   // 1 (removed)
+    print("\n");
+    printi(s.contains(10));  // 0
+    print("\n");
+    printi(len(s));        // 2
+    print("\n");
+    printi(s.add(10));      // 1 (re-inserted over the tombstone slot)
+    print("\n");
+    printi(len(s));        // 3
+    print("\n");
+    // string elements: content dedup of a word stream
+    hashset<string> words = new hashset<string>();
+    words.add("the");
+    words.add("quick");
+    words.add("brown");
+    words.add("fox");
+    words.add("the");         // duplicate
+    words.add("quick");       // duplicate
+    printi(len(words));       // 4 (unique)
+    print("\n");
+    printi(words.contains("fox"));    // 1
+    print("\n");
+    printi(words.contains("dog"));    // 0
+    print("\n");
+    // literal construction
+    hashset lit = {3, 4};
+    printi(len(lit));        // 2
+    print("\n");
+    printi(lit.contains(4));  // 1
+    print("\n");
+    s.clear();
+    words.clear();
+    printi(len(s) + len(words));  // 0
+    print("\n");
+    return 0;
+}

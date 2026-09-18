@@ -41,18 +41,43 @@ impl Ctx<'_> {
                             Some(CollKind::Map) => "flint_hashmap_size",
                             None => "flint_len",
                         }
-                    } else {
-                        "flint_len"
-                    }
                 } else {
                     "flint_len"
                 }
+            } else if let Expr::Field { base: fbase, name: fname, .. } = &args[0] {
+                // `len(obj.field)`: resolve the field's collection kind
+                match self.expr_struct_type(fbase, frame) {
+                    Ok(Some(sidx)) => match self.struct_field_type(sidx, fname) {
+                        Ok(t) if t.coll_kind().is_some() => match t.coll_kind() {
+                            Some(CollKind::List) => "flint_list_size",
+                            Some(CollKind::Queue) => "flint_queue_size",
+                            Some(CollKind::Set) => "flint_hashset_size",
+                            Some(CollKind::Map) => "flint_hashmap_size",
+                            _ => "flint_len",
+                        },
+                        _ => "flint_len",
+                    },
+                    _ => "flint_len",
+                }
+            } else {
+                "flint_len"
+            }
             } else {
                 b.target
             };
-            // builtins read their arguments; literals stay read-only
-            for a in args {
+            // builtins read their arguments; literals stay read-only.
+            // An argument feeding a string/pointer param steers collection
+            // reads to the string flavour (e.g. `print(m.get(k))`).
+            for (i, a) in args.iter().enumerate() {
+                let saved = self.coll_expect.clone();
+                if b.params
+                    .get(i)
+                    .is_some_and(|t| matches!(t, Ty::Str | Ty::Ptr))
+                {
+                    self.coll_expect = Some(Ty::Str);
+                }
                 self.gen_expr_ro(a, frame)?;
+                self.coll_expect = saved;
             }
             self.pop_args(args.len());
             self.emit(&format!("\tcall {}", target));
@@ -102,12 +127,19 @@ impl Ctx<'_> {
         // literals for `string` params get a fresh writable copy (the
         // callee may write through its parameters).
         let saved = self.str_copy;
+        let saved_ce = self.coll_expect.clone();
         for (i, a) in args.iter().enumerate() {
             self.str_copy = f.params[i].1.as_ref() == Some(&Ty::Str);
+            if matches!(f.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
+                self.coll_expect = Some(Ty::Str);
+            } else {
+                self.coll_expect = saved_ce.clone();
+            }
             self.gen_expr(a, frame)?;
             self.maybe_retain(a, frame);
         }
         self.str_copy = saved;
+        self.coll_expect = saved_ce;
         self.pop_args(args.len());
         self.emit(&format!("\tcall {}", name));
         if f.ret == Some(Ty::Void) || f.ret.is_none() {
@@ -180,12 +212,19 @@ impl Ctx<'_> {
                 }
                 // The callee owns the argument references it receives.
                 let saved = self.str_copy;
+                let saved_ce = self.coll_expect.clone();
                 for (i, a) in args.iter().enumerate() {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
+                    if matches!(meth.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
+                        self.coll_expect = Some(Ty::Str);
+                    } else {
+                        self.coll_expect = saved_ce.clone();
+                    }
                     self.gen_expr(a, frame)?;
                     self.maybe_retain(a, frame);
                 }
                 self.str_copy = saved;
+                self.coll_expect = saved_ce;
                 self.pop_args(args.len());
                 let mangled = mangle(&class_def.name, method);
                 self.emit(&format!("\tcall {}", mangled));
@@ -213,12 +252,19 @@ impl Ctx<'_> {
                 self.gen_expr_ro(base, frame)?;
                 self.maybe_retain(base, frame);
                 let saved = self.str_copy;
+                let saved_ce = self.coll_expect.clone();
                 for (i, a) in args.iter().enumerate() {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
+                    if matches!(meth.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
+                        self.coll_expect = Some(Ty::Str);
+                    } else {
+                        self.coll_expect = saved_ce.clone();
+                    }
                     self.gen_expr(a, frame)?;
                     self.maybe_retain(a, frame);
                 }
                 self.str_copy = saved;
+                self.coll_expect = saved_ce;
                 let total = args.len() + 1;
                 if total > 6 {
                     return Err(CompileError::new(
@@ -350,12 +396,19 @@ impl Ctx<'_> {
         self.gen_expr_ro(base, frame)?;
         self.maybe_retain(base, frame);
         let saved = self.str_copy;
+        let saved_ce = self.coll_expect.clone();
         for (i, a) in args.iter().enumerate() {
             self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
+            if matches!(meth.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
+                self.coll_expect = Some(Ty::Str);
+            } else {
+                self.coll_expect = saved_ce.clone();
+            }
             self.gen_expr(a, frame)?;
             self.maybe_retain(a, frame);
         }
         self.str_copy = saved;
+        self.coll_expect = saved_ce;
         let total = args.len() + 1;
         if total > 6 {
             return Err(CompileError::new(

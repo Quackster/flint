@@ -25,7 +25,7 @@ impl Ctx<'_> {
         }
     }
 
-    fn should_retain(&self, e: &Expr, frame: &Frame) -> bool {
+    pub(crate) fn should_retain(&self, e: &Expr, frame: &Frame) -> bool {
         match e {
             Expr::Ident { name, .. } => {
                 if let Some(l) = frame.find(name) {
@@ -159,6 +159,7 @@ impl Ctx<'_> {
                 self.coll_expect = match lty {
                     Ty::Str | Ty::Ptr => Some(Ty::Str),
                     Ty::Int | Ty::Bool => Some(Ty::Int),
+                    Ty::Struct(_) | Ty::Interface(_) => Some(lty.clone()),
                     _ => None,
                 };
                 // a `string` slot stores a fresh writable copy of a literal
@@ -579,6 +580,7 @@ impl Ctx<'_> {
                     self.coll_expect = match frame.ret_type {
                         Some(Ty::Str) | Some(Ty::Ptr) => Some(Ty::Str),
                         Some(Ty::Int) | Some(Ty::Bool) => Some(Ty::Int),
+                        Some(Ty::Struct(_)) | Some(Ty::Interface(_)) => frame.ret_type.clone(),
                         _ => None,
                     };
                     // a `string` return stores a fresh writable copy of a literal

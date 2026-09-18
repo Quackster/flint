@@ -1,0 +1,67 @@
+// escape: object memory is decided at compile time by escape analysis.
+// An object that does not escape (no argument, return, field store, or
+// &x) lives in a plain stack slot; an escaping object (passed as an
+// argument, returned, stored in a field, or address-taken) goes to the
+// heap with a refcount header [refcount][field0][field1].... Copies
+// retain (flint_retain); drops release (flint_release). Cycles leak in
+// v1 (no weak references).
+class Pair {
+    int a;
+    int b;
+    public Pair(int x, int y) {
+        this.a = x;
+        this.b = y;
+    }
+}
+
+class Holder {
+    Pair inner;
+    int n;
+    public Holder(Pair i, int n) {
+        this.inner = i;
+        this.n = n;
+    }
+}
+
+int sum_of(Pair p) {
+    return p.a + p.b;
+}
+
+Pair make() {
+    Pair p = new Pair(9, 8);   // escapes via return -> heap + refcount
+    return p;
+}
+
+int main() {
+    // stack-allocated: never escapes
+    Pair s = new Pair(3, 4);
+    printi(s.a + s.b);        // 7
+    print("\n");
+    s.a = 10;
+    printi(s.a + s.b);        // 14
+    print("\n");
+    // alias of a stack object: plain address, no refcount traffic
+    Pair r = s;
+    printi(r.b);             // 4
+    print("\n");
+    // heap: escapes into sum_of()
+    Pair h = new Pair(5, 6);
+    printi(sum_of(h));      // 11
+    print("\n");
+    // heap alias: both hold refcounted references
+    Pair c = h;
+    c.b = 100;
+    printi(h.b);           // 100 (same object)
+    print("\n");
+    // class value returned from a function: fresh reference
+    Pair t = make();
+    printi(t.a + t.b);      // 17
+    print("\n");
+    // an object stored in a class field is a heap reference
+    Holder o = new Holder(new Pair(42, 1), 7);
+    printi(o.inner.a);      // 42
+    print("\n");
+    printi(o.n);           // 7
+    print("\n");
+    return 0;
+}

@@ -1,0 +1,28 @@
+// file_lib: the std.File class (import std.File) — file I/O built on
+// the sys.open/read/write/close syscalls. All results are printed as
+// stable 1/0 checks so the output is deterministic.
+import std.File;
+
+int main() {
+    string p = "/tmp/flint_file_lib.txt";
+    // write_all creates/truncates the file; returns the byte count
+    // written (or a negative errno on failure).
+    int w = File.write_all(p, "hello file");
+    printi(w > 0 ? 1 : 0); print(" ");
+    printi(File.exists(p)); print(" ");          // 1
+    printi(File.size(p)); print(" ");           // 10
+    string back = File.read_all(p);
+    printi(str.cmp(back, "hello file") == 0 ? 1 : 0); print(" "); // 1
+    File.append(p, "!");
+    printi(File.size(p)); print(" ");           // 11
+    // copy then rename then delete
+    File.copy(p, "/tmp/flint_file_lib_copy.txt");
+    printi(File.exists("/tmp/flint_file_lib_copy.txt")); print(" "); // 1
+    File.rename("/tmp/flint_file_lib_copy.txt", "/tmp/flint_file_lib_moved.txt");
+    printi(File.exists("/tmp/flint_file_lib_moved.txt")); print(" "); // 1
+    printi(File.exists("/tmp/flint_file_lib_copy.txt")); print(" "); // 0 (gone)
+    File.delete("/tmp/flint_file_lib_moved.txt");
+    File.delete(p);
+    printi(File.exists(p)); print("\n");         // 0 (deleted)
+    return 0;
+}
