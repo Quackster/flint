@@ -1,0 +1,79 @@
+// std/time — wall-clock time over the `time.millis()` builtin (import std.Time).
+//
+// Usage:
+//   import std.Time;
+//   printi(Time.seconds());   // epoch seconds
+//   print(Time.date());       // "YYYY-MM-DD HH:MM:SS"
+package std;
+class Time {
+    // Milliseconds since the Unix epoch.
+    static int millis() { return time.millis(); }
+    // Seconds since the Unix epoch.
+    static int seconds() { return time.millis() / 1000; }
+    // Nanoseconds since the Unix epoch (wraps well after the epoch).
+    static int nanos() { return time.millis() * 1000000; }
+    // Zero-pad a number to 2 digits.
+    static string pad2(int x) {
+        string s = str.itoa(x);
+        int n = strlen(s);
+        if (n >= 2) {
+            return s;
+        }
+        string out = alloc(4);
+        sys.byte_store(out, 48);
+        if (n == 1) {
+            sys.byte_store(out + 1, sys.byte_load(s));
+            sys.byte_store(out + 2, 0);
+        } else {
+            sys.byte_store(out + 1, 48);
+            sys.byte_store(out + 2, 0);
+        }
+        return out;
+    }
+    // Zero-pad a number to 4 digits.
+    static string pad4(int x) {
+        string s = str.itoa(x);
+        int n = strlen(s);
+        if (n >= 4) {
+            return s;
+        }
+        string out = alloc(8);
+        int o = 0;
+        while (o < 4 - n) {
+            sys.byte_store(out + o, 48);
+            o = o + 1;
+        }
+        int i = 0;
+        while (i < n) {
+            sys.byte_store(out + o, sys.byte_load(s + i));
+            o = o + 1;
+            i = i + 1;
+        }
+        sys.byte_store(out + o, 0);
+        return out;
+    }
+    // "YYYY-MM-DD HH:MM:SS" for the current instant (UTC, via epoch seconds).
+    static string date() {
+        int total = time.millis() / 1000;
+        int secs = total % 60;
+        int total_min = total / 60;
+        int mins = total_min % 60;
+        int total_hr = total_min / 60;
+        int hrs = total_hr % 24;
+        int days = total_hr / 24;
+        // civil-from-days (Howard Hinnant): decompose days since 1970-01-01.
+        int z = days + 719468;
+        int era = (z >= 0 ? z : z - 146096) / 146097;
+        int doe = z - era * 146097;
+        int yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+        int y = yoe + era * 400;
+        int doy = doe - yoe * 365 - yoe / 4 + yoe / 100;
+        int mp = (5 * doy + 2) / 153;
+        int d = doy - (153 * mp + 2) / 5 + 1;
+        int m = mp + (mp < 10 ? 3 : -9);
+        if (m <= 2) {
+            y = y + 1;
+        }
+        return Time.pad4(y) + "-" + Time.pad2(m) + "-" + Time.pad2(d) + " " + Time.pad2(hrs) + ":" + Time.pad2(mins) + ":" + Time.pad2(secs);
+    }
+}

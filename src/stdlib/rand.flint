@@ -48,4 +48,43 @@ class Rand {
             i = i - 1;
         }
     }
+    // A uniformly random element of a (0 for an empty array).
+    static int pick(int a[]) {
+        int n = len(a);
+        if (n == 0) {
+            return 0;
+        }
+        return a[Rand.range(0, n)];
+    }
+    // n random bytes, NUL-terminated.
+    static string bytes(int n) {
+        string out = alloc(n + 1);
+        int i = 0;
+        while (i < n) {
+            sys.byte_store(out + i, Rand.next() & 255);
+            i = i + 1;
+        }
+        sys.byte_store(out + n, 0);
+        return out;
+    }
+    // n random lowercase hex characters.
+    static string hex_id(int n) {
+        string out = "";
+        int i = 0;
+        while (i < n) {
+            out = out + str.substring("0123456789abcdef", Rand.range(0, 16), 1);
+            i = i + 1;
+        }
+        return out;
+    }
+    // n random lowercase letters.
+    static string rand_string(int n) {
+        string out = "";
+        int i = 0;
+        while (i < n) {
+            out = out + str.substring("abcdefghijklmnopqrstuvwxyz", Rand.range(0, 26), 1);
+            i = i + 1;
+        }
+        return out;
+    }
 }

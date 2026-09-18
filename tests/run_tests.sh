@@ -46,6 +46,33 @@ for src in tests/cases/*.flint; do
     fi
 done
 
+# ------------------------------------------------------------------ stdlib
+echo
+echo "== stdlib tests (tests/stdlib, compiled with src/stdlib/*.flint) =="
+ST="tests/stdlib"
+for src in "$ST"/*.flint; do
+    name="$(basename "$src" .flint)"
+    exp="$ST/expected/$name.out"
+    bin="$WORK/st_$name.bin"
+    if ! timeout 30 "$FLINTC" src/stdlib/*.flint "$src" -o "$bin" 2> "$WORK/st_$name.cerr"; then
+        bad "$name (stdlib compile)"; sed 's/^/      /' "$WORK/st_$name.cerr"; continue
+    fi
+    timeout 30 "$bin" > "$WORK/st_$name.out" 2>&1
+    code=$?
+    if [ "$code" -ne 0 ]; then
+        bad "$name (exit=$code)"; sed 's/^/      /' "$WORK/st_$name.out"; continue
+    fi
+    if [ -f "$exp" ]; then
+        if diff -u "$exp" "$WORK/st_$name.out" > "$WORK/st_$name.diff"; then
+            ok "$name (stdlib)"
+        else
+            bad "$name (output mismatch)"; sed 's/^/      /' "$WORK/st_$name.diff"
+        fi
+    else
+        ok "$name (no expected file; ran ok)"
+    fi
+done
+
 # ------------------------------------------------------------------- golden
 echo
 echo "== golden-asm tests (tests/golden) =="

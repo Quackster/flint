@@ -117,4 +117,89 @@ class Sort {
             a[i] = v;
         }
     }
+    // Index of v in a sorted array a, or -1.
+    static int binary_search(int a[], int v) {
+        int lo = 0;
+        int hi = len(a) - 1;
+        while (lo <= hi) {
+            int mid = lo + (hi - lo) / 2;
+            if (a[mid] == v) {
+                return mid;
+            }
+            if (a[mid] < v) {
+                lo = mid + 1;
+            } else {
+                hi = mid - 1;
+            }
+        }
+        return -1;
+    }
+    // Index of the minimum element, or -1 for an empty array.
+    static int argmin(int a[]) {
+        int n = len(a);
+        if (n == 0) {
+            return -1;
+        }
+        int i = 1;
+        int m = 0;
+        while (i < n) {
+            if (a[i] < a[m]) {
+                m = i;
+            }
+            i = i + 1;
+        }
+        return m;
+    }
+    // Index of the maximum element, or -1 for an empty array.
+    static int argmax(int a[]) {
+        int n = len(a);
+        if (n == 0) {
+            return -1;
+        }
+        int i = 1;
+        int m = 0;
+        while (i < n) {
+            if (a[i] > a[m]) {
+                m = i;
+            }
+            i = i + 1;
+        }
+        return m;
+    }
+    static void swap(int a[], int i, int j) {
+        int t = a[i];
+        a[i] = a[j];
+        a[j] = t;
+    }
+    // Integer mean (truncated), 0 for an empty array.
+    static int avg(int a[]) {
+        int n = len(a);
+        if (n == 0) {
+            return 0;
+        }
+        return Sort.sum(a) / n;
+    }
+    // Rotate a left by k positions (negative k rotates right).
+    static void rotate(int a[], int k) {
+        int n = len(a);
+        if (n == 0) {
+            return;
+        }
+        k = k % n;
+        if (k < 0) {
+            k = k + n;
+        }
+        string scratch = alloc(n * 8);
+        int i = 0;
+        while (i < n) {
+            scratch[i] = a[(i + k) % n];
+            i = i + 1;
+        }
+        i = 0;
+        while (i < n) {
+            a[i] = scratch[i];
+            i = i + 1;
+        }
+        free(scratch);
+    }
 }

@@ -134,4 +134,41 @@ class Num {
         }
         return s;
     }
+    // 1 when the decimal digits of n read the same forwards and backwards.
+    static int is_palindrome(int n) {
+        n = Math.abs(n);
+        int orig = n;
+        int r = 0;
+        while (n != 0) {
+            r = r * 10 + n % 10;
+            n = n / 10;
+        }
+        return r == orig ? 1 : 0;
+    }
+    // The i-th digit of n (0 = units), ignoring sign.
+    static int digit_at(int n, int i) {
+        n = Math.abs(n);
+        int k = 0;
+        while (k < i) {
+            n = n / 10;
+            k = k + 1;
+        }
+        return n % 10;
+    }
+    // Uppercase hex of n (two's complement for negatives).
+    static string to_upper_hex(int n) {
+        string s = Num.to_hex(n);
+        string out = alloc(strlen(s) + 1);
+        int i = 0;
+        while (i < strlen(s)) {
+            int c = sys.byte_load(s + i);
+            if (c >= 97 && c <= 102) {
+                c = c - 32;
+            }
+            sys.byte_store(out + i, c);
+            i = i + 1;
+        }
+        sys.byte_store(out + strlen(s), 0);
+        return out;
+    }
 }

@@ -49,4 +49,31 @@ class Bit {
         }
         return r;
     }
+    // 1 when x is a power of two.
+    static int is_power_of_two(int x) { return x > 0 && (x & (x - 1)) == 0 ? 1 : 0; }
+    // Smallest power of two >= x (1 for x <= 1).
+    static int next_power_of_two(int x) {
+        if (x <= 1) {
+            return 1;
+        }
+        int r = 1;
+        while (r < x) {
+            r = r << 1;
+        }
+        return r;
+    }
+    // Reverse the byte order of a 64-bit value.
+    static int byte_swap(int x) {
+        int r = 0;
+        int i = 0;
+        while (i < 8) {
+            r = (r << 8) | ((x >> (i * 8)) & 255);
+            i = i + 1;
+        }
+        return r;
+    }
+    // Parity: 1 when an odd number of bits are set.
+    static int parity(int x) { return Bit.popcount(x) % 2; }
+    static int get_byte(int x, int i) { return (x >> (i * 8)) & 255; }
+    static int set_byte(int x, int i, int v) { return x | ((v & 255) << (i * 8)); }
 }

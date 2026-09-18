@@ -75,4 +75,42 @@ class File {
     static int delete(string path) {
         return sys.syscall(87, path, 0, 0, 0, 0);
     }
+    // O_WRONLY | O_CREAT | O_APPEND (0x441), mode 0644.
+    static int append(string path, string data) {
+        int fd = sys.open(path, 0x441, 0x1a4);
+        if (fd < 0) {
+            return fd;
+        }
+        int n = sys.write(fd, data, strlen(data));
+        sys.close(fd);
+        return n;
+    }
+    // Copy the whole file src to dst; -1 if src cannot be read.
+    static int copy(string src, string dst) {
+        string data = File.read_all(src);
+        if (data == null) {
+            return -1;
+        }
+        return File.write_all(dst, data);
+    }
+    // rename is syscall 82 on this toolchain's kernel.
+    static int rename(string path, string newpath) {
+        return sys.syscall(82, path, newpath, 0, 0, 0);
+    }
+    // First newline-terminated line of the file (else the whole file, or null).
+    static string read_line(string path) {
+        string data = File.read_all(path);
+        if (data == null) {
+            return null;
+        }
+        int i = 0;
+        int n = strlen(data);
+        while (i < n) {
+            if (sys.byte_load(data + i) == 10) {
+                return str.substring(data, 0, i);
+            }
+            i = i + 1;
+        }
+        return str.copy(data);
+    }
 }

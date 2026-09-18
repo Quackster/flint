@@ -63,4 +63,60 @@ class Path {
         return a + "/" + b;
     }
     static string parent(string p) { return Path.dir(p); }
+    // 1 when the path starts with a slash.
+    static int is_absolute(string p) {
+        return strlen(p) > 0 && sys.byte_load(p) == 47 ? 1 : 0;
+    }
+    // Split p into its slash-separated parts.
+    static list<string> split(string p) {
+        list<string> out = new list<string>();
+        int n = strlen(p);
+        int start = 0;
+        int i = 0;
+        while (i < n) {
+            if (sys.byte_load(p + i) == 47) {
+                out.add(str.substring(p, start, i - start));
+                i = i + 1;
+                start = i;
+            } else {
+                i = i + 1;
+            }
+        }
+        out.add(str.substring(p, start, n - start));
+        return out;
+    }
+    // Collapse ".", ".." and repeated slashes (returns the relative form).
+    static string normalize(string p) {
+        list<string> parts = Path.split(p);
+        list<string> stack = new list<string>();
+        int i = 0;
+        int n = len(parts);
+        while (i < n) {
+            string s = parts.get(i);
+            if (str.cmp(s, ".") != 0 && str.cmp(s, "") != 0) {
+                if (str.cmp(s, "..") == 0) {
+                    if (len(stack) > 0) {
+                        stack.remove(len(stack) - 1);
+                    }
+                } else {
+                    stack.add(s);
+                }
+            }
+            i = i + 1;
+        }
+        if (len(stack) == 0) {
+            return ".";
+        }
+        string out = "";
+        int j = 0;
+        int ns = len(stack);
+        while (j < ns) {
+            if (j > 0) {
+                out = out + "/";
+            }
+            out = out + stack.get(j);
+            j = j + 1;
+        }
+        return out;
+    }
 }

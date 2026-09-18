@@ -578,14 +578,16 @@ int main() {
 
 | class | methods |
 |-------|---------|
-| `std.Math`   | `abs`, `min`, `max`, `clamp`, `gcd`, `lcm`, `factorial`, `is_prime`, `sqrt`, `pow`, `pow10`, plus fixed-point `fround`, `fceil`, `ffloor`, `fabs`, `fsqrt` |
-| `std.Sort`   | `sort`, `sort_desc` (stable, in place), `reverse`, `min`, `max`, `sum`, `contains`, `index_of`, `count`, `fill` |
-| `std.Bit`    | `popcount`, `nlz`, `ntz`, `set_bit`, `clr_bit`, `test_bit`, `toggle_bit`, `bit_rev` |
-| `std.Num`    | `to_string`, `to_hex`/`from_hex`, `to_bin`/`from_bin`, `to_oct`/`from_oct`, `sum_digits`, `digit_count`, `reverse_digits` |
-| `std.File`   | `open`, `open_for_write`, `close`, `size`, `read_all`, `write_all`, `exists`, `delete` |
-| `std.Path`   | `base`, `dir`, `parent`, `ext`, `join`, `last_slash`, `last_dot` |
-| `std.Checksum` | `crc32` (zlib/IEEE `0xEDB88320`), `sum32`, `djb2` |
-| `std.Rand`   | `init(seed)` (xorshift64), `next`, `range(lo, hi)`, `coin`, `shuffle` |
+| `std.Math`   | `abs`, `min`, `max`, `clamp`, `gcd`, `lcm`, `factorial`, `is_prime`, `sqrt`, `pow`, `pow10`, `fib`, `cbrt`, `is_even`, `is_odd`, `mod`, `sum_range`, plus fixed-point `fround`, `fceil`, `ffloor`, `fabs`, `fsqrt` |
+| `std.Sort`   | `sort`, `sort_desc` (stable, in place), `reverse`, `min`, `max`, `sum`, `contains`, `index_of`, `count`, `fill`, `binary_search`, `argmin`, `argmax`, `swap`, `avg`, `rotate` |
+| `std.Bit`    | `popcount`, `nlz`, `ntz`, `set_bit`, `clr_bit`, `test_bit`, `toggle_bit`, `bit_rev`, `is_power_of_two`, `next_power_of_two`, `byte_swap`, `parity`, `get_byte`, `set_byte` |
+| `std.Num`    | `to_string`, `to_hex`/`from_hex`, `to_bin`/`from_bin`, `to_oct`/`from_oct`, `to_upper_hex`, `sum_digits`, `digit_count`, `digit_at`, `reverse_digits`, `is_palindrome` |
+| `std.File`   | `open`, `open_for_write`, `close`, `size`, `read_all`, `write_all`, `exists`, `delete`, `append`, `copy`, `rename`, `read_line` |
+| `std.Path`   | `base`, `dir`, `parent`, `ext`, `join`, `last_slash`, `last_dot`, `is_absolute`, `split`, `normalize` |
+| `std.Checksum` | `crc32` (zlib/IEEE `0xEDB88320`), `sum32`, `djb2`, `fnv1a` (64-bit), `fnv1a32`, `adler32` |
+| `std.Rand`   | `init(seed)` (xorshift64), `next`, `range(lo, hi)`, `coin`, `shuffle`, `pick`, `bytes`, `hex_id`, `rand_string` |
+| `std.Str`    | `upper`, `lower`, `reverse`, `trim`, `ltrim`, `rtrim`, `count`, `contains`, `last_index_of`, `starts_with`, `ends_with`, `replace_all`, `repeat`, `split`, `join`, `ljust`, `rjust` |
+| `std.Time`   | `millis`, `seconds`, `nanos`, `date` (`YYYY-MM-DD HH:MM:SS`) |
 
 </details>
 
@@ -1493,7 +1495,8 @@ Two layers:
    `src/prelude/`. Always available.
 2. **`std.*` modules**: a standard library written entirely in Flint
    (`package std`, in `src/stdlib/`): `std.Math`, `std.Sort`, `std.Bit`,
-   `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`. Compile
+    `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
+    `std.Str`, `std.Time`. Compile
    `src/stdlib/*.flint` alongside your sources and use
    `import std.X;` + `X.method(...)` (see the `std.*` feature section for
    the per-class method lists).
@@ -1592,8 +1595,9 @@ src/
   middle/   mod.rs  mono/  ensure.rs  expand.rs  infer.rs  mod.rs
                 resolve.rs  resolve_expr.rs
   prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
-  stdlib/   bit.flint  checksum.flint  file.flint  math.flint
-            num.flint  path.flint  rand.flint  sort.flint
+   stdlib/   bit.flint  checksum.flint  file.flint  math.flint
+             num.flint  path.flint  rand.flint  sort.flint
+             str.flint  time.flint
   intrinsics.s  collections.s
 tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
 examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint

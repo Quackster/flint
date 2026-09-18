@@ -1,0 +1,117 @@
+// stdlib test: compiles all of src/stdlib/*.flint and exercises the
+// non-obvious (mostly newer) functions. Output is fully deterministic
+// (Rand is seeded; time is only checked by length, never printed).
+import std.Math;
+import std.Sort;
+import std.Bit;
+import std.Num;
+import std.Checksum;
+import std.File;
+import std.Path;
+import std.Rand;
+import std.Str;
+import std.Time;
+
+int main() {
+    // ---- Math ----
+    printi(Math.fib(10)); print(" ");
+    printi(Math.fib(20)); print(" ");
+    printi(Math.cbrt(27)); print(" ");
+    printi(Math.cbrt(64)); print(" ");
+    printi(Math.cbrt(8000)); print(" ");
+    printi(Math.is_even(8)); print(" ");
+    printi(Math.is_odd(7)); print(" ");
+    printi(Math.mod(-7, 3)); print(" ");
+    printi(Math.sum_range(1, 10)); print("\n");
+
+    // ---- Sort ----
+    int sa[] = [1, 3, 5, 7, 9];
+    printi(Sort.binary_search(sa, 7)); print(" ");
+    printi(Sort.binary_search(sa, 8)); print(" ");
+    int sb[] = [5, 2, 9, 1];
+    printi(Sort.argmin(sb)); print(" ");
+    printi(Sort.argmax(sb)); print(" ");
+    int sc[] = [1, 2, 3, 4];
+    Sort.swap(sc, 0, 3);
+    printi(sc[0]); print(" ");
+    printi(sc[3]); print(" ");
+    int sd[] = [2, 4, 6, 8];
+    printi(Sort.avg(sd)); print(" ");
+    int se[] = [1, 2, 3, 4, 5];
+    Sort.rotate(se, 2);
+    printi(se[0]); print(" ");
+    printi(se[4]); print("\n");
+
+    // ---- Bit ----
+    printi(Bit.is_power_of_two(16)); print(" ");
+    printi(Bit.is_power_of_two(15)); print(" ");
+    printi(Bit.next_power_of_two(100)); print(" ");
+    printi(Bit.byte_swap(0x0102030405060708)); print(" ");
+    printi(Bit.parity(0x7)); print(" ");
+    printi(Bit.get_byte(0x01020304, 1)); print(" ");
+    printi(Bit.set_byte(0, 2, 0xAB)); print("\n");
+
+    // ---- Num ----
+    printi(Num.is_palindrome(1221)); print(" ");
+    printi(Num.is_palindrome(123)); print(" ");
+    printi(Num.digit_at(9876, 0)); print(" ");
+    printi(Num.digit_at(9876, 3)); print(" ");
+    print(Num.to_upper_hex(255)); print("\n");
+
+    // ---- Checksum ----
+    printi(Checksum.fnv1a("")); print(" ");
+    printi(Checksum.fnv1a32("hello")); print(" ");
+    printi(Checksum.adler32("hello")); print("\n");
+
+    // ---- Path ----
+    printi(Path.is_absolute("/a/b")); print(" ");
+    printi(Path.is_absolute("a/b")); print(" ");
+    print(Path.normalize("a/./b/../c")); print(" ");
+    list<string> pp = Path.split("x/y/z");
+    printi(len(pp)); print("\n");
+
+    // ---- File (temp file) ----
+    File.write_all("/tmp/flint_stdlib_t.txt", "line1\nline2\n");
+    printi(File.append("/tmp/flint_stdlib_t.txt", "line3\n")); print(" ");
+    printi(File.exists("/tmp/flint_stdlib_t.txt")); print(" ");
+    print(File.read_line("/tmp/flint_stdlib_t.txt")); print(" ");
+    File.copy("/tmp/flint_stdlib_t.txt", "/tmp/flint_stdlib_c.txt");
+    printi(File.exists("/tmp/flint_stdlib_c.txt")); print(" ");
+    File.rename("/tmp/flint_stdlib_c.txt", "/tmp/flint_stdlib_r.txt");
+    printi(File.exists("/tmp/flint_stdlib_r.txt")); print(" ");
+    File.delete("/tmp/flint_stdlib_t.txt");
+    File.delete("/tmp/flint_stdlib_r.txt");
+    print("\n");
+
+    // ---- Rand (seeded) ----
+    Rand.init(42);
+    int ra[] = [10, 20, 30, 40];
+    int p = Rand.pick(ra);
+    printi(p >= 10 && p <= 40 ? 1 : 0); print(" ");
+    printi(strlen(Rand.bytes(8)) == 8); print(" ");
+    printi(strlen(Rand.hex_id(16)) == 16); print(" ");
+    printi(strlen(Rand.rand_string(10)) == 10); print("\n");
+
+    // ---- Str ----
+    print(Str.upper("hi")); print(" ");
+    print(Str.lower("Ab")); print(" ");
+    print(Str.reverse("ab")); print(" ");
+    print(Str.trim(" x ")); print(" ");
+    printi(Str.count("aaa", "a")); print(" ");
+    printi(Str.contains("hello", "ell")); print(" ");
+    printi(Str.last_index_of("abcabc", "bc")); print(" ");
+    printi(Str.starts_with("hello", "he")); print(" ");
+    printi(Str.ends_with("hello", "lo")); print(" ");
+    print(Str.replace_all("a-b-a", "a", "z")); print(" ");
+    print(Str.repeat("ab", 3)); print("\n");
+    list<string> sp = Str.split("a,b,c", ",");
+    print(Str.join(sp, "-")); print(" ");
+    print(Str.ljust("ab", 5, 32)); print(" ");
+    print(Str.rjust("ab", 5, 32)); print("\n");
+
+    // ---- Time (lengths only, never the value) ----
+    printi(Time.seconds() > 0); print(" ");
+    printi(Time.nanos() > 0); print(" ");
+    printi(strlen(Time.date()) == 19); print("\n");
+    return 0;
+}

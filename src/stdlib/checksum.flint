@@ -60,4 +60,33 @@ class Checksum {
         }
         return h;
     }
+    // FNV-1a 64-bit hash.
+    static int fnv1a(string s) {
+        int h = 0xcbf29ce484222325;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            h = (h ^ sys.byte_load(s + i)) * 0x100000001b3;
+        }
+        return h;
+    }
+    // FNV-1a 32-bit hash (masked to 32 bits each step).
+    static int fnv1a32(string s) {
+        int h = 0x811c9dc5;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            h = ((h ^ sys.byte_load(s + i)) * 0x01000193) & 0xFFFFFFFF;
+        }
+        return h;
+    }
+    // Adler-32 in the (b << 16) | a form.
+    static int adler32(string s) {
+        int a = 1;
+        int b = 0;
+        int n = strlen(s);
+        for (int i = 0; i < n; i = i + 1) {
+            a = (a + sys.byte_load(s + i)) % 65521;
+            b = (b + a) % 65521;
+        }
+        return (b << 16) | a;
+    }
 }
