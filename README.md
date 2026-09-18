@@ -43,6 +43,61 @@ CLI flags: `-o <FILE>` (output, default = first input without `.flint`), `-S`
 Tests: `cargo test` (Rust integration, end-to-end via the flintc binary) and
 `tests/run_tests.sh` (execution + golden-asm + spanned-error tests).
 
+## Style guide (Java)
+
+Flint follows Java's formatting conventions; every code sample in this README is
+written to match. Follow the same conventions so your sources read like the docs.
+
+- **Indent:** 4 spaces per level (no tabs).
+- **Braces:** K&R — the opening brace sits on the same line for functions,
+  classes, and control flow; `} else {` stays on one line. Every `if` / `while`
+  / `for` / `try` / `catch` takes braces, even for a single statement.
+- **Statements:** one per line.
+- **Spacing:** a space between a type and its name (`int x`), spaces around
+  binary operators (`a + b`, `x == y`), a space after commas, no space before a
+  `(` or after a `{`.
+- **Line length:** keep lines under 80 columns where practical; wrap long
+  expressions at a logical boundary and indent the continuation.
+- **Blank lines:** one between the field block and the methods, and one between
+  methods.
+- **Naming:** PascalCase for classes and enums (`Point`, `Color`); camelCase for
+  methods, fields, and locals (`doubleIt`, `getAge`); `UPPER_SNAKE_CASE` for
+  `static` constants.
+- **Visibility:** `public` / `private` prefix fields and methods; the default is
+  `public`.
+- **Class layout:** fields first, then the constructor, then methods.
+- **Types first:** declarations put the type before the name
+  (`int sum(int a[], int n)`, `string s = "hi"`); arrays are written `T a[]`.
+- **Entry point:** a top-level `int main() { ... }` returning the exit code
+  (`return 0;`); `void` for no return value.
+- **Constants:** prefer a `static` class field (e.g. `static int LIMIT;`) over a
+  magic number.
+- **Comments:** `//` for line comments and `/* ... */` for blocks.
+
+```java
+class Point {
+    private int x;
+    private int y;
+
+    public Point(int a, int b) {
+        this.x = a;
+        this.y = b;
+    }
+
+    public int sum() {
+        return x + y;
+    }
+}
+
+int main() {
+    Point p = new Point(3, 4);
+    if (p.sum() > 5) {
+        printi(p.sum());
+    }
+    return 0;
+}
+```
+
 ## Features
 
 A compact overview; each category is expandable.
@@ -426,7 +481,8 @@ int main() {
 ```java
 int main() {
     string s = "hello" + " world";        // "hello world"
-    print(s); print("\n");
+    print(s);
+    print("\n");
     string a = "hello";
     string b = "hello";
     printi(a == b);                     // 1  (content compare)
@@ -514,7 +570,8 @@ int main() {
     int a[] = [5, 2, 9, 1, 5];
     Sort.sort(a);                     // [1, 2, 5, 5, 9]
     printi(Sort.max(a));            // 9
-    print(Num.to_hex(255)); print("\n");  // ff
+    print(Num.to_hex(255));         // ff
+    print("\n");
     return 0;
 }
 ```
@@ -725,7 +782,8 @@ class User {
 int main() {
     User u = new User(30, "alice", 100);
     printi(u.getAge());            // 30
-    print(u.getName()); print("\n");  // alice
+    print(u.getName());            // alice
+    print("\n");
     u.setScore(7);
     printi(u.getScore());         // 7
     return 0;
@@ -1469,7 +1527,8 @@ int main() {
     printi(str.cmp("abc", "abc") == 0 ? 1 : 0);     // 1
     printi(conv.atoi(str.itoa(123)) == 123 ? 1 : 0);  // 1
     string f = str.format("%d + %d = %d", 1, 2, 3, 0);
-    print(f); print("\n");                          // 1 + 2 = 3
+    print(f);                                     // 1 + 2 = 3
+    print("\n");
     int a[] = [1, 2, 3];
     printi(len(a));                                 // 3
     printi(math.ftoi(math.fadd(math.itof(3), math.itof(2))));  // 5
