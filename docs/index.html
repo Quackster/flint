@@ -1,0 +1,2993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flint — documentation</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar">
+<a class="brand" href="#index">Flint<span> docs</span></a>
+<input class="search" id="nav-search" type="search" placeholder="Filter sections…" aria-label="Filter sections">
+<div class="nav-section"><div class="nav-title">Getting started</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#index">Overview</a></li><li><a href="#getting-started">Getting started</a></li><li><a href="#compiler">The toolchain</a></li><li><a href="#modules">Modules & multi-file</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#exceptions">Exceptions</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#collections">Collections overview</a></li><li><a href="#coll-list">list</a></li><li><a href="#coll-queue">queue</a></li><li><a href="#coll-hashset">hashset</a></li><li><a href="#coll-hashmap">hashmap</a></li><li><a href="#coll-dictionary">dictionary</a></li><li><a href="#coll-typed">Typed elements</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li></ul></div>
+</nav>
+<main class="main">
+<section id="index" class="doc-section" data-label="Overview">
+<div class="page-head">
+<h1>Flint</h1>
+<p class="lede">A systems language that compiles straight to a native
+ELF executable — with classes, generics, collections, and direct
+syscall access, and no runtime to install.</p>
+</div>
+
+<h2>Hello, Flint</h2>
+<p>Everything is a <code>.flint</code> file. The compiler <code>flintc</code>
+produces a standalone binary in one step (it assembles and links for you).</p>
+<div class="code"><div class="head"><span>hello.flint</span></div>
+<pre><code class="flint">int main() {
+    print("hello, flint");
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="code"><div class="head"><span>build &amp; run</span></div>
+<pre><code class="flint">$ flintc hello.flint -o hello
+$ ./hello
+</code></pre></div>
+<div class="output"><span class="lbl">output</span>hello, flint</div>
+
+<h2>What you can do</h2>
+<div class="grid">
+<div class="card"><a class="title" href="classes.html">Classes &amp; OOP</a>
+<p>Fields, constructors, methods, inheritance, abstract classes, interfaces,
+properties, statics, and enums.</p></div>
+<div class="card"><a class="title" href="generics.html">Generics</a>
+<p>Generic classes with type inference and explicit instantiation
+(<code>Vessel&lt;Pair&lt;int,int&gt;&gt;</code>).</p></div>
+<div class="card"><a class="title" href="collections.html">Collections</a>
+<p>Generic <code>list</code>, <code>queue</code>, <code>hashset</code>,
+<code>hashmap</code>, and <code>dictionary</code> with int, string, and object
+elements.</p></div>
+<div class="card"><a class="title" href="memory.html">Raw memory</a>
+<p>Escape analysis, <code>alloc</code>/<code>free</code>, raw pointers,
+sized load/store, and direct syscalls.</p></div>
+<div class="card"><a class="title" href="concurrency.html">Concurrency</a>
+<p>Threads, mutexes, atomic CAS, and network I/O for building servers.</p></div>
+<div class="card"><a class="title" href="fixed-point.html">Fixed-point math</a>
+<p>A Q48.16 fixed-point numeric model with <code>math.*</code> builtins —
+no floating point, no surprises.</p></div>
+</div>
+
+<h2>Where to start</h2>
+<ul>
+<li><a href="getting-started.html">Install and build your first program</a> —
+the CLI, flags, and the <code>flint.toml</code> manifest.</li>
+<li><a href="compiler.html">How the toolchain works</a> — the
+<code>flintc → .s → as → ld</code> pipeline and the runtime.</li>
+<li><a href="types.html">Types &amp; literals</a> — the type system, number
+bases, and the (intentionally) flat numeric model.</li>
+<li><a href="modules.html">Modules &amp; multi-file</a> — packages,
+<code>import</code>, and building multi-file projects.</li>
+</ul>
+
+<div class="note"><b>Note on examples.</b> Every code sample on this site was
+compiled with <code>flintc</code> and executed, and the output shown is the
+real captured output of that run — not a transcription.</div>
+</section>
+<section id="getting-started" class="doc-section" data-label="Getting started">
+<div class="page-head"><h1>Getting started</h1>
+<p class="lede">Building a Flint program, the <code>flintc</code> command-line
+interface, and the <code>flint.toml</code> manifest.</p></div>
+
+<h2>What you need</h2>
+<p>Flint compiles to a standalone native ELF executable. The toolchain is a
+single Rust binary, <code>flintc</code>, which drives the system
+assembler (<code>as</code>) and linker (<code>ld</code>) for you. There is no
+runtime to install on the target — the runtime is linked into every binary.</p>
+
+<h2>Build a single file</h2>
+<p>Pass one or more <code>.flint</code> files and an output path. Multiple
+files are concatenated (each keeps its own <code>package</code> header).</p>
+<div class="code"><div class="head"><span>build &amp; run</span></div>
+<pre><code class="flint">$ flintc hello.flint -o hello
+$ ./hello
+</code></pre></div>
+<div class="output"><span class="lbl">options</span>-o &lt;FILE&gt;     write output to FILE (default: &lt;first input&gt; minus .flint)
+-S             stop after generating assembly (print to stdout)
+--manifest F   read source files from a TOML manifest
+--dir D        compile every .flint file in D (sorted)
+-h, --help     print this help</div>
+
+<h2>Assembly only</h2>
+<p><code>-S</code> stops after code generation and prints the assembly to
+stdout — useful for inspecting the generated <code>.s</code>.</p>
+<div class="code"><div class="head"><span>inspect the assembly</span></div>
+<pre><code class="flint">$ flintc hello.flint -S &gt; hello.s
+</code></pre></div>
+
+<h2>Multi-file projects</h2>
+<p>Three equivalent ways to build a multi-file program:</p>
+<ul>
+<li><b>Positional:</b> <code>flintc util.flint main.flint -o app</code></li>
+<li><b>Manifest:</b> <code>flintc --manifest flint.toml -o app</code></li>
+<li><b>Directory:</b> <code>flintc --dir myproject -o app</code></li>
+</ul>
+<p>A <code>flint.toml</code> manifest is a single <code>sources</code> array of
+paths relative to the manifest file:</p>
+<div class="code"><div class="head"><span>flint.toml</span></div>
+<pre><code class="flint">sources = ["util.flint", "main.flint"]</code></pre></div>
+<p>See <a href="modules.html">Modules &amp; multi-file</a> for the full picture,
+including a worked example.</p>
+</section>
+<section id="compiler" class="doc-section" data-label="The toolchain">
+<div class="page-head"><h1>The toolchain</h1>
+<p class="lede">How <code>flintc</code> turns a <code>.flint</code> file into a
+standalone native ELF executable.</p></div>
+
+<h2>The pipeline</h2>
+<p><code>flintc</code> is a zero-dependency Rust compiler. Source flows through
+four stages, then the system assembler and linker finish the job:</p>
+<div class="output"><span class="lbl">pipeline</span>lexer → parser → monomorphize → codegen → .s → as → ld -e _start → ELF</div>
+<ul>
+<li><b>lexer</b> — tokens (keywords, literals, operators, labels).</li>
+<li><b>parser</b> — an AST of types, classes, and statements.</li>
+<li><b>monomorphize</b> — instantiates generic classes for each concrete
+type argument (this is how <code>list&lt;int&gt;</code> and
+<code>list&lt;string&gt;</code> become distinct code).</li>
+<li><b>codegen</b> — emits x86-64 assembly plus the runtime.</li>
+</ul>
+
+<h2>Assemble &amp; link</h2>
+<p>Codegen writes a <code>.s</code> file that is <em>concatenated</em> with two
+assembled runtime objects and linked into a freestanding binary. The entry point
+is forced to <code>_start</code> (there is no C runtime):</p>
+<div class="code"><div class="head"><span>under the hood</span></div>
+<pre><code class="flint">user.s      (your program + generated code)
+intrinsic.s (the Flint runtime: memory, syscalls, objects)
+collection.s (the collection runtime: list, queue, hashset, hashmap)
+        │
+        ├── as user.s      -o user.o
+        ├── as intrinsic.s -o intrinsic.o
+        ├── as collection.s -o collection.o
+        └── ld -e _start user.o intrinsic.o collection.o -o out
+</code></pre></div>
+
+<h2>The runtime</h2>
+<p>Two flat-assembly files are linked into every binary:</p>
+<ul>
+<li><b><code>intrinsic.s</code></b> — <code>alloc</code>/<code>free</code>,
+retain/release, <code>memcpy</code>, the syscall bridge, per-class object
+destructors, and thread/mutex primitives.</li>
+<li><b><code>collection.s</code></b> — the runtime for the generic collections
+(list, queue, hashset, hashmap) including their element-release hooks.</li>
+</ul>
+<p>Because the runtime is static and small, a "hello world" binary is fully
+self-contained: no shared libraries, no interpreter, no install step.</p>
+
+<div class="note"><b>Rebuilding.</b> The compiler is built with
+<code>cargo build --release</code>; the resulting binary is
+<code>target/release/flintc</code>. The repository ships a test suite —
+<code>bash tests/run_tests.sh</code> (79 feature tests) and
+<code>cargo test</code> (8 unit tests) — that exercises every language
+feature end to end.</div>
+</section>
+<section id="modules" class="doc-section" data-label="Modules & multi-file">
+<div class="page-head"><h1>Modules &amp; multi-file</h1>
+<p class="lede">Packages, <code>import</code>, and building a program from
+several <code>.flint</code> files.</p></div>
+
+<h2>Packages &amp; imports</h2>
+<p>A file declares its package on its first line. The entry-point file (the one
+with <code>main</code>) has <em>no</em> package header. A file in another
+package is pulled in with <code>import</code> of the fully-qualified class:</p>
+<div class="code"><div class="head"><span>util.flint</span></div>
+<pre><code class="flint">package demo.stats;
+
+class Stats {
+    static int sum(list&lt;int&gt; xs) {
+        int s = 0;
+        int i = 0;
+        while (i &lt; len(xs)) {
+            s = s + xs.get(i);
+            i = i + 1;
+        }
+        return s;
+    }
+}</code></pre></div>
+<div class="code"><div class="head"><span>main.flint</span></div>
+<pre><code class="flint">import demo.stats.Stats;
+
+int main() {
+    list&lt;int&gt; xs = new list&lt;int&gt;();
+    xs.add(4);
+    xs.add(9);
+    printi(Stats.sum(xs));
+    print("\n");
+    return 0;
+}</code></pre></div>
+<p>The standard library follows the same rule — its classes live in
+<code>package std</code>, so you <code>import std.Math</code> and so on (see
+the <a href="std-math.html">Standard library</a> pages). When you compile a
+program that uses the standard library, pass the library sources along with
+your file: <code>flintc src/stdlib/*.flint myprogram.flint -o out</code>.</p>
+
+<h2>Building three ways</h2>
+<div class="code"><div class="head"><span>all three produce the same binary</span></div>
+<pre><code class="flint"># positional
+$ flintc util.flint main.flint -o app
+
+# manifest
+$ flintc --manifest flint.toml -o app
+
+# directory (compiles every .flint in the dir, sorted)
+$ flintc --dir myproject -o app
+</code></pre></div>
+
+<h2>Worked example</h2>
+<p>The <code>examples/multifile</code> project — a <code>Stats</code> class in
+<code>package demo.stats</code> plus an entry point that imports it:</p>
+<div class="code"><div class="head"><span>examples/multifile/main.flint</span></div>
+<pre><code class="flint">import demo.stats.Stats;
+
+int main() {
+    list&lt;int&gt; xs = new list&lt;int&gt;();
+    xs.add(4);
+    xs.add(9);
+    xs.add(1);
+    xs.add(7);
+    printi(Stats.sum(xs)); print(" ");   // 21
+    printi(Stats.max(xs)); print(" ");   // 9
+    printi(Stats.mean(xs)); print("\n"); // 5
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (dir, manifest — identical)</span>21 9 5</div>
+</section>
+<section id="types" class="doc-section" data-label="Types & literals">
+<div class="page-head"><h1>Types &amp; literals</h1>
+<p class="lede">A small, flat type system: one 64-bit integer type for all
+integer kinds, a byte boolean, strings, and class types.</p></div>
+
+<h2>Integer types</h2>
+<p><code>byte</code>, <code>short</code>, <code>int</code>, <code>long</code>,
+and <code>char</code> are <em>all</em> 64-bit integers in v1 — they are
+synonyms that document intent. There is a single numeric model, so arithmetic
+never changes width. Booleans are a one-byte <code>boolean</code> holding
+<code>0</code> or <code>1</code>.</p>
+
+<h2>Literals</h2>
+<ul>
+<li><b>Decimal:</b> <code>42</code>, <code>-7</code>.</li>
+<li><b>Hex:</b> <code>0x1F</code>, <code>0xFFFFFFFF</code>. There are no
+<code>0b</code> binary or <code>0o</code> octal literals — write those values
+in decimal or hex.</li>
+<li><b>String:</b> <code>"hello"</code> (double-quoted, backslash escapes).</li>
+<li><b>Boolean:</b> <code>true</code>, <code>false</code>.</li>
+<li><b>Null:</b> <code>null</code> (string and object null).</li>
+</ul>
+<p>There are <em>no floating-point literals</em>. Real-valued math uses the
+Q48.16 fixed-point model — see <a href="fixed-point.html">Fixed-point
+numbers</a>.</p>
+
+<h2>Hex literals wrap at the 64-bit boundary</h2>
+<p>Hex literals are parsed as unsigned 64-bit values stored in a
+two's-complement slot. Values up to <code>0x7FFFFFFFFFFFFFFF</code> stay
+positive; values from <code>0x8000000000000000</code> up wrap negative.</p>
+<div class="code"><div class="head"><span>examples/hexwrap.flint</span></div>
+<pre><code class="flint">int main() {
+    int a = 0xFFFFFFFFFFFFFFFF;
+    printi(a);                        // -1 (all 64 bits set)
+    print("\n");
+    int b = 0x7FFFFFFFFFFFFFFF;
+    printi(b &gt; 0 ? 1 : 0);          // 1 (i64 max stays positive)
+    print("\n");
+    int c = 0x8000000000000000;
+    printi(c &lt; 0 ? 1 : 0);         // 1 (i64 min, wraps negative)
+    print("\n");
+    int d = 0xFFFFFFFF;
+    printi(d);                      // 4294967295 (fits positive; no wrap)
+    print("\n");
+    int e = 0x10;
+    printi(e);                     // 16
+    print("\n");
+    printi(a + 1);                 // 0 (two's complement wrap)
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>-1
+1
+1
+4294967295
+16
+0</div>
+<div class="warn"><b>Note.</b> <code>0xFFFFFFFF</code> is <em>not</em> <code>-1</code> —
+it is <code>4294967295</code>, because it fits in the positive range. Only
+values with the top bit set (<code>0x8000000000000000</code> and up) wrap
+negative. <code>0xFFFFFFFFFFFFFFFF</code> (all 64 bits) is <code>-1</code>.</div>
+
+<h2>String literals</h2>
+<p>Strings are NUL-terminated byte buffers. They support backslash escapes
+(<code>\n</code>, <code>\t</code>, <code>\"</code>, <code>\\</code>, …). See
+<a href="strings.html">Strings</a> for the full model, including that a
+<code>string + int</code> is pointer arithmetic and two strings
+<code>+</code> concatenate.</p>
+</section>
+<section id="variables" class="doc-section" data-label="Variables & scope">
+<div class="page-head"><h1>Variables &amp; scope</h1>
+<p class="lede">Flat function-level scope: there is no block-level shadowing —
+re-declaring a name re-declares the <em>same</em> variable.</p></div>
+
+<h2>Declaration</h2>
+<p>Variables are declared with a type, then optionally initialized. Re-assignment
+is plain <code>=</code>. There are no <code>let</code>/<code>var</code>
+keywords.</p>
+<div class="code"><div class="head"><span>declaration</span></div>
+<pre><code class="flint">int x = 10;        // declare + init
+string name = "flint";
+x = x + 5;        // re-assign
+</code></pre></div>
+
+<h2>Flat scope — no block shadowing</h2>
+<p>This is the single most important (and most surprising) scoping rule: a
+<code>Type name</code> declaration inside an inner block does <em>not</em>
+create a new variable. It re-declares the <em>same</em> variable, overwriting
+it — and the new value <em>persists</em> after the block ends.</p>
+<div class="code"><div class="head"><span>examples/scope.flint</span></div>
+<pre><code class="flint">int main() {
+    int v = 10;
+    if (1) {
+        int v = 20;          // re-declares v
+        printi(v);         // 20
+    }
+    printi(v);             // 20 (the re-declaration persists)
+    print("\n");
+    int total = 0;
+    for (int i = 0; i &lt; 3; i = i + 1) {
+        int i = 100;        // overwrites the loop variable's slot
+        total = total + i;
+    }
+    printi(total);         // 100 (loop ends after one round: i becomes 101)
+    print("\n");
+    int a[] = [1, 2, 3, 4];
+    int u = 0;
+    for (int x : a) {
+        int x = 100;
+        u = u + x;
+    }
+    printi(u);             // 400 (4 elements, each read as 100)
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>2020
+100
+400</div>
+<p>Because the inner <code>int v = 20</code> overwrites the outer
+<code>v</code>, both prints show <code>20</code>. Likewise, the
+<code>int i = 100</code> inside the loop overwrites the loop counter's slot, so
+the loop body runs once (then <code>i</code> becomes <code>101</code>, ending
+the loop) and <code>total</code> is <code>100</code>. The range-for behaves the
+same: each of the 4 elements is read as the re-declared <code>100</code>, giving
+<code>400</code>.</p>
+
+<div class="warn"><b>Note.</b> A bare <code>{ ... }</code> block statement is not
+valid Flint — the parser expects an expression there. Scope is managed by the
+language's flat model, not by nested blocks. If you need a distinct value, use a
+distinct name.</div>
+</section>
+<section id="operators" class="doc-section" data-label="Operators">
+<div class="page-head"><h1>Operators</h1>
+<p class="lede">C-style arithmetic, bitwise, comparison, and logical operators —
+with a couple of deliberate, documented departures.</p></div>
+
+<h2>Precedence &amp; arithmetic</h2>
+<p>Standard precedence. Integer division and modulo <em>truncate toward zero</em>
+(C semantics); the result of <code>%</code> carries the sign of the dividend.
+<code>&amp;&amp;</code> and <code>||</code> short-circuit and yield
+<code>0</code>/<code>1</code>. The ternary is right-associative.</p>
+<div class="code"><div class="head"><span>examples/ops.flint (selected)</span></div>
+<pre><code class="flint">printi(2 + 3 * 4);                    // 14 (precedence)
+printi((2 + 3) * 4);                // 20 (parentheses)
+printi(-7 / 2);                     // -3 (truncate toward zero)
+printi(-7 % 2);                     // -1 (sign of the dividend)
+printi(1 &lt;&lt; 4);                     // 16
+printi(40 &gt;&gt; 2);                    // 10
+printi(5 &amp; 3);                     // 1
+printi(5 | 3);                     // 7
+printi(5 ^ 3);                     // 6
+printi(1 || 0);                    // 1 (short-circuit)
+printi(0 &amp;&amp; 7);                   // 0 (right side not evaluated)
+printi(!0);                       // 1
+printi(0 ? 10 : (1 ? 30 : 40));  // 30 (right-associative)
+</code></pre></div>
+
+<h2>Increment evaluates to the new value</h2>
+<p>This is a deliberate departure from C/Java: <code>x++</code> and
+<code>++x</code> <em>both</em> evaluate to the value <em>after</em> the
+increment (the post-increment value). There is no "old value" form.</p>
+<div class="code"><div class="head"><span>examples/ops.flint (increment section)</span></div>
+<pre><code class="flint">int x = 5;
+x += 2;                           // x = 7
+printi(x++);                       // 8 (x++: value after increment)
+printi(++x);                      // 9 (++x: same post-increment value)
+</code></pre></div>
+
+<h2>Full kitchen-sink &amp; captured output</h2>
+<div class="code"><div class="head"><span>examples/ops.flint — full run</span></div>
+<pre><code class="flint">int main() {
+    printi(2 + 3 * 4);  printi(14 == (2 + 3 * 4) ? 1 : 0);
+    // (the full program prints each result on its own line; shown
+    //  compactly here are the exact captured values)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (each on its own line)</span>14
+20
+-3
+-1
+3
+1
+16
+10
+1
+7
+6
+8
+9
+10
+30
+1
+0
+1
+1
+1
+1
+1
+5</div>
+</section>
+<section id="control-flow" class="doc-section" data-label="Control flow">
+<div class="page-head"><h1>Control flow</h1>
+<p class="lede"><code>if</code>/<code>else</code>, <code>while</code>,
+<code>for</code>, range-for, and <code>switch</code> with fall-through.</p></div>
+
+<h2>Conditionals &amp; loops</h2>
+<div class="code"><div class="head"><span>basic forms</span></div>
+<pre><code class="flint">if (x &gt; 0) {
+    // ...
+} else if (x == 0) {
+    // ...
+} else {
+    // ...
+}
+
+while (cond) {
+    // ...
+}
+
+for (int i = 0; i &lt; n; i = i + 1) {
+    // ...
+}
+
+// range-for over an array (desugars to an index loop)
+int a[] = [1, 2, 3];
+for (int v : a) {
+    printi(v);
+}</code></pre></div>
+
+<h2>Switch &amp; fall-through</h2>
+<p><code>switch</code>/<code>case</code> falls through to the next case body
+when there is no <code>break</code>; <code>break</code> exits the switch.
+Stacked case labels (with no body between them) share the following body.</p>
+<div class="code"><div class="head"><span>examples/monthdays.flint</span></div>
+<pre><code class="flint">int daysInMonth(int m) {
+    int d = -1;
+    switch (m) {
+        case 1:
+        case 3:
+        case 5:
+        case 7:
+        case 8:
+        case 10:
+        case 12:
+            d = 31;
+            break;
+        case 4:
+        case 6:
+        case 9:
+        case 11:
+            d = 30;
+            break;
+        case 2:
+            d = 28;
+            break;
+        default:
+            d = 0;
+    }
+    return d;
+}
+
+int main() {
+    printi(daysInMonth(1));        // 31
+    printi(daysInMonth(4));        // 30
+    printi(daysInMonth(2));        // 28
+    printi(daysInMonth(99));      // 0 (default)
+    // explicit fall-through: case 4 matches, prints, falls into case 5
+    switch (4) {
+        case 4:
+            printi(100);
+        case 5:
+            printi(200);          // reached by fall-through
+            break;
+        default:
+            printi(0);
+    }
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>31
+30
+28
+0
+100200</div>
+<p>The final <code>100200</code> is two prints on one line: <code>case 4</code>
+matches, prints <code>100</code>, then (no <code>break</code>) falls through
+into <code>case 5</code>'s body and prints <code>200</code>.</p>
+</section>
+<section id="labels" class="doc-section" data-label="Labeled loops">
+<div class="page-head"><h1>Labeled loops</h1>
+<p class="lede">Name a loop with <code>label:</code>, then
+<code>break label</code> / <code>continue label</code> target it from anywhere
+inside.</p></div>
+
+<h2>Syntax</h2>
+<p>Write <code>label:</code> directly before a <code>for</code> or
+<code>while</code>. Then <code>break label</code> exits <em>that</em> loop from
+anywhere inside it, and <code>continue label</code> jumps to the next
+iteration of that (possibly outer) loop.</p>
+<div class="code"><div class="head"><span>examples/labels.flint</span></div>
+<pre><code class="flint">int main() {
+    // break outer: stop the whole nested pair on the first j == 1
+    int i = 0;
+    int j = 0;
+    outer:
+    for (i = 0; i &lt; 3; i = i + 1) {
+        for (j = 0; j &lt; 3; j = j + 1) {
+            if (j == 1) {
+                break outer;
+            }
+        }
+    }
+    printi(i * 10 + j);            // 1 (stopped at i=0, j=1)
+    print("\n");
+
+    // continue outer2: when n == 2, skip the rest of that outer round
+    int n = 0;
+    int k = 0;
+    outer2:
+    for (n = 0; n &lt; 4; n = n + 1) {
+        for (k = 0; k &lt; 2; k = k + 1) {
+            if (n == 2) {
+                continue outer2;
+            }
+            printi(n * 10 + k);
+            print("\n");
+        }
+    }
+
+    // break on a labeled while
+    int m = 0;
+    lbl:
+    while (m &lt; 10) {
+        m = m + 1;
+        if (m == 3) {
+            break lbl;
+        }
+    }
+    printi(m);                   // 3
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1
+0
+1
+10
+11
+30
+31
+3</div>
+<p>Reading the output: <code>break outer</code> stops the nested pair at
+<code>i=0, j=1</code> → <code>1</code>. The <code>outer2</code> loop prints
+<code>0, 1</code> (round n=0), <code>10, 11</code> (round n=1), skips the n=2
+round via <code>continue outer2</code>, then prints <code>30, 31</code>
+(round n=3). Finally the labeled <code>while</code> breaks at <code>m=3</code>.</p>
+</section>
+<section id="functions" class="doc-section" data-label="Functions">
+<div class="page-head"><h1>Functions</h1>
+<p class="lede">Plain function definitions with typed parameters and return
+values, recursion, pointer arguments, and the <code>@</code> function-address
+operator.</p></div>
+
+<h2>Definitions &amp; calls</h2>
+<div class="code"><div class="head"><span>examples/functions.flint</span></div>
+<pre><code class="flint">// Recursion: factorial.
+int factorial(int n) {
+    if (n &lt;= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+// A void function that mutates through a pointer argument.
+// Pointer types are written with a leading * : `*int p`.
+void increment(*int p) {
+    *p = *p + 1;
+}
+
+int main() {
+    printi(factorial(5)); print(" ");   // 120
+    int x = 10;
+    increment(&amp;x);              // &amp; = address-of
+    printi(x); print(" ");              // 11
+    printi(1); print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full example: doubleIt(21), factorial(5), increment, @)</span>42 120 11 1</div>
+
+<h2>Key points</h2>
+<ul>
+<li><b>No access modifier needed</b> for free functions — a top-level
+<code>int name(...) {}</code> is visible across files once the file is part
+of the compilation (see <a href="modules.html">Modules</a>).</li>
+<li><b>Pointers</b> are written with a leading <code>*</code>:
+<code>*int p</code>, <code>*byte buf</code>. <code>&amp;x</code> is
+address-of, <code>*p</code> dereferences. See
+<a href="pointers.html">Pointers &amp; raw memory</a>.</li>
+<li><b><code>@</code> yields a function's address</b> as an <code>int</code> —
+this is how a function is handed to <code>sys.thread_create(@fn, arg)</code>.
+See <a href="concurrency.html">Concurrency</a>.</li>
+<li>Functions may <code>return</code> early; a <code>void</code> function needs
+no return.</li>
+</ul>
+</section>
+<section id="exceptions" class="doc-section" data-label="Exceptions">
+<div class="page-head"><h1>Exceptions</h1>
+<p class="lede"><code>throw</code> / <code>try</code> /
+<code>catch</code> / <code>finally</code> — with untyped dispatch and
+a silent uncaught-throw rule.</p></div>
+
+<h2>Syntax</h2>
+<div class="code"><div class="head"><span>shape</span></div>
+<pre><code class="flint">try {
+    // ...
+    throw 42;              // raise an int
+    // throw new MyError(7);   // or raise an object
+} catch (int e) {
+    // the first catch receives any thrown value
+} catch (MyError e) {
+    // ...
+} finally {
+    // always runs, even on return
+}</code></pre></div>
+
+<h2>Semantics (v1)</h2>
+<ul>
+<li><b>Untyped dispatch.</b> The <code>catch</code> clauses dispatch by
+<em>position</em>, not by type: the <em>first</em> catch receives any thrown
+value. The type written in the catch only names the variable's type — v1
+performs <em>no</em> runtime type check.</li>
+<li><b><code>finally</code> always runs</b>, including when the
+<code>try</code> body <code>return</code>s.</li>
+<li><b>Uncaught throw = silent return.</b> A throw that reaches the end of its
+function is swallowed: the function returns and the caller continues normally
+(the rest of the function body after the throw is not reached).</li>
+</ul>
+
+<h2>Worked example</h2>
+<div class="code"><div class="head"><span>examples/errors.flint</span></div>
+<pre><code class="flint">class MyError {
+    int code;
+    public MyError(int c) {
+        this.code = c;
+    }
+}
+
+int caught_int() {
+    try {
+        throw 42;
+    } catch (int e) {
+        return e;
+    }
+    return -1;
+}
+
+int fin_ret() {
+    try {
+        return 5;
+    } catch (int e) {
+        return e;
+    } finally {
+        printi(3);             // runs even though the try returned
+    }
+}
+
+int uncaught() {
+    throw 9;
+    printi(12345);           // never reached
+}
+
+int main() {
+    printi(caught_int() == 42 ? 1 : 0);   // 1
+    print("\n");
+    try {
+        throw new MyError(77);
+    } catch (MyError e) {
+        printi(e.code);      // 77
+    }
+    print("\n");
+    printi(fin_ret());       // 5 (the 3 above came from finally)
+    print("\n");
+    uncaught();             // uncaught throw: silent return
+    printi(1);               // reached
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1
+7
+77
+35
+1</div>
+<p>Reading it: <code>1</code> (caught 42); <code>7</code> (a
+<code>try</code> that returns normally without throwing); <code>77</code>
+(object throw caught by a class-typed variable); then
+<code>3</code> (from <code>finally</code>) immediately followed by
+<code>5</code> (the return value) — <code>35</code> on one line; and
+<code>1</code> (the caller continued after the silent uncaught throw).</p>
+</section>
+<section id="classes" class="doc-section" data-label="Classes & fields">
+<div class="page-head"><h1>Classes &amp; fields</h1>
+<p class="lede">A <code>class</code> with plain fields is a struct. Objects can
+hold object fields; <code>new</code> fills fields, including nested objects,
+positionally.</p></div>
+
+<h2>Definition &amp; field access</h2>
+<div class="code"><div class="head"><span>examples/structs.flint</span></div>
+<pre><code class="flint">class Point {
+    int x;
+    int y;
+}
+
+class Rect {
+    Point origin;
+    int w;
+    int h;
+}
+
+int main() {
+    Point p = new Point(3, 4);
+    printi(p.x * 100 + p.y);      // 304
+    p.x = 10;
+    printi(p.x + p.y);           // 14
+    // nested object literal: first field is itself a Point
+    Rect r = new Rect(new Point(1, 2), 30, 40);
+    printi(r.origin.x);          // 1
+    printi(r.origin.y);          // 2
+    printi(r.w + r.h);           // 70
+    r.w = 50;
+    printi(r.w);               // 50
+    // an object field can be re-pointed at a different object
+    r.origin = new Point(9, 9);
+    printi(r.origin.x * 10 + r.origin.y);  // 99
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>304
+14
+1
+2
+70
+50
+99</div>
+
+<h2>Key points</h2>
+<ul>
+<li>Fields are declared as <code>Type name;</code>. Access is
+<code>obj.field</code>; re-assignment is <code>obj.field = …</code>.</li>
+<li><b>Nested objects</b> are written inline:
+<code>new Rect(new Point(1, 2), 30, 40)</code>. The first field
+<code>origin</code> is itself a <code>Point</code>.</li>
+<li><b>Object fields can be re-pointed</b>:
+<code>r.origin = new Point(9, 9)</code> makes the field refer to a
+different object.</li>
+<li>See <a href="constructors.html">Constructors</a> for the three ways an
+object gets its initial values, and
+<a href="coll-objects.html">Object elements</a> for reference semantics when
+objects are stored in collections.</li>
+</ul>
+</section>
+<section id="constructors" class="doc-section" data-label="Constructors">
+<div class="page-head"><h1>Constructors</h1>
+<p class="lede">Three ways an object gets its initial values: a named
+constructor, positional field fill, or a zero-arg constructor.</p></div>
+
+<h2>The three paths</h2>
+<div class="code"><div class="head"><span>examples/ctors.flint</span></div>
+<pre><code class="flint">class Point {
+    int x;
+    int y;
+    public Point(int a, int b) {
+        this.x = a + 1;      // the constructor transforms the args
+        this.y = b + 2;
+    }
+}
+
+class Raw {
+    int x;
+    int y;
+}
+
+class Counter {
+    int n;
+    public Counter() {
+        this.n = 42;
+    }
+}
+
+int main() {
+    Point p = new Point(3, 4);   // (1) routes to the 2-arg constructor
+    printi(p.x);                // 4 (3 + 1)
+    printi(p.y);                // 6 (4 + 2)
+    Raw r = new Raw(10, 20);    // (2) no constructor: positional field init
+    printi(r.x * 100 + r.y);   // 1020
+    Counter c = new Counter();  // (3) zero-arg constructor
+    printi(c.n);               // 42
+    Counter c2 = new Counter();
+    c2.n = 100;
+    printi(c2.n);             // 100 (mutable after construction)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>4
+6
+1020
+42
+100</div>
+<ul>
+<li><b>(1) Named constructor.</b> A method named after the class runs when the
+<code>new</code> arity matches — it may transform the arguments
+(<code>this.x = a + 1</code>).</li>
+<li><b>(2) Positional fill.</b> With no matching constructor,
+<code>new Raw(10, 20)</code> fills the fields positionally.</li>
+<li><b>(3) Zero-arg constructor.</b> <code>new Counter()</code> runs the
+no-argument constructor.</li>
+</ul>
+</section>
+<section id="methods" class="doc-section" data-label="Methods, this, super">
+<div class="page-head"><h1>Methods, <code>this</code>,
+<code>super</code></h1>
+<p class="lede">Methods live inside a class and use <code>this</code> for the
+current object; <code>super</code> reaches the parent; returning
+<code>this</code> enables fluent chaining.</p></div>
+
+<h2><code>this</code></h2>
+<p>Inside a method, <code>this</code> is the current object. Fields are read
+and written through it: <code>this.x</code>.</p>
+
+<h2>Fluent chaining</h2>
+<p>A method that returns <code>this</code> makes calls chainable —
+<code>p.move(1,1).scale(2).sum()</code> runs left to right on the same
+object.</p>
+<div class="code"><div class="head"><span>examples/fluent.flint</span></div>
+<pre><code class="flint">class Point {
+    int x;
+    int y;
+    public Point(int a, int b) {
+        this.x = a;
+        this.y = b;
+    }
+    public Point move(int dx, int dy) {
+        this.x = this.x + dx;
+        this.y = this.y + dy;
+        return this;          // enables chaining
+    }
+    public Point scale(int k) {
+        this.x = this.x * k;
+        this.y = this.y * k;
+        return this;
+    }
+    public int sum() {
+        return this.x + this.y;
+    }
+}
+
+int main() {
+    Point p = new Point(1, 2);
+    printi(p.sum());                          // 3
+    printi(p.move(1, 1).sum());              // 5 (chained call)
+    printi(p.move(2, 2).scale(10).sum());   // (4*10)+(5*10) = 90
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>3
+5
+90</div>
+
+<h2><code>super</code></h2>
+<p>In a subclass, <code>super(args)</code> calls the parent constructor, and
+<code>super.method()</code> calls the parent's method. See
+<a href="inheritance.html">Inheritance &amp; dispatch</a> for a full example
+(<code>Dog.bark()</code> uses <code>super.speak()</code>).</p>
+</section>
+<section id="visibility" class="doc-section" data-label="Visibility">
+<div class="page-head"><h1>Visibility</h1>
+<p class="lede"><code>public</code> / <code>private</code> prefix on fields and
+methods; the default is <code>public</code>.</p></div>
+
+<h2>Rules</h2>
+<ul>
+<li>Prefix a member with <code>public</code> or <code>private</code>. With no
+prefix, a member is <code>public</code> by default. There is no
+<code>protected</code> keyword.</li>
+<li><code>private</code> members are visible <em>within the class</em> —
+including from other instances of the same class (it is class-level, not
+object-level privacy).</li>
+</ul>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>private members, accessed in-class</span></div>
+<pre><code class="flint">class Secret {
+    private int _val;
+    public Secret(int v) { this._val = v; }
+    public int getVal() { return _val; }
+    public void setVal(int v) { this._val = v; }
+    private int hidden() { return 42; }
+    public int callHidden() { return this.hidden(); }
+    public void copyFrom(Secret other) { this._val = other._val; }
+}
+
+int main() {
+    Secret s = new Secret(5);
+    printi(s.getVal());
+    s.setVal(10);
+    printi(s.getVal());
+    printi(s.callHidden());
+    Secret t = new Secret(20);
+    s.copyFrom(t);        // reads another instance's private field
+    printi(s.getVal());
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>5
+10
+42
+20</div>
+<p><code>callHidden()</code> returns <code>42</code> (a private method called
+from inside the class), and <code>copyFrom</code> reads
+<code>other._val</code> — a private field of <em>another</em> instance —
+because privacy is scoped to the class, not the object.</p>
+
+<div class="note"><b>Properties.</b> The <code>get</code>/<code>set</code>/
+<code>getset</code> accessor prefixes on a private field generate accessor
+methods — see <a href="properties.html">Properties</a>.</div>
+</section>
+<section id="properties" class="doc-section" data-label="Properties">
+<div class="page-head"><h1>Properties</h1>
+<p class="lede">An accessor prefix on a field generates getter/setter methods
+from the field name: <code>get</code>, <code>set</code>, or
+<code>getset</code>.</p></div>
+
+<h2>Syntax</h2>
+<div class="code"><div class="head"><span>shape</span></div>
+<pre><code class="flint">class Account {
+    private get string _owner;      // get     -> getOwner()
+    private getset int balance;     // getset  -> getBalance() + setBalance(v)
+    public set int level;           // set     -> setLevel(v)
+}</code></pre></div>
+<p>The generated name is PascalCase after stripping leading underscores (the
+underscore prefix is conventional, not required).
+<code>get</code> generates a getter only; <code>set</code> a setter only;
+<code>getset</code> both.</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/account.flint</span></div>
+<pre><code class="flint">class Account {
+    private get string _owner;
+    private getset int balance;
+    public Account(string o, int b) {
+        this._owner = o;
+        this.balance = b;
+    }
+    public int deposit(int amt) {
+        this.balance = this.balance + amt;
+        return this.balance;
+    }
+}
+
+int main() {
+    Account a = new Account("alice", 100);
+    print(a.getOwner());            // alice
+    printi(a.getBalance());       // 100
+    a.deposit(50);
+    printi(a.getBalance());       // 150
+    a.setBalance(7);
+    printi(a.getBalance());       // 7
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>alice
+100
+150
+7</div>
+</section>
+<section id="statics" class="doc-section" data-label="Statics">
+<div class="page-head"><h1>Statics</h1>
+<p class="lede">A <code>static</code> field is a single slot shared by all
+instances; a <code>static</code> method takes no <code>this</code> and is
+called through the class name.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/counter_static.flint</span></div>
+<pre><code class="flint">class Counter {
+    static int n;
+    int id;
+    public Counter(int i) {
+        this.id = i;
+    }
+}
+
+class Util {
+    static int square(int x) {
+        return x * x;
+    }
+    static int sum2(int a, int b) {
+        return a + b;
+    }
+}
+
+int main() {
+    Counter.n = 5;
+    Counter c1 = new Counter(1);
+    Counter c2 = new Counter(2);
+    printi(c1.id + c2.id);         // 3 (instance fields are per-object)
+    printi(Counter.n);           // 5
+    Counter.n = Counter.n + 3;    // shared across all instances
+    printi(Counter.n);           // 8
+    printi(Util.square(7));      // 49 (no instance needed)
+    printi(Util.sum2(20, 22));   // 42
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>3
+5
+8
+49
+42</div>
+<ul>
+<li><b>Static fields</b> are read/written through the class name
+(<code>Counter.n</code>) and are shared by every instance.</li>
+<li><b>Static methods</b> take no <code>this</code> and are called through
+the class name (<code>Util.square(7)</code>) — no instance is needed.</li>
+<li><b>Instance fields</b> stay per-object (<code>c1.id</code> and
+<code>c2.id</code> are independent).</li>
+</ul>
+</section>
+<section id="inheritance" class="doc-section" data-label="Inheritance & dispatch">
+<div class="page-head"><h1>Inheritance &amp; dispatch</h1>
+<p class="lede"><code>extends</code> inherits fields and methods;
+<code>super(args)</code> calls the parent constructor; a re-declared method
+overrides and dispatches virtually; <code>(Type) x</code> narrows;
+<code>instanceof</code> tests the type.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/animals.flint</span></div>
+<pre><code class="flint">class Animal {
+    int id;
+    public Animal(int a) {
+        this.id = a;
+    }
+    public int speak() {
+        return 0;
+    }
+}
+
+class Dog extends Animal {
+    int barks;
+    public Dog(int a, int b) {
+        super(a);
+        this.barks = b;
+    }
+    public int speak() {            // override
+        return 1;
+    }
+    public int bark() {
+        return super.speak() + this.barks;   // parent method via super
+    }
+}
+
+class Cat extends Animal {
+    int meows;
+    public Cat(int a, int m) {
+        super(a);
+        this.meows = m;
+    }
+    public int speak() {           // override
+        return 2;
+    }
+}
+
+int main() {
+    Animal a = new Dog(5, 3);
+    printi(a.speak());             // 1 (virtual dispatch through Animal)
+    Animal c = new Cat(6, 2);
+    printi(c.speak());             // 2
+    printi(a.id);                // 5 (inherited field)
+    Dog d = (Dog) a;             // narrowing cast
+    printi(d.bark());            // 3 (super.speak() + barks = 0 + 3)
+    printi(a instanceof Dog);    // 1
+    printi(c instanceof Dog);    // 0
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1
+2
+5
+3
+1
+0</div>
+<ul>
+<li><b>Virtual dispatch.</b> <code>a.speak()</code> (where
+<code>a</code> is typed <code>Animal</code>) dispatches to the
+<em>runtime</em> type's override — <code>1</code> for
+<code>Dog</code>, <code>2</code> for <code>Cat</code>.</li>
+<li><b><code>super(args)</code></b> calls the parent constructor;
+<code>super.method()</code> calls the parent's method
+(<code>bark()</code> = <code>super.speak()</code> + barks = 0 + 3).</li>
+<li><b>Narrowing cast</b> <code>(Dog) a</code>; <b><code>instanceof</code></b>
+tests the concrete type.</li>
+</ul>
+</section>
+<section id="abstract" class="doc-section" data-label="Abstract classes">
+<div class="page-head"><h1>Abstract classes</h1>
+<p class="lede">An <code>abstract class</code> cannot be instantiated; its
+<code>abstract</code> methods have no body. Concrete subclasses declare them,
+and calls dispatch virtually through the abstract type.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/shapes.flint</span></div>
+<pre><code class="flint">abstract class Shape {
+    abstract int area();
+}
+
+class Circle extends Shape {
+    int r;
+    public Circle(int x) {
+        this.r = x;
+    }
+    public int area() {
+        return this.r * this.r;
+    }
+}
+
+class Square extends Shape {
+    int s;
+    public Square(int x) {
+        this.s = x;
+    }
+    public int area() {
+        return this.s * this.s;
+    }
+}
+
+int total(Shape sh) {
+    return sh.area();              // virtual dispatch
+}
+
+int main() {
+    Circle c = new Circle(3);
+    Square q = new Square(4);
+    printi(c.area());             // 9
+    printi(q.area());             // 16
+    printi(total(c));           // 9 (through the abstract type)
+    printi(total(q));           // 16
+    printi(c.area() + q.area());  // 25
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>9
+16
+9
+16
+25</div>
+<p><code>Shape</code> is abstract (cannot be <code>new</code>ed) and declares
+<code>abstract int area()</code> with no body. <code>Circle</code> and
+<code>Square</code> each provide <code>area()</code>. The
+<code>total(Shape sh)</code> function takes the abstract type and dispatches
+virtually to the runtime subclass.</p>
+</section>
+<section id="interfaces" class="doc-section" data-label="Interfaces">
+<div class="page-head"><h1>Interfaces</h1>
+<p class="lede">An <code>interface</code> declares a method set; a class that
+<code>implements</code> it must provide the method. <code>instanceof</code>
+tests both the concrete type and the interface name.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/speakers.flint</span></div>
+<pre><code class="flint">interface Speaker {
+    int speak();
+}
+
+class Robot implements Speaker {
+    int level;
+    public Robot(int l) {
+        this.level = l;
+    }
+    public int speak() {
+        return this.level * 10;
+    }
+}
+
+class Human implements Speaker {
+    int vol;
+    public Human(int v) {
+        this.vol = v;
+    }
+    public int speak() {
+        return this.vol + 100;
+    }
+}
+
+int loudest(Speaker s) {
+    return s.speak();             // dispatch through the interface
+}
+
+int main() {
+    Speaker r = new Robot(3);
+    Speaker h = new Human(5);
+    printi(r.speak());            // 30
+    printi(h.speak());            // 105
+    printi(loudest(r));         // 30
+    printi(r instanceof Robot);  // 1
+    printi(r instanceof Speaker);  // 1 (interface test)
+    printi(h instanceof Robot);  // 0
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>30
+105
+30
+1
+1
+0</div>
+<ul>
+<li><b>Dispatch through the interface</b>: <code>loudest(Speaker s)</code>
+takes the interface type and calls <code>s.speak()</code> virtually.</li>
+<li><b><code>instanceof</code></b> works with both the concrete type
+(<code>Robot</code>) and the interface name (<code>Speaker</code>).</li>
+</ul>
+</section>
+<section id="enums" class="doc-section" data-label="Enums">
+<div class="page-head"><h1>Enums</h1>
+<p class="lede">Enum values default to a sequence from 0 (or continue after an
+explicit value). An enum value is a named <code>int</code> — usable in
+expressions, stored in a typed variable, and switched on.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/status_enum.flint</span></div>
+<pre><code class="flint">enum Color {
+    Red, Green, Blue,            // 0, 1, 2
+}
+enum Status {
+    Active = 10,               // explicit value
+    Inactive,                 // continues: 11
+}
+
+int main() {
+    Color c = Color.Green;
+    printi(c);                      // 1
+    printi(Color.Blue + 1);         // 3 (usable in expressions)
+    printi(Status.Inactive);        // 11
+    int s = Status.Active;
+    switch (s) {
+        case 10:
+            printi(1);              // matches the explicit value
+            break;
+        case 11:
+            printi(2);
+            break;
+        default:
+            printi(0);
+    }
+    printi(Status.Active + Status.Inactive);  // 21
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1
+3
+11
+1
+21</div>
+<ul>
+<li>Values with no explicit value count up from 0
+(<code>Red, Green, Blue</code> = 0, 1, 2); after an explicit value they
+continue from it (<code>Active = 10</code>, then <code>Inactive</code> =
+11).</li>
+<li>An enum value is just a named <code>int</code>: it works in
+<code>Color.Blue + 1</code>, in a typed variable
+(<code>Color c = Color.Green</code>), and in a <code>switch</code>.</li>
+</ul>
+</section>
+<section id="generics" class="doc-section" data-label="Generics">
+<div class="page-head"><h1>Generics</h1>
+<p class="lede">Generic classes and functions are <em>monomorphized</em> at
+compile time (no runtime type erasure): each
+<code>(template, type-args)</code> pair expands to a concrete type/function
+with a mangled name. Nested instantiations expand to a fixpoint.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/generics_deep.flint</span></div>
+<pre><code class="flint">class Vessel&lt;T&gt; {
+    T v;
+}
+
+class Pair&lt;A, B&gt; {
+    A a;
+    B b;
+}
+
+T identity&lt;T&gt;(T x) {
+    return x;
+}
+
+int main() {
+    Vessel&lt;int&gt; a = new Vessel&lt;int&gt;(41);
+    printi(a.v);                 // 41
+    Vessel&lt;string&gt; s = new Vessel&lt;string&gt;("hi");
+    print(s.v);               // hi
+    int x = identity(7);        // 7 (type inferred from the argument)
+    printi(x);
+    int y = identity&lt;int&gt;(9);   // 9 (explicit type args)
+    printi(y);
+    // two type parameters
+    Pair&lt;int, string&gt; p = new Pair&lt;int, string&gt;(5, "ok");
+    printi(p.a);
+    print(" ");
+    print(p.b);
+    // nested instantiation: a Vessel holding a Pair
+    Vessel&lt;Pair&lt;int, int&gt;&gt; np =
+        new Vessel&lt;Pair&lt;int, int&gt;&gt;(new Pair&lt;int, int&gt;(3, 4));
+    printi(np.v.a);              // 3
+    printi(np.v.b);              // 4
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>41
+hi
+7
+9
+5 ok
+3
+4</div>
+<ul>
+<li><b>Type inference:</b> <code>identity(7)</code> infers
+<code>T = int</code> from the argument.</li>
+<li><b>Explicit type args:</b> <code>identity&lt;int&gt;(9)</code>.</li>
+<li><b>Multiple type parameters:</b>
+<code>Pair&lt;int, string&gt;</code>.</li>
+<li><b>Nested instantiation:</b>
+<code>Vessel&lt;Pair&lt;int, int&gt;&gt;</code> — a generic holding another
+generic instance.</li>
+</ul>
+<p>The same mechanism drives the generic
+<a href="collections.html">collections</a>
+(<code>list&lt;int&gt;</code>, <code>list&lt;string&gt;</code>, etc.).</p>
+</section>
+<section id="memory" class="doc-section" data-label="Memory model">
+<div class="page-head"><h1>Memory model</h1>
+<p class="lede">Object memory is decided at compile time by
+<em>escape analysis</em>: non-escaping objects live in plain stack slots;
+escaping objects go to the heap with a refcount header.</p></div>
+
+<h2>Escape analysis</h2>
+<p>An object <em>escapes</em> when it is passed as an argument, returned,
+stored in a field, or has its address taken. Escaping objects are heap
+allocated with a refcount header
+<code>[refcount][field0][field1]…</code>. Copies
+<code>retain</code> (<code>flint_retain</code>); drops
+<code>release</code> (<code>flint_release</code>). Cycles leak in v1 (there
+are no weak references).</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/escape.flint</span></div>
+<pre><code class="flint">class Pair {
+    int a;
+    int b;
+    public Pair(int x, int y) {
+        this.a = x;
+        this.b = y;
+    }
+}
+
+int sum_of(Pair p) {
+    return p.a + p.b;
+}
+
+Pair make() {
+    Pair p = new Pair(9, 8);   // escapes via return -&gt; heap + refcount
+    return p;
+}
+
+int main() {
+    // stack-allocated: never escapes
+    Pair s = new Pair(3, 4);
+    printi(s.a + s.b);        // 7
+    s.a = 10;
+    printi(s.a + s.b);        // 14
+    // alias of a stack object: plain address, no refcount traffic
+    Pair r = s;
+    printi(r.b);             // 4
+    // heap: escapes into sum_of()
+    Pair h = new Pair(5, 6);
+    printi(sum_of(h));      // 11
+    // heap alias: both hold refcounted references
+    Pair c = h;
+    c.b = 100;
+    printi(h.b);           // 100 (same object)
+    // class value returned from a function: fresh reference
+    Pair t = make();
+    printi(t.a + t.b);      // 17
+    // an object stored in a class field is a heap reference
+    // ... (see full source for Holder)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full program)</span>7
+14
+4
+11
+100
+17
+42
+7</div>
+
+<h2>Key points</h2>
+<ul>
+<li><b>Stack slot:</b> <code>Pair s = new Pair(3,4)</code> used only
+locally — no refcount traffic.</li>
+<li><b>Heap + refcount:</b> once the object escapes (argument, return,
+field store, or <code>&amp;</code>), it is heap-allocated and
+refcounted.</li>
+<li><b>Aliases</b> of heap objects both hold refcounted references —
+writing through one is visible through the other
+(<code>c.b = 100</code> → <code>h.b</code> is <code>100</code>).</li>
+<li><b>Returned objects</b> are fresh references.</li>
+</ul>
+</section>
+<section id="pointers" class="doc-section" data-label="Pointers & raw memory">
+<div class="page-head"><h1>Pointers &amp; raw memory</h1>
+<p class="lede">Raw pointers (<code>*T</code>, <code>&amp;x</code>,
+<code>*p</code>) and the heap (<code>alloc</code>/<code>free</code>/
+<code>memcpy</code>) are the low-level escape hatch, plus sub-word
+little-endian access and a generic syscall.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/rawmem.flint</span></div>
+<pre><code class="flint">int main() {
+    // *int pointer to a local: writes go through the address
+    int x = 10;
+    *int p = &amp;x;
+    *p = 99;
+    printi(x);                     // 99
+    // dynamic array over alloc(); buf[i] is an 8-byte slot
+    int n = 5;
+    *int fib = alloc(n * 8);
+    fib[0] = 0;
+    fib[1] = 1;
+    int i = 2;
+    while (i &lt; n) {
+        fib[i] = fib[i - 1] + fib[i - 2];
+        i = i + 1;
+    }
+    int s = 0;
+    i = 0;
+    while (i &lt; n) {
+        s = s + fib[i];
+        i = i + 1;
+    }
+    printi(s);                     // 0+1+1+2+3 = 7
+    free(fib);
+    // sub-word little-endian access into a buffer
+    *byte buf = alloc(16);
+    sys.byte_store(buf + 8, 65);
+    printi(sys.byte_load(buf + 8));   // 65 ('A')
+    sys.short_store(buf, 1000);
+    printi(sys.short_load(buf));      // 1000
+    sys.int_store(buf + 12, 0x12345678);
+    printi(sys.int_load(buf + 12));   // 305419896 (== 0x12345678)
+    // memcpy: copy 16 bytes
+    *byte src = alloc(16);
+    src[0] = 111;
+    src[1] = 222;
+    *byte dst = alloc(16);
+    memcpy(dst, src, 16);
+    printi(dst[0] * 1000 + dst[1]);   // 111222
+    free(src);
+    free(dst);
+    // generic syscall escape hatch: getpid (39), open (2), close (3)
+    int pid = sys.syscall(39, 0, 0, 0, 0, 0);
+    printi(pid &gt; 0 ? 1 : 0);        // 1
+    int fd = sys.syscall(2, "/dev/null", 0, 0, 0, 0);
+    printi(fd &gt;= 0 ? 1 : 0);        // 1
+    printi(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>99
+7
+65
+1000
+305419896
+111222
+1
+1
+0</div>
+
+<h2>Key points</h2>
+<ul>
+<li><b>Pointer type</b> is a leading <code>*</code>: <code>*int p</code>,
+<code>*byte buf</code>. <code>&amp;x</code> is address-of;
+<code>*p</code> dereferences; <code>buf[i]</code> reads/writes the
+8-byte slot at <code>i</code>.</li>
+<li><b>Heap:</b> <code>alloc(n)</code> / <code>free(p)</code> /
+<code>memcpy(dst, src, n)</code>.</li>
+<li><b>Sub-word little-endian access:</b>
+<code>sys.byte/short/int_load</code> and
+<code>sys.byte/short/int_store</code>.
+<code>0x12345678</code> loads back as <code>305419896</code>.</li>
+<li><b>Generic syscall:</b> <code>sys.syscall(num, a1..a5)</code> — arguments
+land in <code>rdi rsi rdx r10 r8 r9</code> (the 4th is
+<code>r10</code>). <code>getpid</code>=39, <code>open</code>=2,
+<code>close</code>=3.</li>
+</ul>
+</section>
+<section id="arrays" class="doc-section" data-label="Arrays">
+<div class="page-head"><h1>Arrays</h1>
+<p class="lede">Arrays are heap blocks of 8-byte slots with a length header
+(<code>[len][elem0][elem1]…</code>); they pass by pointer.
+<code>len(a)</code> reads the header. No bounds checks in v1.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/arrays2d.flint</span></div>
+<pre><code class="flint">class Grid {
+    int data[];
+    public Grid(int d[]) {
+        this.data = d;
+    }
+    public int max3() {
+        int m = this.data[0];
+        int i = 1;
+        while (i &lt; 3) {
+            if (this.data[i] &gt; m) {
+                m = this.data[i];
+            }
+            i = i + 1;
+        }
+        return m;
+    }
+}
+
+int sum3(int a[]) {             // arrays pass by pointer
+    return a[0] + a[1] + a[2];
+}
+
+int make() {                   // returns a fresh array
+    return [7, 8, 9];
+}
+
+int main() {
+    int a[] = [10, 20, 30];
+    a[1] = 25;
+    printi(len(a));              // 3
+    printi(sum3(a));            // 65 (mutated through the pointer)
+    int r[] = make();
+    printi(r[0] + r[2]);        // 16
+    // array literal as a constructor argument
+    Grid g = new Grid([5, 6, 7]);
+    printi(g.max3());           // 7
+    a[0] = 100;
+    printi(sum3(a));            // 155 (alias mutates the same block)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>3
+65
+16
+7
+155</div>
+
+<h2>Key points</h2>
+<ul>
+<li><b>Literal:</b> <code>int a[] = [10, 20, 30]</code>.</li>
+<li><b>Pass by pointer:</b> <code>sum3(a)</code> sees
+<code>a[1]</code> already mutated to <code>25</code>
+(<code>100+25+30</code> → after <code>a[0]=100</code>,
+<code>155</code>).</li>
+<li><b>Returning a fresh array:</b> <code>return [7, 8, 9]</code>.</li>
+<li><b>Array literal as a constructor argument:</b>
+<code>new Grid([5, 6, 7])</code>.</li>
+<li><b>Arrays as class fields</b> (<code>int data[]</code>).</li>
+<li><code>len(a)</code> reads the length header; index access is unchecked in
+v1.</li>
+</ul>
+</section>
+<section id="strings" class="doc-section" data-label="Strings">
+<div class="page-head"><h1>Strings</h1>
+<p class="lede">NUL-terminated byte sequences, passed and stored by pointer.
+<code>string + int</code> is <em>pointer</em> arithmetic; two strings
+<code>+</code> concatenate.</p></div>
+
+<h2>The model</h2>
+<ul>
+<li><b><code>string + int</code> is pointer arithmetic</b> (an offset), not
+concatenation. <b><code>+</code> of two strings</b> concatenates.</li>
+<li><b><code>(string)N</code></b> is a fresh single-char string for byte
+value <code>N</code>.</li>
+<li>A literal stored into a string variable is a <em>fresh writable
+copy</em>: <code>w[0] = 65</code> writes an 8-byte little-endian slot,
+yielding <code>"A"</code> (<code>0x41 00 …</code>). For multi-char builds,
+use <code>alloc</code> + byte stores + a NUL terminator.</li>
+</ul>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/strings2.flint (selected)</span></div>
+<pre><code class="flint">int main() {
+    // pointer arithmetic: offset into the byte sequence
+    string p = "hello";
+    printi(sys.byte_load(p + 1));  // 101 ('e')
+    printi(strlen(p));             // 5
+    // concatenation with + of two strings
+    string s = "hello" + " world";
+    print(s);                     // hello world
+    printi(strlen(s));            // 11
+    // (string)N single-char construction, then concatenate
+    string c = (string)72;         // 'H'
+    print(c + (string)73);        // HI
+    // writable literal copy: the 8-byte slot write yields "A"
+    string w = "";
+    w[0] = 65;
+    print(w);                    // A
+    // multi-char construction: alloc + byte stores + NUL
+    string m = alloc(8);
+    sys.byte_store(m + 0, 65);
+    sys.byte_store(m + 1, 66);
+    sys.byte_store(m + 2, 0);
+    print(m);                    // AB
+    printi(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full program)</span>101
+5
+hello world
+11
+HI
+A
+AB
+1
+1
+1
+1
+1
+1
+6
+1</div>
+
+<h2><code>str.*</code> builtins</h2>
+<p>The program also exercises <code>str.concat</code>,
+<code>str.concati</code>, <code>conv.atoi</code>/<code>str.itoa</code>,
+<code>str.copy</code>, <code>str.substring</code>,
+<code>str.indexOf</code>, and <code>str.replace</code> — the captured
+<code>1 1 1 1 1 1</code> block is those checks. Note
+<code>str.replace</code> replaces <em>all</em> occurrences
+(<code>str.replace("aaa","a","b")</code> → <code>"bbb"</code>).</p>
+<div class="note"><b>Careful.</b> Printing a <code>null</code> string
+segfaults (the runtime calls <code>strlen</code> on it). Guard with
+<code>== null</code> before printing or measuring.</div>
+</section>
+<section id="fixed-point" class="doc-section" data-label="Fixed-point numbers">
+<div class="page-head"><h1>Fixed-point numbers</h1>
+<p class="lede">Real-valued math is Q48.16 fixed-point — a 64-bit int whose
+lower 16 bits are the fraction (<code>0.5 == 32768</code>).
+<code>math.*</code> provides the operations.</p></div>
+
+<h2>The model</h2>
+<p>There are no floating-point values. A real is a 64-bit int in
+Q48.16: the low 16 bits are the fraction, so <code>1.0 == 65536</code> and
+<code>0.5 == 32768</code>. <code>math.itof</code> lifts an int into the
+format; <code>math.ftoi</code> lowers it (rounding half-up).
+<code>math.fcmp</code> returns <code>&lt; 0</code>, <code>0</code>,
+<code>&gt; 0</code> like <code>str.cmp</code>.</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/fixedpoint.flint</span></div>
+<pre><code class="flint">int main() {
+    int a = math.itof(3);
+    int b = math.itof(2);
+    printi(math.ftoi(math.fadd(a, b)));        // 5 (3.0 + 2.0)
+    printi(math.ftoi(math.fsub(a, b)));        // 1 (3.0 - 2.0)
+    printi(math.ftoi(math.fmul(a, b)));        // 6 (3.0 * 2.0)
+    printi(math.ftoi(math.fdiv(math.fmul(a, b), b)));  // 3 (6.0 / 2.0)
+    printi(math.fcmp(a, b) == 1 ? 1 : 0);      // 1 (3.0 &gt; 2.0)
+    printi(math.fcmp(b, a) == -1 ? 1 : 0);    // 1 (2.0 &lt; 3.0)
+    printi(math.fcmp(a, a) == 0 ? 1 : 0);     // 1 (equal)
+    // fractional: 0.5 + 0.5 = 1.0 (0.5 in Q48.16 is 32768)
+    int half = 32768;
+    printi(math.ftoi(math.fadd(half, half)));   // 1
+    // 1.5 + 2.5 = 4.0  (1.5 = 1*65536 + 32768; 2.5 = 2*65536 + 32768)
+    int p15 = 98304;
+    int p25 = 163840;
+    printi(math.ftoi(math.fadd(p15, p25)));    // 4
+    // ftoi rounds half-up: 1.5 -&gt; 2
+    printi(math.ftoi(p15));                  // 2 (1.5 rounds up)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>5
+1
+6
+3
+1
+1
+1
+1
+4
+2</div>
+<p>The final <code>2</code> confirms <code>ftoi</code> rounds
+<em>half-up</em> (<code>1.5 → 2</code>, not truncation to
+<code>1</code>). The <a href="std-math.html">Math</a> standard-library class
+builds on these builtins (<code>fround</code>, <code>fceil</code>,
+<code>ffloor</code>, <code>fsqrt</code>, …).</p>
+</section>
+<section id="collections" class="doc-section" data-label="Collections overview">
+<div class="page-head"><h1>Collections overview</h1>
+<p class="lede">Five generic collections, each monomorphized per element
+type: <code>list</code>, <code>queue</code>, <code>hashset</code>,
+<code>hashmap</code>, and <code>dictionary</code> (an alias of
+<code>hashmap</code>).</p></div>
+
+<h2>The family</h2>
+<table>
+<tr><th>Type</th><th>Shape</th><th>Element types</th></tr>
+<tr><td><code>list&lt;T&gt;</code></td><td>growable ordered sequence</td>
+<td>int, string, object</td></tr>
+<tr><td><code>queue&lt;T&gt;</code></td><td>FIFO ring buffer</td>
+<td>int, string, object</td></tr>
+<tr><td><code>hashset&lt;T&gt;</code></td><td>unique set</td>
+<td>int, string, object</td></tr>
+<tr><td><code>hashmap&lt;K, V&gt;</code></td><td>key → value</td>
+<td>int/string keys; int/string values</td></tr>
+<tr><td><code>dictionary&lt;K, V&gt;</code></td><td>key → value (alias of
+hashmap)</td><td>as hashmap</td></tr>
+</table>
+
+<h2>Two flavours</h2>
+<ul>
+<li><b>Untyped</b> (e.g. <code>list l = [1,2,3]</code>,
+<code>new hashmap()</code>): the element flavour is inferred from usage.
+<code>len(x)</code> gives the size; <code>get</code> returns the stored
+flavour, or <code>0</code>/<code>null</code> on a mismatch/absent key.</li>
+<li><b>Typed</b> (e.g. <code>list&lt;int&gt;</code>,
+<code>hashmap&lt;string, int&gt;</code>): the element flavour is pinned at
+the type. A mismatched read returns <code>0</code>. See
+<a href="coll-typed.html">Typed elements</a>.</li>
+</ul>
+
+<h2>Common API</h2>
+<p>All collections support <code>len(x)</code> (size), <code>clear()</code>,
+and <code>contains(…)</code>. Construction is by
+<code>new T()</code>, a literal (<code>[1,2,3]</code>, <code>{1:"a"}</code>,
+<code>{3,4}</code>), or a seeded
+<code>new T(a, b, c)</code>. Objects stored in collections are
+refcounted — see <a href="coll-objects.html">Object elements</a>.</p>
+<p>Per-type pages:
+<a href="coll-list.html">list</a> ·
+<a href="coll-queue.html">queue</a> ·
+<a href="coll-hashset.html">hashset</a> ·
+<a href="coll-hashmap.html">hashmap</a> ·
+<a href="coll-dictionary.html">dictionary</a> ·
+<a href="coll-typed.html">typed elements</a> ·
+<a href="coll-objects.html">object elements</a></p>
+</section>
+<section id="coll-list" class="doc-section" data-label="list">
+<div class="page-head"><h1><code>list</code></h1>
+<p class="lede">A growable ordered sequence. Layout:
+<code>[rc][len][cap][data ptr][elem_release]</code>; <code>cap</code> grows
+by doubling.</p></div>
+
+<h2>API</h2>
+<table>
+<tr><th>Method</th><th>Behaviour</th></tr>
+<tr><td><code>add(v)</code></td><td>append</td></tr>
+<tr><td><code>get(i)</code> / <code>x[i]</code></td><td>read (and write, for
+<code>x[i]</code>) by index</td></tr>
+<tr><td><code>contains(v)</code></td><td>int compare; string content
+compare</td></tr>
+<tr><td><code>insert(i, v)</code></td><td>insert at index (tail shifts
+right; <code>i &gt;= len</code> appends)</td></tr>
+<tr><td><code>remove(i)</code></td><td>remove at index (tail shifts left;
+no-op when <code>i &gt;= len</code>)</td></tr>
+<tr><td><code>sort()</code></td><td>signed int ascending (string by
+content)</td></tr>
+<tr><td><code>reverse()</code></td><td>reverse in place</td></tr>
+<tr><td><code>join(sep)</code></td><td>ints via itoa, strings verbatim</td></tr>
+<tr><td><code>clear()</code></td><td>empty the list</td></tr>
+</table>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/list_life.flint (selected)</span></div>
+<pre><code class="flint">int main() {
+    list l = [10, 20, 30];        // literal construction
+    list e = new list();
+    printi(len(e));              // 0
+    l.add(40);
+    printi(len(l));            // 4
+    printi(l.get(1));         // 20
+    l[0] = 99;
+    printi(l[0]);             // 99
+    printi(l.contains(20));   // 1
+    printi(l.contains(77));   // 0
+    l.insert(1, 5);
+    printi(len(l));          // 5
+    printi(l.get(1));       // 5
+    printi(l.get(2));       // 20 (was shifted)
+    l.remove(0);
+    printi(l.get(0));       // 5
+    printi(len(l));         // 4
+    l.sort();
+    printi(l.get(0));       // 5
+    printi(l.get(3));       // 40
+    l.reverse();
+    printi(l.get(0));       // 40
+    string j = l.join("-");
+    print(j);               // 40-30-20-5
+    l.clear();
+    printi(len(l));         // 0
+    // string elements: sort by content, join verbatim
+    list&lt;string&gt; s = new list&lt;string&gt;();
+    s.add("b");
+    s.add("a");
+    s.add("c");
+    printi(s.contains("a"));   // 1 (content compare)
+    printi(s.contains("z"));   // 0
+    s.sort();
+    print(s.join("|"));       // a|b|c
+    // typed list with a constructor seed
+    list&lt;int&gt; t = new list&lt;int&gt;(7, 8, 9);
+    printi(len(t));          // 3
+    printi(t.get(2));       // 9
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full program)</span>0
+4
+20
+99
+1
+0
+5
+5
+20
+5
+4
+5
+40
+40
+40-30-20-5
+0
+1
+0
+a|b|c
+3
+9</div>
+</section>
+<section id="coll-queue" class="doc-section" data-label="queue">
+<div class="page-head"><h1><code>queue</code></h1>
+<p class="lede">A FIFO ring buffer (head / cap-mask layout).
+<code>push</code> enqueues at the tail (doubling when full);
+<code>pop</code>/<code>peek</code> return the front value, or
+<code>0</code> when empty.</p></div>
+
+<h2>API</h2>
+<table>
+<tr><th>Method</th><th>Behaviour</th></tr>
+<tr><td><code>push(v)</code></td><td>enqueue at the tail</td></tr>
+<tr><td><code>pop()</code></td><td>remove &amp; return the front
+(<code>0</code> when empty)</td></tr>
+<tr><td><code>peek()</code></td><td>return the front without removing
+(<code>0</code> when empty)</td></tr>
+<tr><td><code>clear()</code></td><td>empty the queue</td></tr>
+<tr><td><code>len(q)</code></td><td>size</td></tr>
+</table>
+<p>Construction: <code>new queue()</code> or
+<code>new queue(a, b, c)</code> with initial elements.</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/queue_handoff.flint (selected)</span></div>
+<pre><code class="flint">int next_cmd(queue q) {
+    return q.pop();
+}
+
+int main() {
+    queue q = new queue(10, 20, 30);
+    printi(len(q));             // 3
+    printi(q.peek());         // 10
+    printi(q.pop());          // 10
+    printi(q.pop());          // 20
+    q.push(40);
+    printi(q.peek());         // 30
+    printi(len(q));          // 2
+    q.pop();                  // 30
+    q.pop();                  // 40
+    printi(q.pop());         // 0 (empty)
+    printi(q.peek());         // 0 (empty)
+    // a producer/consumer hand-off through a function
+    queue jobs = new queue();
+    jobs.push(111);
+    jobs.push(222);
+    printi(next_cmd(jobs));   // 111 (consumed in FIFO order)
+    printi(next_cmd(jobs));   // 222
+    // string elements
+    queue&lt;string&gt; names = new queue&lt;string&gt;();
+    names.push("in");
+    names.push("out");
+    string n1 = names.pop();
+    string n2 = names.pop();
+    print(n1);               // in
+    print(" ");
+    print(n2);               // out
+    jobs.clear();
+    printi(len(jobs));       // 0
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full program)</span>3
+10
+10
+20
+30
+2
+0
+0
+111
+222
+in out
+0</div>
+</section>
+<section id="coll-hashset" class="doc-section" data-label="hashset">
+<div class="page-head"><h1><code>hashset</code></h1>
+<p class="lede">A unique set. <code>add</code> returns <code>1</code> when
+inserted and <code>0</code> when already present; <code>contains</code>
+matches by value (string content compare); <code>remove</code> leaves a
+tombstone; the bucket array rehashes (doubles) when
+<code>count*2 &gt;= cap</code>.</p></div>
+
+<h2>API</h2>
+<table>
+<tr><th>Method</th><th>Behaviour</th></tr>
+<tr><td><code>add(v)</code></td><td>insert; <code>1</code> if new,
+<code>0</code> if present</td></tr>
+<tr><td><code>contains(v)</code></td><td>value (or content) match</td></tr>
+<tr><td><code>remove(v)</code></td><td>remove; leaves a tombstone</td></tr>
+<tr><td><code>len(s)</code></td><td>size</td></tr>
+<tr><td><code>clear()</code></td><td>empty the set</td></tr>
+</table>
+<p>Construction: <code>new hashset()</code> or a literal
+<code>{3, 4}</code>.</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/wordset.flint (selected)</span></div>
+<pre><code class="flint">int main() {
+    hashset s = new hashset();
+    printi(s.add(5));        // 1 (inserted)
+    printi(s.add(10));      // 1
+    printi(s.add(15));      // 1
+    printi(s.add(10));      // 0 (already present)
+    printi(len(s));        // 3
+    printi(s.contains(10));  // 1
+    printi(s.contains(99));  // 0
+    // remove (tombstone) then re-add
+    printi(s.remove(10));   // 1 (removed)
+    printi(s.contains(10));  // 0
+    printi(len(s));        // 2
+    printi(s.add(10));      // 1 (re-inserted over the tombstone slot)
+    printi(len(s));        // 3
+    // string elements: content dedup of a word stream
+    hashset&lt;string&gt; words = new hashset&lt;string&gt;();
+    words.add("the");
+    words.add("quick");
+    words.add("brown");
+    words.add("fox");
+    words.add("the");         // duplicate
+    words.add("quick");       // duplicate
+    printi(len(words));       // 4 (unique)
+    printi(words.contains("fox"));    // 1
+    printi(words.contains("dog"));    // 0
+    // literal construction
+    hashset lit = {3, 4};
+    printi(len(lit));        // 2
+    printi(lit.contains(4));  // 1
+    s.clear();
+    words.clear();
+    printi(len(s) + len(words));  // 0
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full program)</span>1
+1
+1
+0
+3
+1
+0
+1
+0
+2
+1
+3
+4
+1
+0
+2
+1
+0</div>
+</section>
+<section id="coll-hashmap" class="doc-section" data-label="hashmap">
+<div class="page-head"><h1><code>hashmap</code></h1>
+<p class="lede">A key → value map. <code>put</code> inserts or updates;
+<code>get</code> returns the stored value (<code>0</code> when absent, or
+when the value flavour does not match); <code>keys()</code> /
+<code>values()</code> return fresh lists in insertion order;
+<code>{k: v}</code> is the map literal.</p></div>
+
+<h2>API</h2>
+<table>
+<tr><th>Method</th><th>Behaviour</th></tr>
+<tr><td><code>put(k, v)</code></td><td>insert or update</td></tr>
+<tr><td><code>get(k)</code></td><td>stored value; <code>0</code>/<code>null</code>
+when absent or flavour-mismatched</td></tr>
+<tr><td><code>contains(k)</code></td><td>key present</td></tr>
+<tr><td><code>remove(k)</code></td><td>remove a key</td></tr>
+<tr><td><code>keys()</code> / <code>values()</code></td><td>fresh lists,
+insertion order</td></tr>
+<tr><td><code>len(m)</code> / <code>clear()</code></td><td>size / empty</td></tr>
+</table>
+<p>Construction: <code>new hashmap()</code> or a literal
+<code>{1: "a", 2: "b"}</code>. A map holds one flavour per entry.</p>
+
+<h2>Example — frequency counter</h2>
+<div class="code"><div class="head"><span>examples/wordfreq.flint (selected)</span></div>
+<pre><code class="flint">int bump(hashmap m, string k) {
+    int c = m.get(k);
+    m.put(k, c + 1);
+}
+
+int main() {
+    hashmap m = new hashmap();
+    bump(m, "the");
+    bump(m, "quick");
+    bump(m, "fox");
+    bump(m, "the");
+    bump(m, "the");
+    printi(len(m));                 // 3 (unique keys)
+    printi(m.get("the"));          // 3
+    printi(m.get("quick"));        // 1
+    printi(m.get("fox"));          // 1
+    printi(m.get("dog"));          // 0 (absent)
+    printi(m.contains("the"));     // 1
+    // keys() / values(): fresh lists, insertion order
+    list k = m.keys();
+    list v = m.values();
+    printi(len(k) + len(v));        // 6
+    // int keys too (a map holds one flavour per entry)
+    hashmap n = new hashmap();
+    n.put(1, 100);
+    n.put(2, 200);
+    n.put(1, 150);                 // update, not insert
+    printi(len(n));               // 2
+    printi(n.get(1));             // 150
+    printi(n.get(2));             // 200
+    n.remove(1);
+    printi(n.get(1));             // 0 (removed)
+    printi(len(n));               // 1
+    // map literal construction
+    hashmap lit = {1: "a", 2: "b"};
+    printi(len(lit));            // 2
+    print(lit.get(2));            // b
+    n.clear();
+    printi(len(n));               // 0
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (full program)</span>3
+3
+1
+1
+0
+1
+6
+2
+150
+200
+0
+1
+2
+b
+0</div>
+</section>
+<section id="coll-dictionary" class="doc-section" data-label="dictionary">
+<div class="page-head"><h1><code>dictionary</code></h1>
+<p class="lede"><code>dictionary</code> is an alias of
+<code>hashmap</code> — same API, different name. The usual
+settings-table shape is string keys mapped to string values.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/config.flint</span></div>
+<pre><code class="flint">class Config {
+    dictionary table;
+    public Config() {
+        this.table = new dictionary();
+    }
+    public string get(string key, string dflt) {
+        string v = this.table.get(key);
+        if (v == null) {
+            return dflt;
+        }
+        return v;
+    }
+    public void set(string key, string v) {
+        this.table.put(key, v);
+    }
+}
+
+int main() {
+    Config c = new Config();
+    c.set("host", "localhost");
+    c.set("port", "8080");
+    c.set("debug", "1");
+    printi(len(c.table));         // 3
+    print(c.get("host", "?"));   // localhost
+    print(c.get("port", "?"));   // 8080
+    print(c.get("missing", "dflt"));  // dflt (get returns 0 -&gt; default)
+    c.set("debug", "0");        // update over an existing key
+    print(c.get("debug", "?"));  // 0
+    printi(c.table.contains("port"));   // 1
+    c.table.remove("host");
+    printi(c.table.contains("host"));   // 0
+    printi(len(c.table));         // 2
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>3
+localhost
+8080
+dflt
+0
+1
+0
+2</div>
+<p>Because <code>dictionary.get</code> returns <code>null</code> for an absent
+key (string flavour), the wrapper falls back to a default
+(<code>"dflt"</code>). Note the update-over-existing-key
+(<code>c.set("debug","0")</code>), the <code>contains</code> check, and
+<code>remove</code> shrinking the size to <code>2</code>.</p>
+</section>
+<section id="coll-typed" class="doc-section" data-label="Typed elements">
+<div class="page-head"><h1>Typed elements</h1>
+<p class="lede">Typed collections pin the element flavour at the type:
+<code>list&lt;int&gt;</code>, <code>list&lt;string&gt;</code>,
+<code>hashmap&lt;K, V&gt;</code>, <code>hashset&lt;T&gt;</code>,
+<code>queue&lt;T&gt;</code>. A typed read uses the type's flavour; a
+mismatched <code>get</code> returns <code>0</code>.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/typed_coll.flint</span></div>
+<pre><code class="flint">int main() {
+    // seeded typed list
+    list&lt;int&gt; t = new list&lt;int&gt;(7, 8, 9);
+    printi(len(t));                // 3
+    printi(t.get(2));            // 9
+    t.add(10);
+    printi(t.get(3));           // 10
+    // typed string list
+    list&lt;string&gt; names = new list&lt;string&gt;();
+    names.add("flint");
+    names.add("c");
+    names.add("rust");
+    names.sort();
+    print(names.join(","));       // c,flint,rust
+    // typed set
+    hashset&lt;int&gt; seen = new hashset&lt;int&gt;();
+    printi(seen.add(5));        // 1
+    printi(seen.add(5));        // 0 (duplicate)
+    printi(len(seen));         // 1
+    // typed queue
+    queue&lt;string&gt; q = new queue&lt;string&gt;();
+    q.push("a");
+    q.push("b");
+    print(q.pop());            // a (FIFO)
+    // typed map: string key, int value
+    hashmap&lt;string, int&gt; scores = new hashmap&lt;string, int&gt;();
+    scores.put("a", 15);
+    scores.put("b", 20);
+    printi(scores.get("b"));   // 20
+    printi(len(scores));       // 2
+    // a flavour mismatch on an untyped map returns 0
+    hashmap m = new hashmap();
+    m.put(1, 100);             // stored as an int value
+    string s = m.get(1);       // want a string -&gt; 0
+    printi(s == null ? 1 : 0); // 1
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>3
+9
+10
+c,flint,rust
+1
+0
+1
+a
+20
+2
+1</div>
+<ul>
+<li><b>Seeded construction:</b> <code>new list&lt;int&gt;(7, 8, 9)</code>.</li>
+<li><b>Each typed flavour</b> works: int list, string list, int set,
+string queue, string-keyed int map.</li>
+<li><b>Flavour mismatch</b> on an untyped map
+(<code>m.get(1)</code> wanting a string, when the value is an int)
+returns <code>null</code> → <code>1</code>.</li>
+</ul>
+</section>
+<section id="coll-objects" class="doc-section" data-label="Object elements">
+<div class="page-head"><h1>Object elements</h1>
+<p class="lede">Collections holding class objects refcount their elements (the
+collection layout carries an <code>elem_release</code> slot). Storing an
+object retains a reference; destroying the collection releases it, but an
+object referenced elsewhere survives.</p></div>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/obj_coll.flint</span></div>
+<pre><code class="flint">class Box {
+    int n;
+    public Box(int x) {
+        this.n = x;
+    }
+}
+
+int main() {
+    // a list of objects
+    list b = new list();
+    Box a = new Box(1);
+    Box b2 = new Box(2);
+    b.add(a);
+    b.add(b2);
+    printi(len(b));                 // 2
+    // reading back: the collection's reference keeps the object alive
+    Box r1 = b.get(0);
+    printi(r1.n);               // 1
+    Box r2 = b.get(1);
+    printi(r2.n);               // 2
+    // the original references still work alongside the collection's
+    printi(a.n);               // 1
+    printi(b2.n);              // 2
+    // a map of objects, keyed by int
+    hashmap m = new hashmap();
+    m.put(10, new Box(3));
+    m.put(20, new Box(4));
+    printi(len(m));                 // 2
+    Box v = m.get(20);
+    printi(v.n);               // 4
+    // a queue of objects
+    queue q = new queue();
+    q.push(new Box(5));
+    q.push(new Box(6));
+    Box f = q.pop();
+    printi(f.n);               // 5 (FIFO)
+    Box s = q.pop();
+    printi(s.n);               // 6
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>2
+1
+2
+1
+2
+2
+4
+5
+6</div>
+
+<h2>Semantics</h2>
+<ul>
+<li><b>Storing retains</b> a reference to the object; <b>reading back</b>
+yields a reference the collection's own reference keeps alive.</li>
+<li><b>The original references</b> (<code>a</code>, <code>b2</code>) work
+alongside the collection's — they refer to the same objects.</li>
+<li>Works across <code>list</code>, <code>hashmap</code> (object values),
+and <code>queue</code>.</li>
+</ul>
+<div class="note"><b>v1 limitation.</b> Index writes to object collections
+(<code>l[i] = obj</code>) use borrow semantics — they store the pointer
+without retaining, and do not release the displaced element. Prefer
+<code>add</code>/<code>put</code> for object elements; a program that mixes
+<code>add</code> with index-overwrites of the same slot can leak or double-free
+the displaced object. <code>thread_join</code> is a separate known
+limitation — see <a href="concurrency.html">Concurrency</a>.</div>
+</section>
+<section id="concurrency" class="doc-section" data-label="Concurrency">
+<div class="page-head"><h1>Concurrency</h1>
+<p class="lede">Threads, mutexes, and atomic CAS. <code>thread_join</code> is
+a <em>known limitation in this environment</em> — see the warning below.</p></div>
+
+<h2>API</h2>
+<table>
+<tr><th>Call</th><th>Behaviour</th></tr>
+<tr><td><code>sys.thread_create(@fn, arg)</code></td><td>start a thread
+(<code>@</code> = function address)</td></tr>
+<tr><td><code>sys.thread_join(tid)</code></td><td>wait for the thread —
+<b>does not block in this environment</b></td></tr>
+<tr><td><code>sys.mutex_lock(&amp;m)</code></td><td>lock a mutex
+(<code>int</code>: 0 = unlocked, 1 = locked)</td></tr>
+<tr><td><code>sys.mutex_unlock(&amp;m)</code></td><td>unlock</td></tr>
+<tr><td><code>sys.atomic_cas(&amp;x, old, new)</code></td><td>compare-and-
+set; <code>1</code> on success (leaves <code>x</code> updated),
+<code>0</code> on failure</td></tr>
+<tr><td><code>sys.nanosleep(sec, nsec)</code></td><td>sleep</td></tr>
+<tr><td><code>sys.clone</code> / <code>sys.futex</code></td><td>lower-level
+primitives</td></tr>
+</table>
+
+<h2>Example — locks &amp; atomics (verified)</h2>
+<div class="code"><div class="head"><span>examples/concurrency.flint</span></div>
+<pre><code class="flint">class State {
+    int counter;
+    int mutex;
+    void State() {
+        this.counter = 0;
+        this.mutex = 0;
+    }
+}
+
+int main() {
+    State s = new State();
+    // mutex lock/unlock on a fresh (unlocked) mutex
+    sys.mutex_lock(&amp;s.mutex);
+    sys.mutex_unlock(&amp;s.mutex);
+    printi(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
+    print("\n");
+    // atomic CAS: 5 -&gt; 10 succeeds
+    int val = 5;
+    int r1 = sys.atomic_cas(&amp;val, 5, 10);
+    printi(r1 == 1 ? 1 : 0);       // 1 (success)
+    printi(val == 10 ? 1 : 0);     // 1 (updated)
+    print("\n");
+    // a CAS that does not match the current value fails
+    int r2 = sys.atomic_cas(&amp;val, 5, 20);
+    printi(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
+    printi(val == 10 ? 1 : 0);     // 1 (unchanged)
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1
+11
+11
+1</div>
+
+<div class="warn"><b>Known limitation: <code>thread_join</code>.</b> In this
+environment, <code>sys.thread_join</code> does <em>not</em> wait for the
+thread to finish. Both standard join mechanisms were verified to be
+unavailable here: <code>waitpid()</code> on a <code>clone()</code> child
+returns <code>ECHILD</code> (even for a live zombie with the correct PPid),
+and a futex-based join (the approach real thread libraries use) does not
+wake the parent. As a result, a parent program races ahead of its threads.
+<code>mutex_lock</code>/<code>mutex_unlock</code> and
+<code>atomic_cas</code> work correctly. Treat any program that relies on
+<code>thread_join</code> ordering as unsupported in this environment.</div>
+</section>
+<section id="networking" class="doc-section" data-label="Networking">
+<div class="page-head"><h1>Networking</h1>
+<p class="lede">TCP sockets through <code>sys.socket</code> /
+<code>sys.sockaddr</code> / <code>bind</code> / <code>listen</code> /
+<code>accept</code> / <code>connect</code>, plus
+<code>select</code> / <code>poll</code> / <code>epoll_*</code> for
+multiplexing.</p></div>
+
+<h2>Server</h2>
+<div class="code"><div class="head"><span>examples/tcp_server.flint</span></div>
+<pre><code class="flint">// a simple TCP echo server on 0.0.0.0:7777
+int main() {
+    int s = sys.socket(2, 1, 0);  // AF_INET, SOCK_STREAM
+
+    // build sockaddr_in: 0.0.0.0:7777
+    *int addr = sys.sockaddr(7777, 0, 0, 0, 0);
+    sys.bind(s, addr, 16);
+    sys.listen(s, 5);
+
+    *byte buf = alloc(64);
+    while (1) {
+        int c = sys.accept(s, 0, 0);
+        if (c &lt; 0) {
+            break;
+        }
+        int n = sys.read(c, buf, 64);
+        while (n &gt; 0) {
+            sys.write(c, buf, n);
+            n = sys.read(c, buf, 64);
+        }
+        sys.close(c);
+    }
+    free(buf);
+    sys.close(s);
+    return 0;
+}</code></pre></div>
+
+<h2>Client</h2>
+<div class="code"><div class="head"><span>examples/tcp_client.flint</span></div>
+<pre><code class="flint">// connects to the server on 127.0.0.1:7777, sends a message,
+// and prints the echoed reply
+int main() {
+    int s = sys.socket(2, 1, 0);  // AF_INET, SOCK_STREAM
+
+    *int addr = sys.sockaddr(7777, 127, 0, 0, 1);  // 127.0.0.1:7777
+    sys.connect(s, addr, 16);
+
+    sys.write(s, "hello", 5);
+
+    *byte buf = alloc(64);
+    int n = sys.read(s, buf, 64);
+    sys.write(1, buf, n);  // print the echoed reply
+    print("\n");
+
+    free(buf);
+    sys.close(s);
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (client, when run against the server)</span>hello</div>
+
+<h2>Key points</h2>
+<ul>
+<li><b><code>sys.socket(2, 1, 0)</code></b> = <code>AF_INET</code> +
+<code>SOCK_STREAM</code> + default protocol.</li>
+<li><b><code>sys.sockaddr(port, a, b, c, d)</code></b> builds a
+<code>sockaddr_in</code> (16 bytes).</li>
+<li><b>Multiplexing</b> is available via <code>sys.select</code>,
+<code>sys.poll</code>, <code>sys.epoll_create1</code>,
+<code>sys.epoll_ctl</code>, and <code>sys.epoll_wait</code>.</li>
+</ul>
+</section>
+<section id="io" class="doc-section" data-label="I/O & syscalls">
+<div class="page-head"><h1>I/O &amp; syscalls</h1>
+<p class="lede">File and process I/O through the <code>sys.*</code>
+syscalls, and the generic <code>sys.syscall</code> escape hatch.</p></div>
+
+<h2>File I/O</h2>
+<table>
+<tr><th>Call</th><th>Behaviour</th></tr>
+<tr><td><code>sys.open(path, flags, mode)</code></td><td>open; returns an fd
+(&ge; 0) or a negative errno</td></tr>
+<tr><td><code>sys.read(fd, buf, n)</code></td><td>read up to <code>n</code>
+bytes; returns the count</td></tr>
+<tr><td><code>sys.write(fd, buf, n)</code></td><td>write <code>n</code>
+bytes</td></tr>
+<tr><td><code>sys.close(fd)</code></td><td>close</td></tr>
+<tr><td><code>sys.brk(addr)</code></td><td>heap brk</td></tr>
+</table>
+<p>Common flags (decimal): <code>O_RDONLY</code>=0,
+<code>O_WRONLY</code>=1, <code>O_CREAT</code>=64,
+<code>O_TRUNC</code>=512 — so
+<code>1|64|512 = 577</code> creates/truncates for writing. The
+<a href="std-file.html">File</a> standard-library class wraps these.</p>
+
+<h2>Generic syscall</h2>
+<p><code>sys.syscall(num, a1..a5)</code> issues a raw syscall: the number
+goes in <code>rax</code>, and the arguments land in
+<code>rdi rsi rdx r10 r8 r9</code> — note the <em>4th</em> argument is
+<code>r10</code> (not <code>rcx</code>).</p>
+<div class="code"><div class="head"><span>examples/sysio.flint (I/O section)</span></div>
+<pre><code class="flint">// raw file I/O via syscalls
+// O_WRONLY|O_CREAT|O_TRUNC = 1|64|512 = 577; mode 0644 (octal) = 420
+int fd = sys.open("/tmp/flint_sysio.txt", 577, 420);
+printi(fd &gt;= 0 ? 1 : 0);        // 1
+sys.write(fd, "raw io", 6);
+sys.close(fd);
+int fd2 = sys.open("/tmp/flint_sysio.txt", 0, 0);  // O_RDONLY
+string buf = alloc(16);
+int n = sys.read(fd2, buf, 16);
+sys.close(fd2);
+printi(n == 6 ? 1 : 0);        // 1
+free(buf);
+</code></pre></div>
+<div class="output"><span class="lbl">output (full sysio: b64, json, env, log, raw I/O)</span>1 1 1 1 1 1 1 1 [INFO] sio ok
+1 1
+(stderr: [WARN] sio warn)</div>
+
+<h2>Other builtins</h2>
+<ul>
+<li><b>Process:</b> <code>sys.exit</code>, <code>sys.syscall</code>.</li>
+<li><b>Memory:</b> <code>sys.byte_load</code>/<code>byte_store</code>,
+<code>short_load</code>/<code>short_store</code>,
+<code>int_load</code>/<code>int_store</code> (see
+<a href="pointers.html">Pointers &amp; raw memory</a>).</li>
+<li><b>Concurrency:</b> <code>sys.thread_create</code>,
+<code>thread_join</code>, <code>mutex_lock</code>, <code>mutex_unlock</code>,
+<code>atomic_cas</code>, <code>nanosleep</code> (see
+<a href="concurrency.html">Concurrency</a>).</li>
+</ul>
+</section>
+<section id="builtins" class="doc-section" data-label="Builtin namespaces">
+<div class="page-head"><h1>Builtin namespaces</h1>
+<p class="lede">A set of dotted builtin namespaces (<code>sys.*</code>,
+<code>str.*</code>, …) provides I/O, memory, strings, math, and
+utilities. They are compiled directly to the runtime — no
+<code>import</code> needed.</p></div>
+
+<h2>The namespaces</h2>
+<table>
+<tr><th>Namespace</th><th>Functions</th><th>Page</th></tr>
+<tr><td><code>sys</code></td>
+<td><code>open read write close brk exit syscall</code> ·
+<code>socket bind listen accept connect sockaddr</code> ·
+<code>select poll epoll_create1 epoll_ctl epoll_wait</code> ·
+<code>clone futex thread_create thread_join nanosleep</code> ·
+<code>mutex_lock mutex_unlock atomic_cas</code> ·
+<code>byte/short/int_load/store</code> · <code>alloc free</code></td>
+<td><a href="io.html">I/O</a> / <a href="concurrency.html">Concurrency</a> /
+<a href="networking.html">Networking</a></td></tr>
+<tr><td><code>str</code></td>
+<td><code>cmp concat concati copy itoa len replace substring format</code></td>
+<td><a href="strings.html">Strings</a></td></tr>
+<tr><td><code>math</code></td>
+<td><code>itof ftoi fadd fsub fmul fdiv fcmp</code></td>
+<td><a href="fixed-point.html">Fixed-point</a></td></tr>
+<tr><td><code>mem</code></td>
+<td><code>alloc free memcpy</code></td>
+<td><a href="pointers.html">Pointers</a></td></tr>
+<tr><td><code>io</code></td>
+<td><code>print printi</code></td>
+<td>—</td></tr>
+<tr><td><code>conv</code></td>
+<td><code>atoi</code></td>
+<td>—</td></tr>
+<tr><td><code>time</code></td>
+<td><code>millis now</code></td>
+<td><a href="std-time.html">Time</a></td></tr>
+<tr><td><code>rand</code></td>
+<td><code>next range</code></td>
+<td><a href="std-rand.html">Rand</a></td></tr>
+<tr><td><code>env</code></td>
+<td><code>get</code></td>
+<td><a href="io.html">I/O</a></td></tr>
+<tr><td><code>log</code></td>
+<td><code>info warn error debug</code></td>
+<td><a href="io.html">I/O</a></td></tr>
+<tr><td><code>b64</code></td>
+<td><code>encode decode</code></td>
+<td><a href="io.html">I/O</a></td></tr>
+<tr><td><code>json</code></td>
+<td><code>get geti</code></td>
+<td><a href="io.html">I/O</a></td></tr>
+</table>
+
+<h2>Notes</h2>
+<ul>
+<li><code>print</code> (string) and <code>printi</code> (int) write to
+stdout. <code>log.*</code> writes tagged lines —
+<code>log.info</code> to stdout, <code>log.warn</code> to stderr.</li>
+<li><code>math.*</code> operate on Q48.16 fixed-point values
+(<a href="fixed-point.html">Fixed-point numbers</a>).</li>
+<li><code>str.format</code> is a varargs formatter
+(<code>%d</code>, <code>%s</code>, <code>%b</code>) — see
+<a href="strings.html">Strings</a>.</li>
+<li>These builtins are separate from the <a href="std-math.html">standard
+library</a> classes, which are ordinary <code>class</code>es in
+<code>package std</code> that you <code>import</code>.</li>
+</ul>
+</section>
+<section id="std-math" class="doc-section" data-label="Math">
+<div class="page-head"><h1>Standard library: <code>Math</code></h1>
+<p class="lede"><code>import std.Math;</code> — integer helpers and
+fixed-point (Q48.16) helpers built on the <code>math.*</code> builtins.</p></div>
+
+<h2>Methods</h2>
+<table>
+<tr><th>Integer</th><th>Fixed-point (Q48.16)</th></tr>
+<tr><td><code>abs min max clamp gcd lcm</code></td>
+<td><code>fround fceil ffloor fabs fsqrt</code></td></tr>
+<tr><td><code>factorial is_prime sqrt pow pow10</code></td>
+<td>—</td></tr>
+<tr><td><code>fib cbrt is_even is_odd mod sum_range</code></td>
+<td>—</td></tr>
+</table>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/math_lib.flint</span></div>
+<pre><code class="flint">import std.Math;
+
+int main() {
+    // ---- integer helpers ----
+    printi(Math.abs(-7)); print(" ");      // 7
+    printi(Math.min(3, 9)); print(" ");   // 3
+    printi(Math.max(3, 9)); print(" ");   // 9
+    printi(Math.gcd(48, 18)); print(" "); // 6
+    printi(Math.lcm(4, 6)); print(" ");   // 12
+    printi(Math.factorial(5)); print(" "); // 120
+    printi(Math.is_prime(97)); print(" "); // 1
+    printi(Math.sqrt(81)); print(" ");     // 9
+    printi(Math.pow(2, 10)); print(" ");  // 1024
+    printi(Math.fib(10)); print("\n");     // 55
+
+    // ---- fixed-point (Q48.16) ----
+    int f = math.itof(7);
+    printi(math.ftoi(f)); print(" ");      // 7
+    printi(Math.fround(math.itof(1) + math.itof(1))); print(" "); // 2
+    printi(math.ftoi(Math.fsqrt(math.itof(25)))); print(" "); // 5
+    printi(Math.ffloor(math.itof(1) + math.itof(1))); print(" "); // 2
+    printi(math.ftoi(Math.fabs(math.itof(0) - math.itof(3)))); print("\n"); // 3
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>7 3 9 6 12 120 1 9 1024 55
+7 2 5 2 3</div>
+</section>
+<section id="std-sort" class="doc-section" data-label="Sort">
+<div class="page-head"><h1>Standard library: <code>Sort</code></h1>
+<p class="lede"><code>import std.Sort;</code> — in-place array sorting plus
+array queries. Sorting is done on the array itself.</p></div>
+
+<h2>Methods</h2>
+<p><code>sort</code> <code>sort_desc</code> <code>reverse</code> ·
+<code>min max sum avg</code> · <code>contains index_of count</code> ·
+<code>fill binary_search argmin argmax swap rotate</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/sort_lib.flint</span></div>
+<pre><code class="flint">import std.Sort;
+
+int main() {
+    int a[] = [5, 2, 9, 1, 7];
+    Sort.sort(a);
+    printi(a[0]); print(" ");
+    printi(a[1]); print(" ");
+    printi(a[4]); print("\n");            // 1 2 9
+    int d[] = [3, 8, 1, 6];
+    Sort.sort_desc(d);
+    printi(d[0]); print(" ");
+    printi(d[3]); print("\n");            // 8 1
+    int q[] = [4, 9, 2, 7];
+    printi(Sort.min(q)); print(" ");      // 2
+    printi(Sort.max(q)); print(" ");      // 9
+    printi(Sort.sum(q)); print(" ");      // 22
+    printi(Sort.avg(q)); print(" ");      // 5
+    printi(Sort.contains(q, 7)); print(" "); // 1
+    printi(Sort.contains(q, 8)); print(" "); // 0
+    printi(Sort.index_of(q, 9)); print(" "); // 1
+    printi(Sort.count(q, 4)); print(" ");  // 1
+    printi(Sort.argmax(q)); print("\n");   // 1
+    // binary_search needs a sorted array
+    int s[] = [1, 3, 5, 7, 9];
+    printi(Sort.binary_search(s, 7)); print(" "); // 3
+    printi(Sort.binary_search(s, 8)); print("\n"); // -1 (not found)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1 2 9
+8 1
+2 9 22 5 1 0 1 1 1
+3 -1</div>
+</section>
+<section id="std-bit" class="doc-section" data-label="Bit">
+<div class="page-head"><h1>Standard library: <code>Bit</code></h1>
+<p class="lede"><code>import std.Bit;</code> — bit-level operations on 64-bit
+ints. (Flint has no <code>0b…</code> binary literals, so values are written
+in decimal/hex.)</p></div>
+
+<h2>Methods</h2>
+<p><code>popcount nlz ntz</code> · <code>set_bit clr_bit test_bit
+toggle_bit</code> · <code>bit_rev is_power_of_two next_power_of_two</code> ·
+<code>byte_swap parity get_byte set_byte</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/bit_lib.flint</span></div>
+<pre><code class="flint">import std.Bit;
+
+int main() {
+    printi(Bit.popcount(255)); print(" ");       // 8 (255 = 0xFF, eight set bits)
+    printi(Bit.nlz(1)); print(" ");             // 63 (single bit at position 0)
+    printi(Bit.ntz(8)); print(" ");            // 3 (8 = 1&lt;&lt;3)
+    printi(Bit.set_bit(0, 3)); print(" ");     // 8
+    printi(Bit.test_bit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
+    printi(Bit.toggle_bit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
+    printi(Bit.is_power_of_two(64)); print(" "); // 1
+    printi(Bit.is_power_of_two(65)); print(" "); // 0
+    printi(Bit.next_power_of_two(100)); print(" "); // 128
+    printi(Bit.byte_swap(0x1234)); print("\n");   // 0x3412000000000000 (all 8 bytes swapped)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>8 63 3 8 1 12 1 0 128 3752061439553044480</div>
+</section>
+<section id="std-num" class="doc-section" data-label="Num">
+<div class="page-head"><h1>Standard library: <code>Num</code></h1>
+<p class="lede"><code>import std.Num;</code> — base conversion and digit
+math.</p></div>
+
+<h2>Methods</h2>
+<p><code>to_string hex_digit hex_val</code> · <code>to_hex from_hex
+to_bin from_bin to_oct from_oct</code> · <code>to_upper_hex</code> ·
+<code>sum_digits digit_count reverse_digits trim_leading_zeros
+is_palindrome digit_at</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/num_lib.flint</span></div>
+<pre><code class="flint">import std.Num;
+
+int main() {
+    print(Num.to_hex(255)); print(" ");    // ff
+    print(Num.to_upper_hex(255)); print(" "); // FF
+    printi(Num.from_hex("ff")); print(" ");   // 255
+    print(Num.to_bin(5)); print(" ");         // 101
+    printi(Num.from_bin("101")); print(" ");  // 5
+    print(Num.to_oct(8)); print(" ");         // 10
+    printi(Num.from_oct("10")); print(" ");   // 8
+    printi(Num.sum_digits(1234)); print(" "); // 10
+    printi(Num.digit_count(1000)); print(" "); // 4
+    print(Num.reverse_digits(1234)); print(" "); // 4321
+    printi(Num.is_palindrome(1221)); print("\n"); // 1
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>ff FF 255 101 5 10 8 10 4 4321 1</div>
+</section>
+<section id="std-file" class="doc-section" data-label="File">
+<div class="page-head"><h1>Standard library: <code>File</code></h1>
+<p class="lede"><code>import std.File;</code> — file I/O built on the
+<code>sys.open</code>/<code>read</code>/<code>write</code>/<code>close</code>
+syscalls. Results are printed as stable 1/0 checks.</p></div>
+
+<h2>Methods</h2>
+<p><code>open open_for_write close size read_all write_all exists delete
+append copy rename read_line</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/file_lib.flint</span></div>
+<pre><code class="flint">import std.File;
+
+int main() {
+    string p = "/tmp/flint_file_lib.txt";
+    // write_all creates/truncates; returns the byte count written
+    // (or a negative errno on failure)
+    int w = File.write_all(p, "hello file");
+    printi(w &gt; 0 ? 1 : 0);
+    printi(File.exists(p));              // 1
+    printi(File.size(p));               // 10
+    string back = File.read_all(p);
+    printi(str.cmp(back, "hello file") == 0 ? 1 : 0);  // 1
+    File.append(p, "!");
+    printi(File.size(p));               // 11
+    // copy then rename then delete
+    File.copy(p, "/tmp/flint_file_lib_copy.txt");
+    printi(File.exists("/tmp/flint_file_lib_copy.txt"));  // 1
+    File.rename("/tmp/flint_file_lib_copy.txt", "/tmp/flint_file_lib_moved.txt");
+    printi(File.exists("/tmp/flint_file_lib_moved.txt"));  // 1
+    printi(File.exists("/tmp/flint_file_lib_copy.txt"));   // 0 (gone)
+    File.delete("/tmp/flint_file_lib_moved.txt");
+    File.delete(p);
+    printi(File.exists(p));             // 0 (deleted)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1 1 10 1 11 1 1 0 0</div>
+</section>
+<section id="std-path" class="doc-section" data-label="Path">
+<div class="page-head"><h1>Standard library: <code>Path</code></h1>
+<p class="lede"><code>import std.Path;</code> — pure string path
+manipulation (no filesystem access).</p></div>
+
+<h2>Methods</h2>
+<p><code>base dir ext join parent is_absolute normalize</code>
+(+ <code>last_slash</code> <code>last_dot</code>)</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/path_lib.flint</span></div>
+<pre><code class="flint">import std.Path;
+
+int main() {
+    print(Path.base("/a/b/c.txt")); print(" ");    // c.txt
+    print(Path.dir("/a/b/c.txt")); print(" ");    // /a/b
+    print(Path.ext("/a/b/c.txt")); print(" ");    // txt (no dot)
+    print(Path.join("/a/b", "c.txt")); print(" "); // /a/b/c.txt
+    print(Path.parent("/a/b/c.txt")); print(" ");  // /a/b
+    printi(Path.is_absolute("/a/b")); print(" ");  // 1
+    printi(Path.is_absolute("a/b")); print(" ");   // 0
+    print(Path.normalize("/a/b/../c/./d")); print("\n"); // a/c/d (relative form)
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>c.txt /a/b txt /a/b/c.txt /a/b 1 0 a/c/d</div>
+<div class="note"><b>Note.</b> <code>ext</code> returns the extension
+<em>without</em> the dot (<code>txt</code>), and
+<code>normalize</code> returns the normalized path in relative form
+(<code>a/c/d</code>, no leading slash).</div>
+</section>
+<section id="std-checksum" class="doc-section" data-label="Checksum">
+<div class="page-head"><h1>Standard library: <code>Checksum</code></h1>
+<p class="lede"><code>import std.Checksum;</code> — several checksums and
+hashes of a byte buffer. <code>crc32</code> uses the standard
+(zlib/IEEE) polynomial <code>0xEDB88320</code>, reflected, with
+initial/final <code>0xFFFFFFFF</code>; the 256-entry table is computed once
+on first use.</p></div>
+
+<h2>Methods</h2>
+<p><code>crc32</code> · <code>sum32</code> · <code>djb2</code> ·
+<code>fnv1a</code> (64-bit) · <code>fnv1a32</code> · <code>adler32</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/checksum_lib.flint</span></div>
+<pre><code class="flint">import std.Checksum;
+
+int main() {
+    string s = "hello";
+    printi(Checksum.sum32(s)); print(" ");    // 104+101+108+108+111 = 532
+    printi(Checksum.crc32(s) &amp; 0xFFFF); print(" ");  // crc32("hello") low 16 bits
+    printi(Checksum.djb2(s) &amp; 0xFFFF); print(" ");
+    printi(Checksum.fnv1a32(s) &amp; 0xFFFF); print(" ");
+    printi(Checksum.adler32(s)); print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>532 42630 12441 11435 103547413</div>
+</section>
+<section id="std-rand" class="doc-section" data-label="Rand">
+<div class="page-head"><h1>Standard library: <code>Rand</code></h1>
+<p class="lede"><code>import std.Rand;</code> — a xorshift64 PRNG. Seeded
+with a fixed value, the output is fully deterministic and reproducible.
+Without a seed, <code>next</code> lazily seeds from the hardware
+<code>rand.next()</code> builtin.</p></div>
+
+<h2>Methods</h2>
+<p><code>init next range coin shuffle pick bytes hex_id
+rand_string</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/rand_lib.flint</span></div>
+<pre><code class="flint">import std.Rand;
+
+int main() {
+    Rand.init(42);
+    // range(lo, hi) is uniform in [lo, hi); coin() is 0 or 1
+    printi(Rand.range(1, 1000)); print(" ");
+    printi(Rand.range(1, 1000)); print(" ");
+    printi(Rand.coin()); print(" ");
+    printi(Rand.coin()); print(" ");
+    // shuffle (Fisher-Yates, in place) then print the order
+    int a[] = [0, 1, 2, 3, 4];
+    Rand.shuffle(a);
+    int i = 0;
+    while (i &lt; 5) {
+        printi(a[i]);
+        if (i &lt; 4) {
+            print(" ");
+        }
+        i = i + 1;
+    }
+    print("\n");
+    // pick returns a uniformly random element
+    int b[] = [10, 20, 30];
+    printi(Rand.pick(b)); print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (Rand.init(42))</span>980 382 0 0 2 0 1 3 4
+30</div>
+</section>
+<section id="std-str" class="doc-section" data-label="Str">
+<div class="page-head"><h1>Standard library: <code>Str</code></h1>
+<p class="lede"><code>import std.Str;</code> — string utilities. (Flint has
+no character literals; a padding character is passed as a byte value, e.g.
+<code>48</code> for <code>'0'</code>.)</p></div>
+
+<h2>Methods</h2>
+<p><code>upper lower reverse trim ltrim rtrim</code> · <code>count
+contains last_index_of starts_with ends_with</code> · <code>replace_all
+repeat join ljust rjust</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/str_lib.flint</span></div>
+<pre><code class="flint">import std.Str;
+
+int main() {
+    print(Str.upper("flint")); print(" ");      // FLINT
+    print(Str.lower("FlInT")); print(" ");      // flint
+    print(Str.reverse("abc")); print(" ");      // cba
+    print(Str.trim("  hi  ")); print(" ");     // hi
+    printi(Str.count("banana", "an")); print(" "); // 2
+    printi(Str.contains("banana", "nana")); print(" "); // 1
+    printi(Str.last_index_of("banana", "an")); print(" "); // 3 ("an" at index 3)
+    printi(Str.starts_with("flint", "fli")); print(" "); // 1
+    printi(Str.ends_with("flint", "nt")); print(" "); // 1
+    print(Str.replace_all("a-b-c", "-", "+")); print(" "); // a+b+c
+    print(Str.repeat("ab", 3)); print(" ");    // ababab
+    print(Str.rjust("7", 5, 48)); print(" ");  // 00007  (48 is '0')
+    print(Str.ljust("7", 5, 48)); print("\n"); // 70000
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>FLINT flint cba hi 2 1 3 1 1 a+b+c ababab 00007 70000</div>
+</section>
+<section id="std-time" class="doc-section" data-label="Time">
+<div class="page-head"><h1>Standard library: <code>Time</code></h1>
+<p class="lede"><code>import std.Time;</code> — clock access. Actual
+timestamps are not printed (they vary every run); instead, stable 1/0
+checks verify the clock is sane.</p></div>
+
+<h2>Methods</h2>
+<p><code>millis seconds nanos date</code> — plus the
+<code>time.millis</code> / <code>time.now</code> builtins.</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/time_lib.flint</span></div>
+<pre><code class="flint">import std.Time;
+
+int main() {
+    // millis() is monotonic increasing; two reads differ by &gt;= 0
+    int m1 = Time.millis();
+    int m2 = Time.millis();
+    printi(m2 &gt;= m1 ? 1 : 0);             // 1
+    // seconds() should be a plausible magnitude (year 2000..3000)
+    int s = Time.seconds();
+    printi(s &gt; 1000000000 &amp;&amp; s &lt; 100000000000 ? 1 : 0); // 1
+    // nanos() is a large positive value
+    printi(Time.nanos() &gt; 0 ? 1 : 0);    // 1
+    // date() returns "YYYY-MM-DD HH:MM:SS" (19 chars); check the length
+    string d = Time.date();
+    printi(strlen(d) == 19 ? 1 : 0);    // 1
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1 1 1 1</div>
+</section>
+<section id="std-image" class="doc-section" data-label="Image">
+<div class="page-head"><h1>Standard library: <code>Image</code></h1>
+<p class="lede"><code>import std.Image;</code> — pixel buffers, transforms,
+drawing, and multi-format I/O. Pixels are a row-major RGBA byte buffer
+(4 bytes/pixel); packed colors are <code>0xAARRGGBB</code> in a 64-bit
+int. <em>Not covered by the README</em> — this is the one stdlib class you
+won't find there.</p></div>
+
+<h2>Color &amp; pixel R/W</h2>
+<p>Static: <code>rgba(r,g,b,a)</code> <code>rgb(r,g,b)</code>
+<code>cr cg cb ca</code> (channel getters). Instance: <code>get(x,y)</code>
+(packed, 0 out of range) <code>set(x,y,c)</code> <code>set_alpha</code>
+<code>r g b a</code> (individual channels).</p>
+
+<h2>Transforms &amp; drawing</h2>
+<p>Whole-image: <code>fill clear invert grayscale flip_h flip_v</code>.
+Instance: <code>scale(nw,nh)</code> (nearest-neighbor, returns a new image)
+<code>blur</code> (3×3 box). Drawing: <code>hline vline fill_rect rect
+line circle fill_circle</code>.</p>
+
+<h2>I/O (by extension)</h2>
+<p><code>save(path)</code> dispatches on the extension:
+<code>.png</code> → <code>to_png</code>, <code>.bmp</code> →
+<code>to_bmp</code>, <code>.pgm</code> → <code>to_pgm</code>, else
+<code>to_ppm</code>. <code>Image.load(path)</code> detects by magic bytes
+(PNG / "BM" / "P5" / PPM). Also <code>from_ppm/pgm/bmp/png</code>.
+<code>save</code>/<code>to_*</code> return the byte count written.</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/image_demo.flint</span></div>
+<pre><code class="flint">import std.Image;
+
+int main() {
+    // A 64x64 RGBA image (4 bytes/pixel, row-major)
+    Image im = new Image(64, 64);
+    im.fill(Image.rgb(255, 0, 0));              // solid red
+    im.fill_circle(32, 32, 20, Image.rgb(0, 255, 0)); // green filled disc
+    // The centre is inside the disc -&gt; green; a corner is red
+    int centre = im.get(32, 32);
+    int corner = im.get(0, 0);
+    printi(Image.cg(centre) &gt; 200 ? 1 : 0); // 1 (green centre)
+    printi(Image.cr(corner) &gt; 200 ? 1 : 0); // 1 (red corner)
+    // Grayscale then rotate 90 (64x64 stays 64x64)
+    im.grayscale();
+    im.rotate90();
+    int p = im.get(10, 10);
+    printi(Image.cr(p) == Image.cb(p) ? 1 : 0); // 1 (channels equal)
+    // Save as BMP (returns the byte count), load it back, round-trip check
+    int r = im.save("/tmp/flint_image_demo.bmp");
+    printi(r &gt; 0 ? 1 : 0);                    // 1 (saved ok)
+    Image back = Image.load("/tmp/flint_image_demo.bmp");
+    printi(back != null ? 1 : 0);             // 1 (loaded)
+    printi(Image.cr(back.get(10, 10)) == Image.cr(p) ? 1 : 0); // 1
+    // scale() returns a new image (nearest-neighbor)
+    Image big = im.scale(32, 32);
+    printi(big != null ? 1 : 0);             // 1
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>1 1 1 1 1 1
+1</div>
+</section>
+</main>
+</div>
+</body>
+</html>
