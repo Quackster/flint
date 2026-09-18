@@ -788,10 +788,10 @@ class Image {
     // Allocate JPEG scratch buffers and constant tables once (idempotent).
     static void j_init() {
         if (Image.j_sym == null) {
-            Image.j_sym = alloc(4 * 256 * 8);
-            Image.j_count = alloc(4 * 16 * 8);
-            Image.j_first = alloc(4 * 16 * 8);
-            Image.j_cp = alloc(4 * 16 * 8);
+            Image.j_sym = alloc(32 * 256 * 8);
+            Image.j_count = alloc(32 * 16 * 8);
+            Image.j_first = alloc(32 * 16 * 8);
+            Image.j_cp = alloc(32 * 16 * 8);
             Image.j_quant = alloc(4 * 64 * 8);
             Image.j_f = alloc(64 * 8);
             Image.j_tmp = alloc(64 * 8);
@@ -1730,7 +1730,7 @@ class Image {
                 while (o < seglen - 2) {
                     int tag = sys.byte_load(b + seg + o);
                     int cls = (tag >> 4) & 1;
-                    int tid = (tag & 15) & 1;
+                    int tid = tag & 15;
                     int tab = cls * 2 + tid;
                     int ntot = 0;
                     int L = 1;
