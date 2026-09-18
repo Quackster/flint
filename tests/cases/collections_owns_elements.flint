@@ -1,0 +1,28 @@
+class Box {
+    int id;
+    public Box(int i) {
+        this.id = i;
+    }
+
+    public int id() {
+        return this.id;
+    }
+}
+
+int main() {
+    Box a = new Box(1);
+    if (1) {
+        list<Box> l = [a];         // standalone literal retains a
+        list<Box> f = [new Box(2)]; // fresh-only object: owned + freed
+    }
+    printi(a.id());
+    print("\n");                   // 1: a survived l's destruction
+    if (1) {
+        hashmap<int, Box> m = new hashmap<int, Box>();
+        m.put(1, a);
+        list v = m.values();       // values() retains a
+    }
+    printi(a.id());
+    print("\n");                   // 1: a survived m's and v's destruction
+    return 0;
+}

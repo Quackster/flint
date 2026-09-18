@@ -519,7 +519,21 @@ impl Ctx<'_> {
                 // collection elements share the literal (read-only flavour)
                 let saved = self.str_copy;
                 self.str_copy = false;
-                let t = self.gen_colllit(k, items, frame)?;
+                // infer the element (value, for maps) type from the first item
+                // so the collection owns its object elements (sets elem_release);
+                // unknown / non-object element types fall back to borrowing
+                let ety = match k {
+                    CollKind::Map => items
+                        .iter()
+                        .find_map(|it| if let CollItem::Pair(_, v) = it { Some(v) } else { None }),
+                    _ => items
+                        .iter()
+                        .find_map(|it| if let CollItem::Elem(e) = it { Some(e) } else { None }),
+                }
+                .and_then(|e| self.expr_struct_type(e, frame).ok())
+                .flatten()
+                .map(|i| Ty::Struct(i));
+                let t = self.gen_colllit(k, items, ety, frame)?;
                 self.str_copy = saved;
                 let _ = span;
                 Ok(t)

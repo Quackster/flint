@@ -3,7 +3,7 @@ use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 
 use crate::backend::escape::LocalKind;
-use super::{Ctx, Frame, Local, struct_idx_of};
+use super::{Ctx, Frame, Local, struct_idx_of, coll_release_name};
 
 impl Ctx<'_> {
     pub(crate) fn gen_block(&mut self, block: &Block, frame: &mut Frame) -> CompileResult<()> {
@@ -33,7 +33,7 @@ impl Ctx<'_> {
                 } else if let Some(sidx) = frame.this_class {
                     // implicit this field (bare field name in a method)
                     self.struct_field_type(sidx, name)
-                        .map_or(false, |t| matches!(t, Ty::Struct(_) | Ty::Interface(_)))
+                        .map_or(false, |t| t.coll_kind().is_some() || matches!(t, Ty::Struct(_) | Ty::Interface(_)))
                 } else {
                     false
                 }
@@ -45,7 +45,7 @@ impl Ctx<'_> {
                     .ok()
                     .flatten()
                     .and_then(|s| self.struct_field_type(s, name).ok())
-                    .map_or(false, |t| matches!(t, Ty::Struct(_) | Ty::Interface(_)))
+                    .map_or(false, |t| t.coll_kind().is_some() || matches!(t, Ty::Struct(_) | Ty::Interface(_)))
             }
             Expr::Cast { e, .. } => self.should_retain(e, frame),
             _ => false,
@@ -115,6 +115,32 @@ impl Ctx<'_> {
         }
     }
 
+    /// Collection kind when an assignment target holds a collection value.
+    pub(crate) fn assign_target_coll(&self, target: &Expr, frame: &Frame) -> CompileResult<Option<CollKind>> {
+        match target {
+            Expr::Ident { name, .. } => {
+                if let Some(l) = frame.find(name) {
+                    if l.kind == LocalKind::Heap {
+                        return Ok(l.ty.coll_kind());
+                    }
+                }
+                Ok(None)
+            }
+            Expr::This { .. } => Ok(None),
+            Expr::Field { base, name, .. } => {
+                if let Some(sidx) = self.is_class_name(base) {
+                    if self.is_static_field(sidx, name) {
+                        return Ok(None);
+                    }
+                }
+                let s = self.base_struct_idx(base, frame)?;
+                let ft = self.struct_field_type(s, name)?;
+                Ok(ft.coll_kind())
+            }
+            _ => Ok(None),
+        }
+    }
+
     pub(crate) fn gen_stmt(&mut self, stmt: &Stmt, frame: &mut Frame) -> CompileResult<()> {
         match stmt {
             Stmt::Decl { name, value, .. } => {
@@ -146,11 +172,17 @@ impl Ctx<'_> {
                 self.maybe_retain(value, frame);
                 if lkind == LocalKind::Heap {
                     // overwrite: release the old reference, then store
-                    let cname = &self.prog.structs[lsidx.unwrap()].name;
+                    let rel: Option<String> = match (lsidx, lty.coll_kind()) {
+                        (Some(s), _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
+                        (None, Some(k)) => Some(coll_release_name(k).to_string()),
+                        _ => None,
+                    };
                     self.emit("\tpop %r10");
-                    self.emit(&format!("\tmovq {}(%rbp), %r11", loff));
-                    self.emit("\tmov %r11, %rdi");
-                    self.emit(&format!("\tcall flint_release_{}", cname));
+                    if let Some(rel) = rel {
+                        self.emit(&format!("\tmovq {}(%rbp), %r11", loff));
+                        self.emit("\tmov %r11, %rdi");
+                        self.emit(&format!("\tcall {}", rel));
+                    }
                     self.emit(&format!("\tmov %r10, {}(%rbp)", loff));
                 } else {
                     self.emit("\tpop %rax"); // result from stack
@@ -168,6 +200,11 @@ impl Ctx<'_> {
                     self.emit("\tpop %rax");
                     self.emit("\tmov %rax, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
+                } else if let Some(k) = t.coll_kind() {
+                    // a collection value used as a statement: drop the reference
+                    self.emit("\tpop %rax");
+                    self.emit("\tmov %rax, %rdi");
+                    self.emit(&format!("\tcall {}", coll_release_name(k)));
                 } else {
                     self.emit("\tpop %rax"); // discard
                 }
@@ -181,7 +218,12 @@ impl Ctx<'_> {
                         Expr::ArrayLit { elems, span: vspan, .. }
                             if tkind == CollKind::List || tkind == CollKind::Queue =>
                         {
-                            self.gen_coll_from_elems(tkind, elems, frame)?;
+                            self.gen_coll_from_elems(
+                                tkind,
+                                elems,
+                                self.coll_elem_type(&tty, false),
+                                frame,
+                            )?;
                             self.store_coll(target, frame)?;
                             return Ok(());
                         }
@@ -206,7 +248,12 @@ impl Ctx<'_> {
                                     ),
                                 ));
                             }
-                            self.gen_colllit(k, items, frame)?;
+                            self.gen_colllit(
+                                k,
+                                items,
+                                self.coll_elem_type(&tty, tkind == CollKind::Map),
+                                frame,
+                            )?;
                             self.store_coll(target, frame)?;
                             return Ok(());
                         }
@@ -221,8 +268,9 @@ impl Ctx<'_> {
                 let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
                 self.maybe_retain(value, frame);
-                // class-typed target: release the old reference before storing
+                // class/collection target: release the old reference before storing
                 let target_class = self.assign_target_class(target, frame)?;
+                let target_coll = self.assign_target_coll(target, frame)?;
                 self.emit("\tpop %r10"); // value -> r10 (caller-saved temp)
                 self.emit_lvalue_addr(target, frame)?; // pushes address
                 // Hold the address in %rdx: flint_release clobbers %rax (the
@@ -233,6 +281,10 @@ impl Ctx<'_> {
                     self.emit("\tmovq (%rdx), %r11");
                     self.emit("\tmov %r11, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
+                } else if let Some(k) = target_coll {
+                    self.emit("\tmovq (%rdx), %r11");
+                    self.emit("\tmov %r11, %rdi");
+                    self.emit(&format!("\tcall {}", coll_release_name(k)));
                 }
                 self.emit("\tmov %r10, (%rdx)");
                 let _ = vty;

@@ -8,11 +8,18 @@
 # them saves and restores them. Bucket i (16 bytes) lives at base + 16*i,
 # entry i (32 bytes) at base + 32*i, computed via shift (no scale > 8).
 #
-# Object layouts (all heap, slot 0 = size, 8-byte slots, power-of-two caps):
-#   list:    [0] len   [1] cap   [2] data ptr
-#   queue:   [0] count [1] cap   [2] data ptr   [3] head
-#   hashset: [0] count [1] cap   [2] buckets ptr   (bucket = 16 bytes: val, flag)
-#   hashmap: [0] count [1] cap   [2] entries ptr   (entry  = 32 bytes: key, kflag, val, vflag)
+# Object layouts (all heap, refcounted, 8-byte slots, power-of-two caps).
+# Slot 0 is the refcount (flint_retain/inc, flint_release_<kind>/dec).
+# Slot 4/5 is elem_release: a function pointer set at construction (0 for
+# non-object elements); when the collection is destroyed, object elements are
+# released by calling *elem_release on each (so an element survives if it is
+# still referenced elsewhere).
+#   list:    [0] rc [1] len   [2] cap [3] data ptr    [4] elem_release
+#   queue:   [0] rc [1] count [2] cap [3] data ptr   [4] head [5] elem_release
+#   hashset: [0] rc [1] count [2] cap [3] buckets ptr   [4] elem_release
+#            (bucket = 16 bytes: val, flag)
+#   hashmap: [0] rc [1] count [2] cap [3] entries ptr   [4] elem_release
+#            (entry  = 32 bytes: key, kflag, val, vflag)
 # Entry flags: 0 = empty, 1 = int, 2 = string, 3 = deleted (tombstone).
 # String values are compared with flint_strcmp; ints with ==.
 
@@ -63,10 +70,12 @@ flint_hash_val:
 # ---------------------------------------------------------------------- list
     .globl flint_list_new
     .type flint_list_new, @function
-# flint_list_new(n) -> rax. Capacity starts at max(8, n).
+# flint_list_new(n, elem_release) -> rax. Capacity starts at max(8, n).
 flint_list_new:
     push %r12
+    push %r13
     push %r14
+    mov %rsi, %r13               # elem_release (flint_alloc clobbers rsi)
     mov $8, %r10
     cmp $8, %rdi
     jbe .ln_cap
@@ -77,13 +86,16 @@ flint_list_new:
     shl $3, %rdi
     call flint_alloc               # data buffer
     mov %rax, %r12
-    mov $32, %rdi
-    call flint_alloc               # header
+    mov $40, %rdi
+    call flint_alloc               # header (5 slots)
     xor %ecx, %ecx
-    movq %rcx, (%rax)            # len = 0
-    movq %r14, 8(%rax)           # cap
-    movq %r12, 16(%rax)          # data
+    movq $1, (%rax)             # rc = 1
+    movq %rcx, 8(%rax)          # len = 0
+    movq %r14, 16(%rax)         # cap
+    movq %r12, 24(%rax)         # data
+    movq %r13, 32(%rax)         # elem_release
     pop %r14
+    pop %r13
     pop %r12
     ret
     .size flint_list_new, .-flint_list_new
@@ -97,8 +109,8 @@ flint_list_add:
     push %r14
     mov %rdi, %rbx               # list
     mov %rsi, %r14               # value
-    movq 8(%rbx), %r10           # cap
-    cmp %r10, (%rbx)
+    movq 16(%rbx), %r10          # cap
+    cmp %r10, 8(%rbx)
     jb .la_store                 # len < cap
     shl $1, %r10                 # new cap = cap * 2
     test %r10, %r10
@@ -109,22 +121,22 @@ flint_list_add:
     mov %r12, %rdi
     shl $3, %rdi
     call flint_alloc               # new buffer
-    movq 16(%rbx), %rsi          # old data
-    movq (%rbx), %rdx
+    movq 24(%rbx), %rsi          # old data
+    movq 8(%rbx), %rdx
     shl $3, %rdx                 # len * 8
     mov %rax, %rdi               # dst = new buffer
     call flint_memcpy              # rdi = new + len*8
     sub %rdx, %rdi
-    movq %rdi, 16(%rbx)          # data = new
-    movq %r12, 8(%rbx)           # cap = new cap
+    movq %rdi, 24(%rbx)          # data = new
+    movq %r12, 16(%rbx)          # cap = new cap
 .la_store:
-    movq 16(%rbx), %rax
-    movq (%rbx), %rcx
+    movq 24(%rbx), %rax
+    movq 8(%rbx), %rcx
     lea (%rax, %rcx, 8), %rax
     mov %r14, (%rax)
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     addq $1, %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
     pop %r14
     pop %r12
     pop %rbx
@@ -135,7 +147,7 @@ flint_list_add:
     .type flint_list_get, @function
 # flint_list_get(list, i) -> rax (element value; no bounds check in v1)
 flint_list_get:
-    movq 16(%rdi), %rax
+    movq 24(%rdi), %rax
     movq (%rax, %rsi, 8), %rax
     ret
     .size flint_list_get, .-flint_list_get
@@ -144,7 +156,7 @@ flint_list_get:
     .type flint_list_set, @function
 # flint_list_set(list, i, value)
 flint_list_set:
-    movq 16(%rdi), %rax
+    movq 24(%rdi), %rax
     mov %rdx, (%rax, %rsi, 8)
     ret
     .size flint_list_set, .-flint_list_set
@@ -153,7 +165,7 @@ flint_list_set:
     .type flint_list_addr, @function
 # flint_list_addr(list, i) -> rax (address of slot i, for stores)
 flint_list_addr:
-    movq 16(%rdi), %rax
+    movq 24(%rdi), %rax
     lea (%rax, %rsi, 8), %rax
     ret
     .size flint_list_addr, .-flint_list_addr
@@ -161,7 +173,7 @@ flint_list_addr:
     .globl flint_list_size
     .type flint_list_size, @function
 flint_list_size:
-    movq (%rdi), %rax
+    movq 8(%rdi), %rax
     ret
     .size flint_list_size, .-flint_list_size
 
@@ -170,27 +182,40 @@ flint_list_size:
 # flint_list_remove(list, i): shift tail left, len--. No-op when i >= len.
 flint_list_remove:
     push %rbx
+    push %r12
+    push %r14
     mov %rdi, %rbx
-    movq (%rbx), %rax            # len
+    movq 8(%rbx), %rax            # len
     cmp %rax, %rsi               # i - len
     jae .lr_done                 # i >= len: no-op
-    movq 16(%rbx), %r10          # data
-    movq (%rbx), %rdx            # len
+    movq 24(%rbx), %r12          # data
+    movq (%r12, %rsi, 8), %r14    # removed element
+    movq 8(%rbx), %rdx           # len
     subq %rsi, %rdx
     dec %rdx                     # count = len - i - 1
     test %rdx, %rdx
     jz .lr_pop
-    lea (%r10, %rsi, 8), %rdi    # dst = data + i*8
-    lea 8(%r10, %rsi, 8), %rsi   # src = data + (i+1)*8 (dst < src: forward ok)
+    lea (%r12, %rsi, 8), %rdi    # dst = data + i*8
+    lea 8(%r12, %rsi, 8), %rsi   # src = data + (i+1)*8 (dst < src: forward ok)
     mov %rdx, %rax
     shl $3, %rax
     mov %rax, %rdx
     call flint_memcpy
 .lr_pop:
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     dec %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
+    # release removed element if object
+    movq 32(%rbx), %r10          # elem_release
+    test %r10, %r10
+    jz .lr_done
+    test %r14, %r14
+    jz .lr_done
+    mov %r14, %rdi
+    call *%r10
 .lr_done:
+    pop %r14
+    pop %r12
     pop %rbx
     ret
     .size flint_list_remove, .-flint_list_remove
@@ -202,8 +227,8 @@ flint_list_contains:
     push %rbx
     push %r12
     mov %rdi, %rbx
-    movq 16(%rbx), %r12          # data
-    movq (%rbx), %r11            # len
+    movq 24(%rbx), %r12          # data
+    movq 8(%rbx), %r11           # len
     xor %r10, %r10               # i
 .lc_loop:
     cmp %r11, %r10
@@ -236,17 +261,43 @@ flint_list_contains:
     .globl flint_list_clear
     .type flint_list_clear, @function
 flint_list_clear:
-    movq $0, (%rdi)
+    push %rbx
+    push %r12
+    push %r14
+    mov %rdi, %rbx
+    movq 32(%rbx), %r12          # elem_release
+    test %r12, %r12
+    jz .lcl_norel
+    movq 24(%rbx), %r14          # data
+    movq 8(%rbx), %r11           # len
+    xor %r10, %r10              # i
+.lcl_loop:
+    cmpq %r11, %r10
+    jae .lcl_norel
+    movq (%r14, %r10, 8), %rdi
+    test %rdi, %rdi
+    jz .lcl_next
+    call *%r12
+.lcl_next:
+    inc %r10
+    jmp .lcl_loop
+.lcl_norel:
+    movq $0, 8(%rbx)
+    pop %r14
+    pop %r12
+    pop %rbx
     ret
     .size flint_list_clear, .-flint_list_clear
 
 # --------------------------------------------------------------------- queue
     .globl flint_queue_new
     .type flint_queue_new, @function
-# flint_queue_new(n) -> rax. Capacity starts at the next power of two >= max(8, n).
+# flint_queue_new(n, elem_release) -> rax. Capacity starts at the next power of two >= max(8, n).
 flint_queue_new:
     push %r12
+    push %r13
     push %r14
+    mov %rsi, %r13               # elem_release (flint_alloc clobbers rsi)
     mov $8, %r10
     cmp $8, %rdi
     jbe .qn_pow
@@ -264,14 +315,17 @@ flint_queue_new:
     shl $3, %rdi
     call flint_alloc               # data buffer
     mov %rax, %r12
-    mov $32, %rdi
-    call flint_alloc               # header
+    mov $48, %rdi
+    call flint_alloc               # header (6 slots)
     xor %ecx, %ecx
-    movq %rcx, (%rax)            # count = 0
-    movq %r14, 8(%rax)           # cap
-    movq %r12, 16(%rax)          # data
-    movq %rcx, 24(%rax)          # head = 0
+    movq $1, (%rax)             # rc = 1
+    movq %rcx, 8(%rax)          # count = 0
+    movq %r14, 16(%rax)         # cap
+    movq %r12, 24(%rax)         # data
+    movq %rcx, 32(%rax)         # head = 0
+    movq %r13, 40(%rax)         # elem_release
     pop %r14
+    pop %r13
     pop %r12
     ret
     .size flint_queue_new, .-flint_queue_new
@@ -285,37 +339,37 @@ flint_queue_push:
     push %r14
     mov %rdi, %rbx               # q
     mov %rsi, %r14               # value
-    movq 8(%rbx), %r10
-    cmp %r10, (%rbx)
+    movq 16(%rbx), %r10
+    cmp %r10, 8(%rbx)
     jb .qp_store                 # count < cap
     shl $1, %r10                 # new cap
     mov %r10, %r12               # r12 = new cap
     mov %r12, %rdi
     shl $3, %rdi
     call flint_alloc
-    movq 16(%rbx), %r11          # old data
-    movq 24(%rbx), %rcx
+    movq 24(%rbx), %r11          # old data
+    movq 32(%rbx), %rcx
     lea (%r11, %rcx, 8), %rsi    # src = old + head*8
-    movq (%rbx), %rdx
+    movq 8(%rbx), %rdx
     mov %rax, %rdi               # dst = new data
     call flint_memcpy              # rdi = new + count*8
     sub %rdx, %rdi
-    movq %rdi, 16(%rbx)
-    movq %r12, 8(%rbx)
-    movq $0, 24(%rbx)            # head = 0
+    movq %rdi, 24(%rbx)
+    movq %r12, 16(%rbx)
+    movq $0, 32(%rbx)            # head = 0
 .qp_store:
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10                     # mask = cap - 1
-    movq 24(%rbx), %rax
-    movq (%rbx), %rcx
+    movq 32(%rbx), %rax
+    movq 8(%rbx), %rcx
     lea (%rax, %rcx), %rax
     and %r10, %rax               # pos = (head + count) & mask
-    movq 16(%rbx), %r11
+    movq 24(%rbx), %r11
     lea (%r11, %rax, 8), %rax
     mov %r14, (%rax)
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     inc %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
     pop %r14
     pop %r12
     pop %rbx
@@ -329,21 +383,21 @@ flint_queue_pop:
     push %rbx
     push %r12
     mov %rdi, %rbx
-    movq (%rbx), %r10
+    movq 8(%rbx), %r10
     test %r10, %r10
     jz .qpe
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11                     # mask
-    movq 24(%rbx), %rcx
+    movq 32(%rbx), %rcx
     and %r11, %rcx               # pos = head & mask
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
     lea (%r12, %rcx, 8), %r12
     movq (%r12), %rax
     inc %rcx
     and %r11, %rcx
-    movq %rcx, 24(%rbx)
+    movq %rcx, 32(%rbx)
     dec %r10
-    movq %r10, (%rbx)
+    movq %r10, 8(%rbx)
     pop %r12
     pop %rbx
     ret
@@ -361,14 +415,14 @@ flint_queue_peek:
     push %rbx
     push %r12
     mov %rdi, %rbx
-    movq (%rbx), %r10
+    movq 8(%rbx), %r10
     test %r10, %r10
     jz .qke
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11
-    movq 24(%rbx), %rcx
+    movq 32(%rbx), %rcx
     and %r11, %rcx
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
     lea (%r12, %rcx, 8), %r12
     movq (%r12), %rax
     pop %r12
@@ -384,25 +438,60 @@ flint_queue_peek:
     .globl flint_queue_size
     .type flint_queue_size, @function
 flint_queue_size:
-    movq (%rdi), %rax
+    movq 8(%rdi), %rax
     ret
     .size flint_queue_size, .-flint_queue_size
 
     .globl flint_queue_clear
     .type flint_queue_clear, @function
 flint_queue_clear:
-    movq $0, (%rdi)
-    movq $0, 24(%rdi)
+    push %rbx
+    push %r12
+    push %r14
+    push %r15
+    mov %rdi, %rbx
+    movq 8(%rbx), %r10           # count
+    test %r10, %r10
+    jz .qcl_zero
+    movq 40(%rbx), %r12          # elem_release
+    test %r12, %r12
+    jz .qcl_zero
+    movq 16(%rbx), %r15          # cap
+    dec %r15                     # mask
+    movq 32(%rbx), %r14          # head
+    movq 24(%rbx), %r8           # data
+    xor %r11, %r11              # i
+.qcl_loop:
+    cmpq %r10, %r11
+    jae .qcl_zero
+    lea (%r14, %r11), %r9
+    and %r15, %r9               # pos = (head + i) & mask
+    movq (%r8, %r9, 8), %rdi
+    test %rdi, %rdi
+    jz .qcl_next
+    call *%r12
+.qcl_next:
+    inc %r11
+    jmp .qcl_loop
+.qcl_zero:
+    movq $0, 8(%rbx)
+    movq $0, 32(%rbx)
+    pop %r15
+    pop %r14
+    pop %r12
+    pop %rbx
     ret
     .size flint_queue_clear, .-flint_queue_clear
 
 # ------------------------------------------------------------------- hashset
     .globl flint_hashset_new
     .type flint_hashset_new, @function
-# flint_hashset_new(n) -> rax. Bucket count is the next power of two >= max(8, 2n).
+# flint_hashset_new(n, elem_release) -> rax. Bucket count is the next power of two >= max(8, 2n).
 flint_hashset_new:
     push %r12
+    push %r13
     push %r14
+    mov %rsi, %r13               # elem_release (flint_alloc clobbers rsi)
     mov %rdi, %r10
     shl $1, %r10
     cmp $8, %r10
@@ -420,13 +509,16 @@ flint_hashset_new:
     shl $4, %rdi
     call flint_alloc               # buckets (16 bytes each)
     mov %rax, %r12
-    mov $32, %rdi
-    call flint_alloc               # header
+    mov $40, %rdi
+    call flint_alloc               # header (5 slots)
     xor %ecx, %ecx
-    movq %rcx, (%rax)            # count = 0
-    movq %r14, 8(%rax)           # cap
-    movq %r12, 16(%rax)          # buckets
+    movq $1, (%rax)             # rc = 1
+    movq %rcx, 8(%rax)          # count = 0
+    movq %r14, 16(%rax)         # cap
+    movq %r12, 24(%rax)         # buckets
+    movq %r13, 32(%rax)         # elem_release
     pop %r14
+    pop %r13
     pop %r12
     ret
     .size flint_hashset_new, .-flint_hashset_new
@@ -439,15 +531,15 @@ flint_hashset_rehash:
     push %r14
     push %r15
     mov %rdi, %rbx
-    movq 8(%rbx), %r15           # old cap
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r15          # old cap (r15 survives flint_alloc, which clobbers r11)
+    movq 16(%rbx), %r10
     shl $1, %r10                 # new cap
-    movq %r10, 8(%rbx)
+    movq %r10, 16(%rbx)
     mov %r10, %rdi
     shl $4, %rdi
     call flint_alloc
     mov %rax, %r12               # new buckets
-    movq 16(%rbx), %r13          # old buckets
+    movq 24(%rbx), %r13          # old buckets
     xor %r8, %r8                 # i
 .hsr_i:
     cmpq %r15, %r8
@@ -463,7 +555,7 @@ flint_hashset_rehash:
     mov %r11, %rdi
     mov %r9, %rsi
     call flint_hash_val
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10
     and %r10, %rax
 .hsr_p:
@@ -473,7 +565,7 @@ flint_hashset_rehash:
     test %rdx, %rdx
     jz .hsr_ins
     inc %rax
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10
     and %r10, %rax
     jmp .hsr_p
@@ -484,7 +576,7 @@ flint_hashset_rehash:
     inc %r8
     jmp .hsr_i
 .hsr_done:
-    movq %r12, 16(%rbx)
+    movq %r12, 24(%rbx)
     pop %r15
     pop %r14
     pop %r13
@@ -503,9 +595,9 @@ flint_hashset_add:
     mov %rdi, %rbx               # set
     mov %rsi, %r14               # value
     mov %rdx, %r13               # flag
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     shl $1, %r10
-    cmp %r10, (%rbx)             # count*2 >= cap?
+    cmp %r10, 8(%rbx)             # count*2 >= cap?
     jb .ha_probe
     mov %rbx, %rdi
     call flint_hashset_rehash
@@ -513,10 +605,10 @@ flint_hashset_add:
     mov %r14, %rdi
     mov %r13, %rsi
     call flint_hash_val
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11                     # mask
     and %r11, %rax
-    movq 16(%rbx), %r12          # buckets
+    movq 24(%rbx), %r12          # buckets
 .ha_p:
     lea (%rax, %rax, 1), %rdx    # 2h
     lea (%r12, %rdx, 8), %r10    # bucket
@@ -545,16 +637,16 @@ flint_hashset_add:
     jmp .ha_next
 .ha_next:
     inc %rax
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11
     and %r11, %rax
     jmp .ha_p
 .ha_insert:
     movq %r14, (%r10)
     movq %r13, 8(%r10)
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     inc %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
     mov $1, %rax
     jmp .ha_done
 .ha_dup:
@@ -578,13 +670,13 @@ flint_hashset_contains:
     mov %rdi, %rbx
     mov %rsi, %r14
     mov %rdx, %r13
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11                     # mask
     mov %r14, %rdi
     mov %rdx, %rsi
     call flint_hash_val
     and %r11, %rax
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
 .hc_p:
     lea (%rax, %rax, 1), %rdx
     lea (%r12, %rdx, 8), %r10
@@ -634,16 +726,17 @@ flint_hashset_remove:
     push %r12
     push %r13
     push %r14
+    push %r15
     mov %rdi, %rbx
     mov %rsi, %r14
     mov %rdx, %r13
-    movq 8(%rbx), %r11
-    dec %r11
+    movq 16(%rbx), %r11
+    dec %r11                     # mask
     mov %r14, %rdi
     mov %rdx, %rsi
     call flint_hash_val
     and %r11, %rax
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
 .hsm_p:
     lea (%rax, %rax, 1), %rdx
     lea (%r12, %rdx, 8), %r10
@@ -673,15 +766,24 @@ flint_hashset_remove:
     and %r11, %rax
     jmp .hsm_p
 .hsm_hit:
+    movq (%r10), %r15            # stored element
     movq $3, 8(%r10)             # tombstone
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     dec %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
+    movq 32(%rbx), %r11          # elem_release
+    test %r11, %r11
+    jz .hsm_done
+    test %r15, %r15
+    jz .hsm_done
+    mov %r15, %rdi
+    call *%r11
     mov $1, %rax
     jmp .hsm_done
 .hsm_no:
     xor %rax, %rax
 .hsm_done:
+    pop %r15
     pop %r14
     pop %r13
     pop %r12
@@ -692,7 +794,7 @@ flint_hashset_remove:
     .globl flint_hashset_size
     .type flint_hashset_size, @function
 flint_hashset_size:
-    movq (%rdi), %rax
+    movq 8(%rdi), %rax
     ret
     .size flint_hashset_size, .-flint_hashset_size
 
@@ -700,21 +802,33 @@ flint_hashset_size:
     .type flint_hashset_clear, @function
 flint_hashset_clear:
     push %rbx
+    push %r12
+    push %r14
     mov %rdi, %rbx
-    movq $0, (%rbx)
-    movq 8(%rbx), %r10
-    movq 16(%rbx), %r11
+    movq 32(%rbx), %r12          # elem_release
+    movq 16(%rbx), %r14          # cap
+    movq 24(%rbx), %r11          # buckets
     xor %rcx, %rcx
 .hcl_l:
-    cmpq %r10, %rcx
+    cmpq %r14, %rcx
     jae .hcl_d
     lea (%rcx, %rcx, 1), %rdx
     lea (%r11, %rdx, 8), %rax
+    test %r12, %r12
+    jz .hcl_z
+    movq (%rax), %rdi
+    test %rdi, %rdi
+    jz .hcl_z
+    call *%r12
+.hcl_z:
     movq $0, (%rax)
     movq $0, 8(%rax)
     inc %rcx
     jmp .hcl_l
 .hcl_d:
+    movq $0, 8(%rbx)
+    pop %r14
+    pop %r12
     pop %rbx
     ret
     .size flint_hashset_clear, .-flint_hashset_clear
@@ -722,10 +836,12 @@ flint_hashset_clear:
 # ------------------------------------------------------------------- hashmap
     .globl flint_hashmap_new
     .type flint_hashmap_new, @function
-# flint_hashmap_new(n) -> rax. Slot count is the next power of two >= max(8, 2n).
+# flint_hashmap_new(n, elem_release) -> rax. Slot count is the next power of two >= max(8, 2n).
 flint_hashmap_new:
     push %r12
+    push %r13
     push %r14
+    mov %rsi, %r13               # elem_release (flint_alloc clobbers rsi)
     mov %rdi, %r10
     shl $1, %r10
     cmp $8, %r10
@@ -743,13 +859,16 @@ flint_hashmap_new:
     shl $5, %rdi
     call flint_alloc               # entries (32 bytes each)
     mov %rax, %r12
-    mov $32, %rdi
-    call flint_alloc               # header
+    mov $40, %rdi
+    call flint_alloc               # header (5 slots)
     xor %ecx, %ecx
-    movq %rcx, (%rax)            # count = 0
-    movq %r14, 8(%rax)           # cap
-    movq %r12, 16(%rax)          # entries
+    movq $1, (%rax)             # rc = 1
+    movq %rcx, 8(%rax)          # count = 0
+    movq %r14, 16(%rax)         # cap
+    movq %r12, 24(%rax)         # entries
+    movq %r13, 32(%rax)         # elem_release
     pop %r14
+    pop %r13
     pop %r12
     ret
     .size flint_hashmap_new, .-flint_hashmap_new
@@ -763,15 +882,15 @@ flint_hashmap_rehash:
     push %r14
     push %r15
     mov %rdi, %rbx
-    movq 8(%rbx), %r15           # old cap (r15 survives flint_alloc, which clobbers r11)
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r15          # old cap (r15 survives flint_alloc, which clobbers r11)
+    movq 16(%rbx), %r10
     shl $1, %r10                 # new cap
-    movq %r10, 8(%rbx)
+    movq %r10, 16(%rbx)
     mov %r10, %rdi
     shl $5, %rdi
     call flint_alloc
     mov %rax, %r12               # new entries
-    movq 16(%rbx), %r13          # old entries
+    movq 24(%rbx), %r13          # old entries
     xor %r8, %r8                 # i
 .hmr_i:
     cmpq %r15, %r8
@@ -789,7 +908,7 @@ flint_hashmap_rehash:
     mov %r8, %r10                # save loop counter (flint_hash_val clobbers r8)
     call flint_hash_val
     mov %r10, %r8                # restore loop counter
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10
     and %r10, %rax
 .hmr_p:
@@ -800,7 +919,7 @@ flint_hashmap_rehash:
     test %rdx, %rdx
     jz .hmr_ins
     inc %rax
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10
     and %r10, %rax
     jmp .hmr_p
@@ -819,7 +938,7 @@ flint_hashmap_rehash:
     inc %r8
     jmp .hmr_i
 .hmr_done:
-    movq %r12, 16(%rbx)
+    movq %r12, 24(%rbx)
     pop %r15
     pop %r14
     pop %r13
@@ -842,9 +961,9 @@ flint_hashmap_put:
     mov %rdx, %r13               # kflag
     mov %rcx, %r14               # value
     mov %r8, %r15                # vflag
-    movq (%rbx), %r10
+    movq 8(%rbx), %r10
     shl $1, %r10                 # r10 = count * 2
-    cmp 8(%rbx), %r10            # count*2 >= cap?
+    cmp 16(%rbx), %r10           # count*2 >= cap?
     jb .hp_probe
     mov %rbx, %rdi
     call flint_hashmap_rehash
@@ -852,10 +971,10 @@ flint_hashmap_put:
     mov %r12, %rdi
     mov %r13, %rsi
     call flint_hash_val
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10                     # mask
     and %r10, %rax
-    movq 16(%rbx), %r11          # entries
+    movq 24(%rbx), %r11          # entries
 .hp_p:
     mov %rax, %rdx
     shl $2, %rdx                 # 4h
@@ -881,27 +1000,36 @@ flint_hashmap_put:
     jz .hp_upd
     mov %r8, %rax                # restore h
     jmp .hp_next
-.hp_next:
+    .hp_next:
     inc %rax
-    movq 8(%rbx), %r10
+    movq 16(%rbx), %r10
     dec %r10
     and %r10, %rax
     jmp .hp_p
-.hp_new:
+    .hp_new:
     movq %r12, (%r10)
     movq %r13, 8(%r10)
     movq %r14, 16(%r10)
     movq %r15, 24(%r10)
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     inc %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
     mov $1, %rax
     jmp .hp_done
-.hp_upd:
+    .hp_upd:
+    movq 16(%r10), %r8           # old value
+    movq 32(%rbx), %r11          # elem_release
+    test %r11, %r11
+    jz .hp_upd_norel
+    test %r8, %r8
+    jz .hp_upd_norel
+    mov %r8, %rdi
+    call *%r11
+    .hp_upd_norel:
     movq %r14, 16(%r10)
     movq %r15, 24(%r10)
     xor %rax, %rax
-.hp_done:
+    .hp_done:
     pop %r15
     pop %r14
     pop %r13
@@ -924,13 +1052,13 @@ flint_hashmap_get:
     mov %rsi, %r14               # key
     mov %rdx, %r13               # kflag
     mov %r8, %r15                # want_str
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11
     mov %r14, %rdi
     mov %rdx, %rsi
     call flint_hash_val
     and %r11, %rax
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
 .hg_p:
     mov %rax, %rdx
     shl $2, %rdx
@@ -989,13 +1117,13 @@ flint_hashmap_contains:
     mov %rdi, %rbx
     mov %rsi, %r14
     mov %rdx, %r13
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
     dec %r11
     mov %r14, %rdi
     mov %rdx, %rsi
     call flint_hash_val
     and %r11, %rax
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
 .hmc_p:
     mov %rax, %rdx
     shl $2, %rdx
@@ -1049,13 +1177,13 @@ flint_hashmap_remove:
     mov %rdi, %rbx
     mov %rsi, %r14
     mov %rdx, %r13
-    movq 8(%rbx), %r11
-    dec %r11
+    movq 16(%rbx), %r11
+    dec %r11                     # mask
     mov %r14, %rdi
     mov %rdx, %rsi
     call flint_hash_val
     and %r11, %rax
-    movq 16(%rbx), %r12
+    movq 24(%rbx), %r12
 .hmr2_p:
     mov %rax, %rdx
     shl $2, %rdx
@@ -1085,14 +1213,22 @@ flint_hashmap_remove:
     inc %rax
     and %r11, %rax
     jmp .hmr2_p
-.hmr2_hit:
+    .hmr2_hit:
+    movq 16(%r10), %r14          # old value
     movq $3, 8(%r10)
-    movq (%rbx), %rax
+    movq 8(%rbx), %rax
     dec %rax
-    movq %rax, (%rbx)
+    movq %rax, 8(%rbx)
+    movq 32(%rbx), %r13          # elem_release
+    test %r13, %r13
+    jz .hmr2_done
+    test %r14, %r14
+    jz .hmr2_done
+    mov %r14, %rdi
+    call *%r13
     mov $1, %rax
     jmp .hmr2_done
-.hmr2_no:
+    .hmr2_no:
     xor %rax, %rax
 .hmr2_done:
     pop %r14
@@ -1105,7 +1241,7 @@ flint_hashmap_remove:
     .globl flint_hashmap_size
     .type flint_hashmap_size, @function
 flint_hashmap_size:
-    movq (%rdi), %rax
+    movq 8(%rdi), %rax
     ret
     .size flint_hashmap_size, .-flint_hashmap_size
 
@@ -1113,17 +1249,26 @@ flint_hashmap_size:
     .type flint_hashmap_clear, @function
 flint_hashmap_clear:
     push %rbx
+    push %r12
+    push %r14
     mov %rdi, %rbx
-    movq $0, (%rbx)
-    movq 8(%rbx), %r10
-    movq 16(%rbx), %r11
+    movq 32(%rbx), %r12          # elem_release
+    movq 16(%rbx), %r14          # cap
+    movq 24(%rbx), %r11          # entries
     xor %rcx, %rcx
 .hmcl_l:
-    cmpq %r10, %rcx
+    cmpq %r14, %rcx
     jae .hmcl_d
     mov %rcx, %rdx
     shl $2, %rdx
     lea (%r11, %rdx, 8), %rax
+    test %r12, %r12
+    jz .hmcl_z
+    movq 16(%rax), %rdi          # value
+    test %rdi, %rdi
+    jz .hmcl_z
+    call *%r12
+.hmcl_z:
     movq $0, (%rax)
     movq $0, 8(%rax)
     movq $0, 16(%rax)
@@ -1131,6 +1276,9 @@ flint_hashmap_clear:
     inc %rcx
     jmp .hmcl_l
 .hmcl_d:
+    movq $0, 8(%rbx)
+    pop %r14
+    pop %r12
     pop %rbx
     ret
     .size flint_hashmap_clear, .-flint_hashmap_clear
@@ -1143,11 +1291,12 @@ flint_hashmap_keys:
     push %r12
     push %r13
     mov %rdi, %rbx
-    movq (%rbx), %rdi
+    movq 8(%rbx), %rdi
+    xor %rsi, %rsi               # elem_release = 0
     call flint_list_new            # rax = list with room for count items
     mov %rax, %r12
-    movq 16(%rbx), %r13          # entries
-    movq 8(%rbx), %r11
+    movq 24(%rbx), %r13          # entries
+    movq 16(%rbx), %r11
     xor %r8, %r8                 # i
     xor %rcx, %rcx               # out index
 .hk_i:
@@ -1161,17 +1310,17 @@ flint_hashmap_keys:
     jz .hk_next
     cmpq $3, %r9
     je .hk_next
-    movq 16(%r12), %r11
+    movq 24(%r12), %r11
     lea (%r11, %rcx, 8), %r11
     movq (%r10), %rdx
     movq %rdx, (%r11)            # key value
     inc %rcx
-    movq 8(%rbx), %r11           # restore slot count
+    movq 16(%rbx), %r11          # restore slot count
 .hk_next:
     inc %r8
     jmp .hk_i
 .hk_done:
-    movq %rcx, (%r12)            # list len
+    movq %rcx, 8(%r12)           # list len
     pop %r13
     pop %r12
     pop %rbx
@@ -1185,12 +1334,15 @@ flint_hashmap_values:
     push %rbx
     push %r12
     push %r13
+    push %r14
     mov %rdi, %rbx
-    movq (%rbx), %rdi
+    movq 32(%rbx), %r14          # r14 = map's elem_release (0 = non-object values)
+    movq 8(%rbx), %rdi           # count
+    mov %r14, %rsi               # elem_release = the map's (list owns its values)
     call flint_list_new
     mov %rax, %r12
-    movq 16(%rbx), %r13
-    movq 8(%rbx), %r11
+    movq 24(%rbx), %r13
+    movq 16(%rbx), %r11
     xor %r8, %r8
     xor %rcx, %rcx
 .hv2_i:
@@ -1204,17 +1356,25 @@ flint_hashmap_values:
     jz .hv2_next
     cmpq $3, %r9
     je .hv2_next
-    movq 16(%r12), %r11
+    movq 24(%r12), %r11
     lea (%r11, %rcx, 8), %r11
     movq 16(%r10), %rdx
     movq %rdx, (%r11)            # value
+    test %r14, %r14             # object map?
+    jz .hv2_noret
+    test %rdx, %rdx             # value non-null?
+    jz .hv2_noret
+    mov %rdx, %rdi
+    call flint_retain           # list owns a reference
+.hv2_noret:
     inc %rcx
-    movq 8(%rbx), %r11
+    movq 16(%rbx), %r11
 .hv2_next:
     inc %r8
     jmp .hv2_i
 .hv2_done:
-    movq %rcx, (%r12)
+    movq %rcx, 8(%r12)
+    pop %r14
     pop %r13
     pop %r12
     pop %rbx
@@ -1233,8 +1393,8 @@ flint_list_sort:
     push %r14
     mov %rdi, %rbx             # list
     mov %rsi, %r12             # mode
-    movq 16(%rbx), %r13        # data
-    movq (%rbx), %r14         # len
+    movq 24(%rbx), %r13        # data
+    movq 8(%rbx), %r14         # len
     xor %r11, %r11            # i = 0
     test %r14, %r14
     jle .ls_done
@@ -1288,8 +1448,8 @@ flint_list_reverse:
     push %r12
     push %r14
     mov %rdi, %rbx             # list
-    movq 16(%rbx), %r12        # data
-    movq (%rbx), %r14         # len
+    movq 24(%rbx), %r12        # data
+    movq 8(%rbx), %r14         # len
     test %r14, %r14
     jle .lrv_done             # len <= 1: nothing to do
     xor %rax, %rax            # i = 0
@@ -1328,12 +1488,12 @@ flint_list_insert:
     mov %rdi, %rbx             # list
     mov %rsi, %r14             # index
     mov %rdx, %r12             # value
-    movq (%rbx), %r10         # len
+    movq 8(%rbx), %r10        # len
     cmp %r10, %r14            # index - len
     jb .li_idx_ok
     mov %r10, %r14            # index = len (append)
 .li_idx_ok:
-    movq 8(%rbx), %r11        # cap
+    movq 16(%rbx), %r11       # cap
     cmp %r10, %r11            # cap - len
     ja .li_shift              # cap > len: room for len+1, no growth
     shl $1, %r11
@@ -1345,22 +1505,22 @@ flint_list_insert:
     mov %r8, %rdi
     shl $3, %rdi
     call flint_alloc            # rax = new buffer
-    movq 16(%rbx), %rsi       # old data
+    movq 24(%rbx), %rsi       # old data
     movq %r10, %rdx
     shl $3, %rdx              # len * 8
     call flint_memcpy           # rdi = new + len*8
     sub %rdx, %rdi
-    movq %rdi, 16(%rbx)       # data = new
-    movq %r8, 8(%rbx)         # cap = new cap
+    movq %rdi, 24(%rbx)       # data = new
+    movq %r8, 16(%rbx)        # cap = new cap
 .li_shift:
     # shift data[len-1 .. index] one slot right
-    movq 16(%rbx), %rax       # data
+    movq 24(%rbx), %rax       # data
     lea (%rax, %r10, 8), %r8  # dst = data + len*8
     cmp %r10, %r14            # index - len
     jae .li_store             # index == len: nothing to shift
     lea -8(%r8), %r11        # src = data + (len-1)*8
     lea 8(%rax, %r14, 8), %r9 # stop = data + (index+1)*8
-.li_sh:
+    .li_sh:
     movq (%r11), %rax
     mov %rax, (%r8)
     sub $8, %r8
@@ -1368,9 +1528,9 @@ flint_list_insert:
     cmp %r9, %r8
     jae .li_sh
 .li_store:
-    movq 16(%rbx), %rax       # data
+    movq 24(%rbx), %rax       # data
     mov %r12, (%rax, %r14, 8) # data[index] = value
-    incq (%rbx)               # len++
+    incq 8(%rbx)              # len++
     pop %r14
     pop %r12
     pop %r11
@@ -1400,8 +1560,8 @@ flint_list_join:
     mov %rdi, %rbx             # list
     mov %rsi, %r12             # sep
     mov %rdx, %r14             # mode
-    movq 16(%rbx), %r13        # data
-    movq (%rbx), %r8           # len
+    movq 24(%rbx), %r13        # data
+    movq 8(%rbx), %r8           # len
     test %r8, %r8
     jz .lj_zero
     # phase 1: total element bytes
@@ -1422,7 +1582,7 @@ flint_list_join:
     test %r11, %r11
     jns .lj_len
     # + seplen * (len - 1); flint_alloc (via flint_itoa) clobbered r8
-    mov (%rbx), %r8
+    mov 8(%rbx), %r8
     mov %r12, %rdi
     call flint_strlen
     mov %rax, %rdi
@@ -1433,9 +1593,9 @@ flint_list_join:
     lea 1(%r9), %rdi
     call flint_alloc
     mov %rax, %r13             # buf
-    mov (%rbx), %r8           # len (flint_alloc clobbered r8)
+    mov 8(%rbx), %r8           # len (flint_alloc clobbered r8)
     mov %r13, %r9             # cursor
-    movq 16(%rbx), %r11        # data
+    movq 24(%rbx), %r11        # data
     xor %r10, %r10            # i = 0 (ascending)
     mov %r10, (%rsp)
 .lj_fill:
@@ -1446,7 +1606,7 @@ flint_list_join:
     mov %r15, %rdi
     call flint_itoa
     mov %rax, %r15
-    mov (%rbx), %r8           # flint_itoa's flint_alloc clobbered r8
+    mov 8(%rbx), %r8           # flint_itoa's flint_alloc clobbered r8
 .lj_fstr:
     # r15 = element string; first element gets no separator
     test %r10, %r10
@@ -1499,3 +1659,248 @@ flint_list_join:
     pop %rbx
     ret
     .size flint_list_join, .-flint_list_join
+
+# ------------------------------------------------- collection refcount release
+# flint_release_<kind>(coll): decrement the collection refcount (slot 0); when
+# it reaches zero, release every object element via *elem_release (so an element
+# survives if still referenced elsewhere), then munmap the element buffer and
+# the header. A double-release or null is a no-op.
+    .globl flint_release_list
+    .type flint_release_list, @function
+flint_release_list:
+    push %rbx
+    push %r12
+    push %r14
+    mov %rdi, %rbx
+    test %rdi, %rdi
+    jz .rl_done
+    movq (%rbx), %r11
+    test %r11, %r11
+    jz .rl_done             # already 0
+    decq (%rbx)
+    jnz .rl_done            # rc > 0: keep
+    movq 32(%rbx), %r12       # elem_release
+    test %r12, %r12
+    jz .rl_munmap
+    movq 8(%rbx), %r14        # len
+    movq 24(%rbx), %r8        # data
+    xor %r10, %r10           # i
+.rl_loop:
+    cmpq %r14, %r10
+    jae .rl_munmap
+    movq (%r8, %r10, 8), %rdi
+    test %rdi, %rdi
+    jz .rl_next
+    call *%r12
+.rl_next:
+    inc %r10
+    jmp .rl_loop
+.rl_munmap:
+    movq 24(%rbx), %rdi
+    test %rdi, %rdi
+    jz .rl_hdr
+    movq 16(%rbx), %rsi       # cap
+    shl $3, %rsi
+    lea 15(%rsi), %rsi
+    and $-16, %rsi            # round up to 16
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rl_hdr:
+    mov %rbx, %rdi
+    mov $48, %rsi             # header (5 slots -> 48)
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rl_done:
+    pop %r14
+    pop %r12
+    pop %rbx
+    ret
+    .size flint_release_list, .-flint_release_list
+
+    .globl flint_release_queue
+    .type flint_release_queue, @function
+flint_release_queue:
+    push %rbx
+    push %r12
+    push %r14
+    push %r15
+    mov %rdi, %rbx
+    test %rdi, %rdi
+    jz .rq_done
+    movq (%rbx), %r11
+    test %r11, %r11
+    jz .rq_done
+    decq (%rbx)
+    jnz .rq_done
+    movq 40(%rbx), %r12       # elem_release
+    test %r12, %r12
+    jz .rq_munmap
+    movq 8(%rbx), %r14        # count
+    test %r14, %r14
+    jz .rq_munmap
+    movq 16(%rbx), %r15       # cap
+    dec %r15                 # mask
+    movq 32(%rbx), %r11       # head
+    movq 24(%rbx), %r8        # data
+    xor %r10, %r10           # i
+.rq_loop:
+    cmpq %r14, %r10
+    jae .rq_munmap
+    lea (%r11, %r10), %r9
+    and %r15, %r9            # pos = (head + i) & mask
+    movq (%r8, %r9, 8), %rdi
+    test %rdi, %rdi
+    jz .rq_next
+    call *%r12
+.rq_next:
+    inc %r10
+    jmp .rq_loop
+.rq_munmap:
+    movq 24(%rbx), %rdi
+    test %rdi, %rdi
+    jz .rq_hdr
+    movq 16(%rbx), %rsi
+    shl $3, %rsi
+    lea 15(%rsi), %rsi
+    and $-16, %rsi
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rq_hdr:
+    mov %rbx, %rdi
+    mov $48, %rsi             # header (6 slots -> 48)
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rq_done:
+    pop %r15
+    pop %r14
+    pop %r12
+    pop %rbx
+    ret
+    .size flint_release_queue, .-flint_release_queue
+
+    .globl flint_release_set
+    .type flint_release_set, @function
+flint_release_set:
+    push %rbx
+    push %r12
+    push %r14
+    mov %rdi, %rbx
+    test %rdi, %rdi
+    jz .rs_done
+    movq (%rbx), %r11
+    test %r11, %r11
+    jz .rs_done
+    decq (%rbx)
+    jnz .rs_done
+    movq 32(%rbx), %r12       # elem_release
+    test %r12, %r12
+    jz .rs_munmap
+    movq 16(%rbx), %r14        # cap
+    movq 24(%rbx), %r8         # buckets
+    xor %r10, %r10            # i
+.rs_loop:
+    cmpq %r14, %r10
+    jae .rs_munmap
+    lea (%r10, %r10, 1), %rdx  # 2i
+    lea (%r8, %rdx, 8), %r9    # bucket
+    movq 8(%r9), %r11          # flag
+    test %r11, %r11
+    jz .rs_next
+    cmpq $3, %r11
+    je .rs_next
+    movq (%r9), %rdi           # value
+    test %rdi, %rdi
+    jz .rs_next
+    call *%r12
+.rs_next:
+    inc %r10
+    jmp .rs_loop
+.rs_munmap:
+    movq 24(%rbx), %rdi
+    test %rdi, %rdi
+    jz .rs_hdr
+    movq 16(%rbx), %rsi
+    shl $4, %rsi              # cap*16
+    lea 15(%rsi), %rsi
+    and $-16, %rsi
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rs_hdr:
+    mov %rbx, %rdi
+    mov $48, %rsi
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rs_done:
+    pop %r14
+    pop %r12
+    pop %rbx
+    ret
+    .size flint_release_set, .-flint_release_set
+
+    .globl flint_release_map
+    .type flint_release_map, @function
+flint_release_map:
+    push %rbx
+    push %r12
+    push %r14
+    mov %rdi, %rbx
+    test %rdi, %rdi
+    jz .rm_done
+    movq (%rbx), %r11
+    test %r11, %r11
+    jz .rm_done
+    decq (%rbx)
+    jnz .rm_done
+    movq 32(%rbx), %r12       # elem_release
+    test %r12, %r12
+    jz .rm_munmap
+    movq 16(%rbx), %r14        # cap
+    movq 24(%rbx), %r8         # entries
+    xor %r10, %r10            # i
+.rm_loop:
+    cmpq %r14, %r10
+    jae .rm_munmap
+    mov %r10, %rdx
+    shl $2, %rdx              # 4i
+    lea (%r8, %rdx, 8), %r9   # entry
+    movq 8(%r9), %r11          # kflag
+    test %r11, %r11
+    jz .rm_next
+    cmpq $3, %r11
+    je .rm_next
+    movq 16(%r9), %rdi         # value
+    test %rdi, %rdi
+    jz .rm_next
+    call *%r12
+.rm_next:
+    inc %r10
+    jmp .rm_loop
+.rm_munmap:
+    movq 24(%rbx), %rdi
+    test %rdi, %rdi
+    jz .rm_hdr
+    movq 16(%rbx), %rsi
+    shl $5, %rsi              # cap*32
+    lea 15(%rsi), %rsi
+    and $-16, %rsi
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rm_hdr:
+    mov %rbx, %rdi
+    mov $48, %rsi
+    xor %rdx, %rdx
+    mov $11, %rax
+    syscall
+.rm_done:
+    pop %r14
+    pop %r12
+    pop %rbx
+    ret
+    .size flint_release_map, .-flint_release_map

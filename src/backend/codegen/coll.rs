@@ -2,7 +2,7 @@ use crate::ast::{CollItem, CollKind, Expr, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 
-use super::{Ctx, Frame};
+use super::{Ctx, Frame, coll_release_name};
 
 /// Runtime operation of a collection method.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -121,6 +121,36 @@ impl Ctx<'_> {
                 Some(Ty::Struct(_)) | Some(Ty::Interface(_))
             ),
             _ => false,
+        }
+    }
+
+    /// Element (or value, for maps) type of a typed collection, or None when
+    /// the collection is untyped (element type not statically known).
+    pub(crate) fn coll_elem_type(&self, cty: &Ty, is_map: bool) -> Option<Ty> {
+        match cty {
+            Ty::Coll(_, args) => {
+                let t = if is_map { args.get(1) } else { args.get(0) };
+                t.cloned()
+            }
+            _ => None,
+        }
+    }
+
+    /// True when the element/value type is a concrete class (has a per-class
+    /// release function the collection can call to drop its references).
+    fn is_obj_elem(ety: Option<&Ty>) -> bool {
+        matches!(ety, Some(Ty::Struct(_)))
+    }
+
+    /// Load the collection's `elem_release` (a per-class release function) into
+    /// %rsi; 0 for non-object element types (the runtime then skips releasing
+    /// elements on destroy, so the collection is a borrowing container).
+    fn emit_elem_release(&mut self, ety: Option<&Ty>) {
+        if let Some(Ty::Struct(i)) = ety {
+            let cname = &self.prog.structs[*i].name;
+            self.emit(&format!("\tlea flint_release_{}(%rip), %rsi", cname));
+        } else {
+            self.emit("\txor %rsi, %rsi");
         }
     }
 
@@ -437,8 +467,8 @@ impl Ctx<'_> {
                 Ok(Ty::List)
             }
             CollOp::Size => {
-                self.emit("\tmovq (%rsp), %rdi"); // slot 0 is the size for all
-                self.emit("\tmovq (%rdi), %rax");
+                self.emit("\tmovq (%rsp), %rdi");
+                self.emit("\tmovq 8(%rdi), %rax"); // slot 1 is the size (slot 0 = refcount)
                 self.emit("\tpop %r10");
                 self.emit("\tpush %rax");
                 Ok(Ty::Int)
@@ -468,9 +498,11 @@ impl Ctx<'_> {
         &mut self,
         kind: CollKind,
         items: &[CollItem],
+        ety: Option<Ty>,
         frame: &mut Frame,
     ) -> CompileResult<Ty> {
         let n = items.len() as i64;
+        let owns = Self::is_obj_elem(ety.as_ref());
         match kind {
             CollKind::List | CollKind::Queue | CollKind::Set => {
                 for it in items {
@@ -490,11 +522,15 @@ impl Ctx<'_> {
                     _ => ("flint_hashset_new", "flint_hashset_add", true, Ty::HashSet),
                 };
                 self.emit(&format!("\tmovq ${}, %rdi", n));
+                self.emit_elem_release(ety.as_ref());
                 self.emit(&format!("\tcall {}", new_fn));
                 self.emit("\tpush %rax"); // collection (survives element codegen)
                 for it in items {
                     if let CollItem::Elem(e) = it {
                         self.gen_expr_ro(e, frame)?;
+                        if owns {
+                            self.maybe_retain(e, frame); // collection owns a reference
+                        }
                         if flagged {
                             self.emit(&format!("\tmovq ${}, %rdx", self.value_flag(e, frame)));
                         }
@@ -515,12 +551,16 @@ impl Ctx<'_> {
                     }
                 }
                 self.emit(&format!("\tmovq ${}, %rdi", n));
+                self.emit_elem_release(ety.as_ref());
                 self.emit("\tcall flint_hashmap_new");
                 self.emit("\tpush %rax"); // map
                 for it in items {
                     if let CollItem::Pair(k, v) = it {
                         self.gen_expr_ro(k, frame)?;
                         self.gen_expr_ro(v, frame)?;
+                        if owns {
+                            self.maybe_retain(v, frame); // map owns a value reference
+                        }
                         self.emit(&format!("\tmovq ${}, %r8", self.value_flag(v, frame)));
                         self.emit(&format!("\tmovq ${}, %rdx", self.value_flag(k, frame)));
                         self.emit("\tpop %rcx"); // value
@@ -540,6 +580,7 @@ impl Ctx<'_> {
         &mut self,
         kind: CollKind,
         elems: &[Expr],
+        ety: Option<Ty>,
         frame: &mut Frame,
     ) -> CompileResult<Ty> {
         let (new_fn, add_fn, flagged, ty) = match kind {
@@ -553,11 +594,16 @@ impl Ctx<'_> {
                 ))
             }
         };
+        let owns = Self::is_obj_elem(ety.as_ref());
         self.emit(&format!("\tmovq ${}, %rdi", elems.len() as i64));
+        self.emit_elem_release(ety.as_ref());
         self.emit(&format!("\tcall {}", new_fn));
         self.emit("\tpush %rax");
         for e in elems {
             self.gen_expr_ro(e, frame)?;
+            if owns {
+                self.maybe_retain(e, frame); // collection owns a reference
+            }
             if flagged {
                 self.emit(&format!("\tmovq ${}, %rdx", self.value_flag(e, frame)));
             }
@@ -568,12 +614,18 @@ impl Ctx<'_> {
         Ok(ty)
     }
 
-    /// Store the collection left on the expression stack into `target`.
+    /// Store the collection left on the expression stack into `target`,
+    /// releasing any collection the target previously held.
     pub(crate) fn store_coll(&mut self, target: &Expr, frame: &mut Frame) -> CompileResult<()> {
         self.emit("\tpop %r10"); // new collection
         self.emit_lvalue_addr(target, frame)?; // pushes the address
-        self.emit("\tpop %rax");
-        self.emit("\tmov %r10, (%rax)");
+        self.emit("\tpop %rdx"); // %rdx = address
+        if let Some(k) = self.assign_target_coll(target, frame)? {
+            self.emit("\tmovq (%rdx), %r11");
+            self.emit("\tmov %r11, %rdi");
+            self.emit(&format!("\tcall {}", coll_release_name(k)));
+        }
+        self.emit("\tmov %r10, (%rdx)");
         Ok(())
     }
 }

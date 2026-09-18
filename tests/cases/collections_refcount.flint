@@ -1,0 +1,26 @@
+class Box {
+    int id;
+    public Box(int i) { this.id = i; }
+    public int id() { return this.id; }
+}
+int main() {
+    Box a = new Box(10);
+    Box b = new Box(20);
+    if (1) {
+        list<Box> l = new list<Box>();
+        l.add(a);
+        l.add(new Box(200));
+        l.set(0, new Box(300));
+        l.remove(0);
+        hashmap<int, Box> m = new hashmap<int, Box>();
+        m.put(1, a);
+        m.put(2, new Box(400));
+        queue<Box> q = new queue<Box>();
+        q.push(b);
+    }
+    printi(a.id());
+    print("\n");
+    printi(b.id());
+    print("\n");
+    return 0;
+}

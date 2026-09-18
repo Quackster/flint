@@ -4,7 +4,7 @@
 // zero, recursively releases class-typed fields and munmaps the object.
 // Cyclic structures therefore leak (each cycle edge holds a reference that
 // keeps the refcount above zero) but never crash.
-use super::codegen::{Ctx, struct_idx_of};
+use super::codegen::{Ctx, coll_release_name, struct_idx_of};
 use super::layout;
 
 impl Ctx<'_> {
@@ -28,12 +28,22 @@ impl Ctx<'_> {
         self.emit("\tmov %rdi, %rbx");
         let base = layout::field_base_offset(self.prog, sidx);
         for (i, (_, fty)) in layout::all_fields(self.prog, sidx).iter().enumerate() {
+            let off = base + i as i64 * 8;
             if let Some(fs) = struct_idx_of(fty) {
+                // class-typed field: release recursively
                 let fname = &self.prog.structs[fs].name;
-                self.emit(&format!("\tmovq {}(%rbx), %rdi", base + i as i64 * 8));
+                self.emit(&format!("\tmovq {}(%rbx), %rdi", off));
                 self.emit("\ttest %rdi, %rdi");
                 self.emit(&format!("\tjz .Lrc_{}_f{}", s.name, i));
                 self.emit(&format!("\tcall flint_release_{}", fname));
+                self.emit(&format!(".Lrc_{}_f{}:", s.name, i));
+            } else if let Some(k) = fty.coll_kind() {
+                // collection-typed field: release (frees the collection and its
+                // object elements)
+                self.emit(&format!("\tmovq {}(%rbx), %rdi", off));
+                self.emit("\ttest %rdi, %rdi");
+                self.emit(&format!("\tjz .Lrc_{}_f{}", s.name, i));
+                self.emit(&format!("\tcall {}", coll_release_name(k)));
                 self.emit(&format!(".Lrc_{}_f{}:", s.name, i));
             }
         }

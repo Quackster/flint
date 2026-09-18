@@ -1,4 +1,4 @@
-use crate::ast::{Accessor, Expr, Ty};
+use crate::ast::{Accessor, CollKind, Expr, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 use crate::backend::layout;
@@ -22,8 +22,10 @@ impl Ctx<'_> {
                 ));
             }
             // len() only makes sense on arrays and collections (ident args
-            // are checked; other expressions fall through untyped in v1)
-            if b.target == "flint_len" {
+            // are checked; other expressions fall through untyped in v1).
+            // Collections carry their length at slot 1 (slot 0 is the
+            // refcount), so route to the per-kind size function.
+            let target = if b.target == "flint_len" {
                 if let Expr::Ident { name, span: aspan } = &args[0] {
                     if let Some(l) = frame.find(name) {
                         if l.ty != Ty::Array && l.ty.coll_kind().is_none() {
@@ -32,15 +34,28 @@ impl Ctx<'_> {
                                 format!("len() requires an array or collection, got a {}", ty_name(&l.ty)),
                             ));
                         }
+                        match l.ty.coll_kind() {
+                            Some(CollKind::List) => "flint_list_size",
+                            Some(CollKind::Queue) => "flint_queue_size",
+                            Some(CollKind::Set) => "flint_hashset_size",
+                            Some(CollKind::Map) => "flint_hashmap_size",
+                            None => "flint_len",
+                        }
+                    } else {
+                        "flint_len"
                     }
+                } else {
+                    "flint_len"
                 }
-            }
+            } else {
+                b.target
+            };
             // builtins read their arguments; literals stay read-only
             for a in args {
                 self.gen_expr_ro(a, frame)?;
             }
             self.pop_args(args.len());
-            self.emit(&format!("\tcall {}", b.target));
+            self.emit(&format!("\tcall {}", target));
             if b.noreturn {
                 // control does not return; push a placeholder so callers stay balanced
                 self.emit("\tmovq $0, %rax");

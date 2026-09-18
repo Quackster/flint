@@ -32,6 +32,17 @@ pub(crate) fn struct_idx_of(ty: &Ty) -> Option<usize> {
     }
 }
 
+/// Per-kind collection release function (refcount zero frees the collection and
+/// releases its object elements).
+pub(crate) fn coll_release_name(k: CollKind) -> &'static str {
+    match k {
+        CollKind::List => "flint_release_list",
+        CollKind::Queue => "flint_release_queue",
+        CollKind::Set => "flint_release_set",
+        CollKind::Map => "flint_release_map",
+    }
+}
+
 /// True when the expression produces a *fresh* class object that owns its
 /// own reference: `new` (StructLit), a user function call returning a class,
 /// or a method call returning a class (getters return a retained copy).
