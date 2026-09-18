@@ -344,6 +344,22 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             noreturn: false,
             params: &[I, I, I, I, I, I],
         }),
+        // Memory mapping: mmap(addr, len, prot, flags, fd, offset) -> ptr.
+        // PROT_READ|PROT_WRITE = 3; MAP_SHARED = 1, MAP_PRIVATE|MAP_ANON = 0x22.
+        "sys.mmap" => Some(Builtin {
+            target: "flint_mmap",
+            arity: 6,
+            ret: Ty::Ptr,
+            noreturn: false,
+            params: &[I, I, I, I, I, I],
+        }),
+        "sys.munmap" => Some(Builtin {
+            target: "flint_munmap",
+            arity: 2,
+            ret: Ty::Int,
+            noreturn: false,
+            params: &[P, I],
+        }),
         "sys.byte_load" | "byte_load" => Some(Builtin {
             target: "flint_byte_load",
             arity: 1,

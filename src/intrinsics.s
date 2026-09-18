@@ -2474,3 +2474,24 @@ flint_smod:
     pop %rcx
     ret
     .size flint_smod, .-flint_smod
+
+    .globl flint_mmap
+    .type flint_mmap, @function
+# flint_mmap(addr, len, prot, flags, fd, offset) -> ptr
+# Args arrive in System V order: rdi=addr, rsi=len, rdx=prot, rcx=flags, r8=fd, r9=offset.
+# The kernel reads rdi rsi rdx r10 r8 r9, so shift the 4th arg (flags) from rcx to r10.
+flint_mmap:
+    mov $9, %rax              # SYS_mmap
+    mov %rcx, %r10           # flags -> r10 (4th syscall arg)
+    syscall
+    ret
+    .size flint_mmap, .-flint_mmap
+
+    .globl flint_munmap
+    .type flint_munmap, @function
+# flint_munmap(addr, len) -> int  (SYS_munmap; rdi=addr, rsi=len already in place)
+flint_munmap:
+    mov $11, %rax            # SYS_munmap
+    syscall
+    ret
+    .size flint_munmap, .-flint_munmap
