@@ -1787,85 +1787,120 @@ flint_fcmp:
     ret
     .size flint_fcmp, .-flint_fcmp
 
+# Thread support: CLONE_THREAD with custom stack, pipe for join.
+    .data
+    .globl flint_pipe_read
+    .balign 8
+flint_pipe_read:
+    .quad -1
+    .globl flint_pipe_write
+    .balign 8
+flint_pipe_write:
+    .quad -1
+    .globl flint_pipe_byte
+flint_pipe_byte:
+    .byte 0
+    .text
+
     .globl flint_thread_wrapper
     .type flint_thread_wrapper, @function
 # flint_thread_wrapper: entry point for the new thread.
-# The stack is set up by flint_thread_create:
-#   [rsp+0]  = fn (function pointer)
-#   [rsp+8]  = arg (argument)
-#   [rsp+16] = 0 (padding, unused)
+# Stack layout (set up by flint_thread_create):
+#   [rsp+0] = fn (function pointer)
+#   [rsp+8] = arg (argument)
 flint_thread_wrapper:
-    # Read fn and arg from the stack
     mov 0(%rsp), %r10    # r10 = fn
     mov 8(%rsp), %r11    # r11 = arg
     # Call fn(arg)
     mov %r11, %rdi       # arg in rdi
     call *%r10           # call fn(arg)
+    # Signal done: write 1 byte to the pipe
+    mov flint_pipe_write(%rip), %rdi   # write fd
+    lea flint_pipe_byte(%rip), %rsi    # buffer
+    mov $1, %rdx             # count = 1
+    xor %r10, %r10           # extra args = 0
+    xor %r8, %r8
+    xor %r9, %r9
+    mov $1, %rax             # SYS_write
+    syscall
     # Exit the thread
     mov $60, %rax        # SYS_exit
     xor %rdi, %rdi       # exit code = 0
     syscall
-    # Should not reach here
     hlt
     .size flint_thread_wrapper, .-flint_thread_wrapper
+
 
     .globl flint_thread_create
     .type flint_thread_create, @function
 # flint_thread_create(fn, arg) -> int
-# Creates a new thread using clone(). Returns the thread ID (pid) or -errno.
-# CLONE_VM|CLONE_FS|CLONE_FILES|CLONE_SIGHAND|CLONE_SYSVSEM = 0x2F00.
+# Creates a new thread using clone(CLONE_THREAD). Returns 0 on success or -1 on error.
 flint_thread_create:
-    # rdi = fn, rsi = arg
-    # Save fn and arg in callee-saved registers (flint_alloc clobbers r10/r11)
+    push %rbp
+    mov %rsp, %rbp
+    sub $32, %rsp          # space for pipe fds + alignment
     mov %rdi, %rbx        # rbx = fn
     mov %rsi, %r12        # r12 = arg
+    # Create a pipe for thread synchronization
+    lea 16(%rsp), %rdi     # rdi = &pipe_fds (on stack)
+    mov $22, %rax          # SYS_pipe
+    syscall
+    test %rax, %rax
+    jne .Lthread_pipe_fail  # rax < 0 on error
+    # Save pipe fds (int is 4 bytes)
+    movl 16(%rsp), %r13d   # r13 = read fd
+    movl 20(%rsp), %r14d   # r14 = write fd
+    # Store in globals (for join and wrapper)
+    movq %r13, flint_pipe_read(%rip)
+    movq %r14, flint_pipe_write(%rip)
     # Allocate a new stack (8KB)
     mov $8192, %rdi
-    call flint_alloc         # rax = start of allocation
-    # Stack top = start + size (stack grows down from the top)
-    lea 8192(%rax), %r13  # r13 = stack top
-    # Set up the stack (stack grows down):
-    # [stack_top-24] = fn
-    # [stack_top-16] = arg
-    # [stack_top-8]  = 0 (padding)
-    mov %rbx, -24(%r13)   # [stack_top-24] = fn
-    mov %r12, -16(%r13)   # [stack_top-16] = arg
-    xor %eax, %eax
-    mov %eax, -8(%r13)     # [stack_top-8] = 0 (padding)
-    # Set up the clone() syscall:
-    # clone(flags, stack, ptid, tcred, tls)
-    mov $0x2F00, %rdi      # flags
-    lea -24(%r13), %rsi    # stack = stack_top - 24 (pointing to fn)
+    call flint_alloc         # rax = start (clobbers r10/r11 etc.)
+    # Stack top = start + 8192
+    lea 8192(%rax), %r10   # r10 = stack top
+    # Set up the stack (stack grows down, 16-byte aligned):
+    mov %rbx, -48(%r10)   # [stack_top-48] = fn
+    mov %r12, -40(%r10)   # [stack_top-40] = arg
+    # clone(CLONE_THREAD, stack, NULL, NULL, NULL)
+    mov $0x01000000, %rdi  # CLONE_THREAD (implies CLONE_VM)
+    lea -48(%r10), %rsi    # stack = stack_top - 48 (16-byte aligned)
     xor %rdx, %rdx         # ptid = NULL
-    xor %r10, %r10         # tcred = NULL
-    xor %r8, %r8           # tls = NULL
+    xor %r10, %r10         # tcred = NULL (4th arg in r10)
+    xor %r8, %r8           # tls = NULL (5th arg in r8)
     mov $56, %rax          # SYS_clone
     syscall
     # rax = pid (parent) or 0 (child)
     test %rax, %rax
     jz .Lthread_child
-    # Parent: return the pid
+    # Parent: restore stack and return 0
+    leave
+    xor %eax, %eax
     ret
     .Lthread_child:
-    # Child: jump to the thread wrapper
     jmp flint_thread_wrapper
-    hlt
+    .Lthread_pipe_fail:
+    leave
+    movq $-1, %rax
+    ret
     .size flint_thread_create, .-flint_thread_create
 
     .globl flint_thread_join
     .type flint_thread_join, @function
 # flint_thread_join(id) -> int
-# Wait for a thread to finish using waitpid().
-# rdi = tid (the pid returned by flint_thread_create).
+# Wait for a thread to finish using a blocking pipe read.
+# The argument (rdi) is ignored (supports 1 concurrent thread).
 flint_thread_join:
-    # waitpid(pid, &status, 0)
-    sub $8, %rsp           # space for status
-    lea (%rsp), %rsi      # &status
-    xor %rdx, %rdx        # options = 0
-    mov $61, %rax          # SYS_waitpid
+    # Blocking read from the pipe
+    mov flint_pipe_read(%rip), %rdi   # read fd
+    lea flint_pipe_byte(%rip), %rsi   # buffer
+    mov $1, %rdx             # count = 1
+    xor %r10, %r10           # extra = 0
+    xor %r8, %r8
+    xor %r9, %r9
+    mov $0, %rax             # SYS_read
     syscall
-    add $8, %rsp
-    xor %eax, %eax         # return 0 (success)
+    # rax = 1 (byte read) or 0 (EOF) or -1 (error)
+    xor %eax, %eax          # return 0 (success)
     ret
     .size flint_thread_join, .-flint_thread_join
 
@@ -1875,19 +1910,27 @@ flint_thread_join:
 # Lock a mutex using futex(FUTEX_WAIT). The mutex is an int: 0=unlocked, 1=locked.
 # Uses atomic CAS to try to acquire, then futex to wait if contended.
 flint_mutex_lock:
+.Lmutex_try:
     # Try to acquire: CAS 0 -> 1
     mov $1, %r10
     lock cmpxchg %r10, (%rdi)
-    jz .Bmutex_acquired
-    # Contended: wait on futex
-    mov $0, %r10  # FUTEX_WAIT
-    mov $0, %r8   # timeout = NULL
-    mov $202, %rax # SYS_futex
-    mov %rdi, %rdi # uaddr
-    mov $0, %rsi   # op = FUTEX_WAIT
-    mov $1, %rdx   # val = 1 (the value we're waiting for)
+    jz .Lmutex_acquired
+    # CAS failed: check if mutex is still locked
+    cmp $1, (%rdi)
+    jne .Lmutex_try    # mutex was unlocked, retry
+    # Still locked: wait on futex
+    # futex(uaddr, FUTEX_WAIT, 1, NULL, NULL, 0)
+    mov $202, %rax     # SYS_futex
+    # rdi = uaddr (already set)
+    mov $0, %rsi      # op = FUTEX_WAIT
+    mov $1, %rdx      # val = 1
+    xor %r10, %r10    # timeout = NULL
+    xor %r8, %r8      # uaddr2 = NULL
+    xor %r9, %r9      # val3 = 0
     syscall
-    .Bmutex_acquired:
+    # Woken up: retry the CAS
+    jmp .Lmutex_try
+    .Lmutex_acquired:
     ret
     .size flint_mutex_lock, .-flint_mutex_lock
 
@@ -1897,12 +1940,14 @@ flint_mutex_lock:
 # Unlock a mutex using futex(FUTEX_WAKE). Set the mutex to 0 and wake one waiter.
 flint_mutex_unlock:
     mov $0, (%rdi)  # set mutex to 0 (unlocked)
-    mov $1, %r10   # FUTEX_WAKE
-    mov $1, %r8    # val = 1 (wake 1 thread)
-    mov $202, %rax # SYS_futex
-    mov %rdi, %rdi # uaddr
-    mov $1, %rsi   # op = FUTEX_WAKE
-    mov $1, %rdx   # val = 1
+    # futex(uaddr, FUTEX_WAKE, 1, NULL, NULL, 0)
+    mov $202, %rax  # SYS_futex
+    # rdi = uaddr (already set)
+    mov $1, %rsi    # op = FUTEX_WAKE
+    mov $1, %rdx    # val = 1 (wake 1 thread)
+    xor %r10, %r10  # timeout = NULL
+    xor %r8, %r8    # uaddr2 = NULL
+    xor %r9, %r9    # val3 = 0
     syscall
     ret
     .size flint_mutex_unlock, .-flint_mutex_unlock

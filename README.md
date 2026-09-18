@@ -396,10 +396,11 @@ int main() {
 <details>
 <summary>Concurrency</summary>
 
-- `sys.thread_create(@fn, arg)`, `sys.thread_join(tid)`.
+- `sys.thread_create(@fn, arg)` starts a thread; `sys.thread_join(tid)` blocks until it finishes.
 - The `@` operator yields a function's address.
 - Synchronization: `sys.mutex_lock/unlock(&m)`, `sys.atomic_cas(&v, old, new)`.
 - Lower-level: `sys.clone`, `sys.futex`, `sys.nanosleep(sec, nsec)`.
+- At most one thread runs concurrently; join before creating another.
 
 ```java
 void thread_fn(int arg) {
@@ -1369,11 +1370,12 @@ int main() {
 }
 ```
 
-- `sys.thread_create(@fn, arg)` starts a thread; `sys.thread_join(tid)` waits.
+- `sys.thread_create(@fn, arg)` starts a thread; `sys.thread_join(tid)` blocks until it finishes.
 - The `@` operator yields a function's address (required to launch a thread).
-- `sys.mutex_lock(&m)` / `sys.mutex_unlock(&m)`: a simple mutex.
+- `sys.mutex_lock(&m)` / `sys.mutex_unlock(&m)`: a simple mutex (futex-based).
 - `sys.atomic_cas(&v, old, new)`: compare-and-swap; returns 1 on success.
 - Lower-level: `sys.clone`, `sys.futex`, `sys.nanosleep(sec, nsec)`.
+- Note: at most one thread may run concurrently; `thread_join` must be called before creating another thread.
 </details>
 
 <details>
