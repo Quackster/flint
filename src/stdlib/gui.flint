@@ -1,0 +1,495 @@
+// std.Gui: a small widget toolkit on top of std.Window (X11 backend).
+//
+// Widgets: Label, Button, CheckBox, TextBox. They are added to a Gui (one
+// add_* method per kind), which pumps X11 mouse/keyboard events (via
+// Window.pump_event) and dispatches them to the widgets. A typical program:
+//
+//   Window w = new Window(320, 200, 1);
+//   Gui gui = new Gui(w);
+//   Button b = new Button(20, 20, 120, 30, "Click me");
+//   TextBox tb = new TextBox(20, 70, 200, 30, 32);
+//   gui.add_button(b);
+//   gui.add_box(tb);
+//   while (gui.running() == 1) {
+//       gui.step();                       // pump + dispatch pending events
+//       if (b.clicked() == 1) { b.clear_clicked(); /* ... */ }
+//       gui.draw();                      // redraw every widget
+//       w.refresh();                     // push the canvas to the screen
+//       sys.nanosleep(0, 10000000);     // ~10 ms, avoid a busy loop
+//   }
+//
+// Note: this implementation deliberately avoids virtual dispatch (the compiler
+// has a vtable bug for base classes mixing int- and void-returning methods),
+// so Gui holds one array per widget kind and calls each kind's concrete
+// methods directly.
+package std;
+
+// Shared widget geometry. `hit` is a plain (non-virtual) method.
+class Widget {
+    int x; int y; int w; int h;
+    public Widget(int x, int y, int w, int h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+    }
+    public int hit(int px, int py) {
+        return (px >= this.x && px < this.x + this.w && py >= this.y && py < this.y + this.h) ? 1 : 0;
+    }
+}
+
+// A clickable rectangle with a label.
+class Button extends Widget {
+    string label;
+    int color;
+    int text_color;
+    int hovered;
+    int pressed;
+    int clicked;
+    public Button(int x, int y, int w, int h, string label) {
+        super(x, y, w, h);
+        this.label = label;
+        this.color = 0x00335577;
+        this.text_color = 0x00FFFFFF;
+        this.hovered = 0;
+        this.pressed = 0;
+        this.clicked = 0;
+    }
+    public int clicked() { return this.clicked; }
+    public void clear_clicked() { this.clicked = 0; }
+    public void draw(Window win) {
+        int bg = this.color;
+        if (this.pressed == 1) {
+            bg = 0x00557799;
+        } else if (this.hovered == 1) {
+            bg = 0x00446688;
+        }
+        win.fill_rect(this.x, this.y, this.w, this.h, bg);
+        win.rect(this.x, this.y, this.w, this.h, 0x00FFFFFF);
+        win.text(this.x + 4, this.y + (this.h - 7) / 2, this.label, this.text_color);
+    }
+    public void on_press(int px, int py) {
+        if (this.hit(px, py)) { this.pressed = 1; }
+    }
+    public void on_release(int px, int py) {
+        if (this.pressed == 1 && this.hit(px, py)) { this.clicked = 1; }
+        this.pressed = 0;
+    }
+    public void on_motion(int px, int py) {
+        this.hovered = this.hit(px, py) ? 1 : 0;
+    }
+}
+
+// A single-line text input. Takes keyboard focus; printable keys append,
+// backspace deletes, Enter sets the `entered` flag.
+class TextBox extends Widget {
+    string buf;   // max+1 bytes, always NUL-terminated
+    int max;
+    int len;
+    int focused;
+    int entered;
+    public TextBox(int x, int y, int w, int h, int max) {
+        super(x, y, w, h);
+        this.max = max;
+        this.buf = alloc(max + 1);
+        sys.byte_store(this.buf, 0);
+        this.len = 0;
+        this.focused = 0;
+        this.entered = 0;
+    }
+    // Map an X11 keycode (+ modifier state) to an ASCII character for a
+    // standard US keyboard, or 0 if not a printable character.
+    static int key_char(int kc, int state) {
+        int shifted = (state & 1) != 0;   // Shift_L is bit 0
+        if (kc == 9)  { return shifted ? 65 : 97; }   // A a
+        if (kc == 10) { return shifted ? 83 : 115; }  // S s
+        if (kc == 11) { return shifted ? 68 : 100; }  // D d
+        if (kc == 12) { return shifted ? 70 : 102; }  // F f
+        if (kc == 13) { return shifted ? 72 : 104; }  // H h
+        if (kc == 14) { return shifted ? 71 : 103; }  // G g
+        if (kc == 15) { return shifted ? 74 : 106; }  // J j
+        if (kc == 16) { return shifted ? 75 : 107; }  // K k
+        if (kc == 17) { return shifted ? 76 : 108; }  // L l
+        if (kc == 18) { return shifted ? 58 : 59; }   // : ;
+        if (kc == 20) { return shifted ? 33 : 49; }   // ! 1
+        if (kc == 21) { return shifted ? 81 : 113; }  // Q q
+        if (kc == 22) { return shifted ? 87 : 119; }  // W w
+        if (kc == 23) { return shifted ? 69 : 101; }  // E e
+        if (kc == 24) { return shifted ? 82 : 114; }  // R r
+        if (kc == 25) { return shifted ? 89 : 121; }  // Y y
+        if (kc == 26) { return shifted ? 84 : 116; }  // T t
+        if (kc == 27) { return shifted ? 85 : 117; }  // U u
+        if (kc == 28) { return shifted ? 73 : 105; }  // I i
+        if (kc == 29) { return shifted ? 79 : 111; }  // O o
+        if (kc == 30) { return shifted ? 80 : 112; }  // P p
+        if (kc == 31) { return shifted ? 123 : 91; }  // { [
+        if (kc == 32) { return shifted ? 125 : 93; }  // } ]
+        if (kc == 33) { return shifted ? 124 : 92; }  // | \
+        if (kc == 34) { return shifted ? 90 : 122; }  // Z z
+        if (kc == 35) { return shifted ? 88 : 120; }  // X x
+        if (kc == 36) { return shifted ? 67 : 99; }   // C c
+        if (kc == 37) { return shifted ? 86 : 118; }  // V v
+        if (kc == 38) { return shifted ? 66 : 98; }   // B b
+        if (kc == 39) { return shifted ? 78 : 110; }  // N n
+        if (kc == 40) { return shifted ? 77 : 109; }  // M m
+        if (kc == 41) { return shifted ? 62 : 44; }  // > ,
+        if (kc == 42) { return shifted ? 63 : 46; }  // ? .
+        if (kc == 43) { return shifted ? 47 : 47; }  // /
+        if (kc == 49) { return shifted ? 64 : 50; }  // @ 2
+        if (kc == 50) { return shifted ? 35 : 51; }  // # 3
+        if (kc == 51) { return shifted ? 36 : 52; }  // $ 4
+        if (kc == 52) { return shifted ? 37 : 53; }  // % 5
+        if (kc == 53) { return shifted ? 94 : 54; }  // ^ 6
+        if (kc == 54) { return shifted ? 38 : 55; }  // & 7
+        if (kc == 55) { return shifted ? 42 : 56; }  // * 8
+        if (kc == 56) { return shifted ? 40 : 57; }  // ( 9
+        if (kc == 57) { return shifted ? 41 : 48; }  // ) 0
+        if (kc == 58) { return shifted ? 95 : 45; }  // _ -
+        if (kc == 59) { return shifted ? 43 : 61; }  // + =
+        if (kc == 65) { return 32; }                // space
+        return 0;
+    }
+    public string text() { return this.buf; }
+    public int length() { return this.len; }
+    public int entered() { return this.entered; }
+    public void clear() {
+        this.len = 0;
+        sys.byte_store(this.buf, 0);
+        this.entered = 0;
+    }
+    public void clear_entered() { this.entered = 0; }
+    public void draw(Window win) {
+        win.fill_rect(this.x, this.y, this.w, this.h, 0x00222233);
+        win.rect(this.x, this.y, this.w, this.h, this.focused == 1 ? 0x00FFFF00 : 0x00666688);
+        win.text(this.x + 4, this.y + (this.h - 7) / 2, this.buf, 0x00FFFFFF);
+    }
+    public void on_press(int px, int py) {
+        if (this.hit(px, py)) { this.focused = 1; }
+    }
+    public int claim_focus(int px, int py) {
+        if (this.hit(px, py)) { this.focused = 1; return 1; }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    public void on_key(int kc, int state) {
+        if (this.focused != 1) { return; }
+        if (kc == 19) { this.entered = 1; return; }      // Enter
+        if (kc == 62) { this.backspace(); return; }      // Backspace
+        int c = TextBox.key_char(kc, state);
+        if (c > 0) { this.append(c); }
+    }
+    public void append(int c) {
+        if (this.len >= this.max) { return; }
+        sys.byte_store(this.buf + this.len, c);
+        this.len = this.len + 1;
+        sys.byte_store(this.buf + this.len, 0);
+    }
+    public void backspace() {
+        if (this.len <= 0) { return; }
+        this.len = this.len - 1;
+        sys.byte_store(this.buf + this.len, 0);
+    }
+}
+
+// A non-interactive text label.
+class Label extends Widget {
+    string text;
+    int color;
+    public Label(int x, int y, int w, int h, string text) {
+        super(x, y, w, h);
+        this.text = text;
+        this.color = 0x00FFFFFF;
+    }
+    public void draw(Window win) {
+        win.text(this.x, this.y, this.text, this.color);
+    }
+}
+
+// A toggle: clicking anywhere in the box flips the `checked` state.
+class CheckBox extends Widget {
+    string label;
+    int checked;
+    public CheckBox(int x, int y, int w, int h, string label) {
+        super(x, y, w, h);
+        this.label = label;
+        this.checked = 0;
+    }
+    public int checked() { return this.checked; }
+    public void set_checked(int v) { this.checked = v; }
+    public void draw(Window win) {
+        win.fill_rect(this.x, this.y, 18, 18, 0x00222233);
+        win.rect(this.x, this.y, 18, 18, 0x00666688);
+        if (this.checked == 1) {
+            win.line(this.x + 4, this.y + 9, this.x + 8, this.y + 13, 0x0000FF00);
+            win.line(this.x + 8, this.y + 13, this.x + 14, this.y + 4, 0x0000FF00);
+        }
+        win.text(this.x + 24, this.y + 5, this.label, 0x00FFFFFF);
+    }
+    public void on_press(int px, int py) {
+        if (this.hit(px, py)) { this.checked = this.checked == 1 ? 0 : 1; }
+    }
+}
+
+// Container that owns a window and a set of widgets. Because the compiler
+// has a refcount bug for iterating object arrays (re-reading an element
+// underflows a refcount), widgets are held in fixed-capacity NAMED fields —
+// field access retains correctly and is safe to re-read every frame.
+// Capacity: 8 of each kind.
+class Gui {
+    Window win;
+    Button button0; Button button1; Button button2; Button button3;
+    Button button4; Button button5; Button button6; Button button7;
+    int nbuttons;
+    TextBox box0; TextBox box1; TextBox box2; TextBox box3;
+    TextBox box4; TextBox box5; TextBox box6; TextBox box7;
+    int nboxes;
+    CheckBox check0; CheckBox check1; CheckBox check2; CheckBox check3;
+    CheckBox check4; CheckBox check5; CheckBox check6; CheckBox check7;
+    int nchecks;
+    Label label0; Label label1; Label label2; Label label3;
+    Label label4; Label label5; Label label6; Label label7;
+    int nlabels;
+    TextBox focused;
+    int mouse_x;
+    int mouse_y;
+    int mouse_down;
+    int running;
+    public Gui(Window win) {
+        this.win = win;
+        this.button0 = null; this.button1 = null; this.button2 = null; this.button3 = null;
+        this.button4 = null; this.button5 = null; this.button6 = null; this.button7 = null;
+        this.nbuttons = 0;
+        this.box0 = null; this.box1 = null; this.box2 = null; this.box3 = null;
+        this.box4 = null; this.box5 = null; this.box6 = null; this.box7 = null;
+        this.nboxes = 0;
+        this.check0 = null; this.check1 = null; this.check2 = null; this.check3 = null;
+        this.check4 = null; this.check5 = null; this.check6 = null; this.check7 = null;
+        this.nchecks = 0;
+        this.label0 = null; this.label1 = null; this.label2 = null; this.label3 = null;
+        this.label4 = null; this.label5 = null; this.label6 = null; this.label7 = null;
+        this.nlabels = 0;
+        this.focused = null;
+        this.mouse_x = 0;
+        this.mouse_y = 0;
+        this.mouse_down = 0;
+        this.running = 1;
+    }
+    public void add_button(Button b) {
+        if (this.nbuttons == 0) { this.button0 = b; }
+        else if (this.nbuttons == 1) { this.button1 = b; }
+        else if (this.nbuttons == 2) { this.button2 = b; }
+        else if (this.nbuttons == 3) { this.button3 = b; }
+        else if (this.nbuttons == 4) { this.button4 = b; }
+        else if (this.nbuttons == 5) { this.button5 = b; }
+        else if (this.nbuttons == 6) { this.button6 = b; }
+        else if (this.nbuttons == 7) { this.button7 = b; }
+        else { return; }
+        this.nbuttons = this.nbuttons + 1;
+    }
+    public void add_box(TextBox t) {
+        if (this.nboxes == 0) { this.box0 = t; }
+        else if (this.nboxes == 1) { this.box1 = t; }
+        else if (this.nboxes == 2) { this.box2 = t; }
+        else if (this.nboxes == 3) { this.box3 = t; }
+        else if (this.nboxes == 4) { this.box4 = t; }
+        else if (this.nboxes == 5) { this.box5 = t; }
+        else if (this.nboxes == 6) { this.box6 = t; }
+        else if (this.nboxes == 7) { this.box7 = t; }
+        else { return; }
+        this.nboxes = this.nboxes + 1;
+    }
+    public void add_check(CheckBox c) {
+        if (this.nchecks == 0) { this.check0 = c; }
+        else if (this.nchecks == 1) { this.check1 = c; }
+        else if (this.nchecks == 2) { this.check2 = c; }
+        else if (this.nchecks == 3) { this.check3 = c; }
+        else if (this.nchecks == 4) { this.check4 = c; }
+        else if (this.nchecks == 5) { this.check5 = c; }
+        else if (this.nchecks == 6) { this.check6 = c; }
+        else if (this.nchecks == 7) { this.check7 = c; }
+        else { return; }
+        this.nchecks = this.nchecks + 1;
+    }
+    public void add_label(Label l) {
+        if (this.nlabels == 0) { this.label0 = l; }
+        else if (this.nlabels == 1) { this.label1 = l; }
+        else if (this.nlabels == 2) { this.label2 = l; }
+        else if (this.nlabels == 3) { this.label3 = l; }
+        else if (this.nlabels == 4) { this.label4 = l; }
+        else if (this.nlabels == 5) { this.label5 = l; }
+        else if (this.nlabels == 6) { this.label6 = l; }
+        else if (this.nlabels == 7) { this.label7 = l; }
+        else { return; }
+        this.nlabels = this.nlabels + 1;
+    }
+    public int running() { return this.running; }
+    public void running_set(int v) { this.running = v; }
+    // Pump and dispatch all pending events for this frame.
+    public void step() {
+        int more = 1;
+        while (more == 1) {
+            more = this.win.pump_event();
+            if (more != 1) { break; }
+            int t = this.win.ev_type;
+            int x = this.win.ev_x;
+            int y = this.win.ev_y;
+            if (t == 6) {
+                this.mouse_x = x;
+                this.mouse_y = y;
+                this.dispatch_motion(x, y);
+            } else if (t == 4) {
+                this.mouse_x = x;
+                this.mouse_y = y;
+                if (this.win.ev_key == 1) { this.mouse_down = 1; }
+                this.dispatch_press(x, y);
+            } else if (t == 5) {
+                this.mouse_x = x;
+                this.mouse_y = y;
+                if (this.win.ev_key == 1) { this.mouse_down = 0; }
+                this.dispatch_release(x, y);
+            } else if (t == 2) {
+                this.dispatch_key(this.win.ev_key, this.win.ev_state);
+            } else if (t == 33) {
+                this.running = 0;   // ClientMessage (window close)
+            }
+        }
+    }
+    // Redraw every widget (call after clear()/background, before refresh).
+    // Layer order: labels (bottom), checks, boxes, buttons (top).
+    public void draw() {
+        if (this.label0 != null) { Label l = this.label0; l.draw(this.win); }
+        if (this.label1 != null) { Label l = this.label1; l.draw(this.win); }
+        if (this.label2 != null) { Label l = this.label2; l.draw(this.win); }
+        if (this.label3 != null) { Label l = this.label3; l.draw(this.win); }
+        if (this.label4 != null) { Label l = this.label4; l.draw(this.win); }
+        if (this.label5 != null) { Label l = this.label5; l.draw(this.win); }
+        if (this.label6 != null) { Label l = this.label6; l.draw(this.win); }
+        if (this.label7 != null) { Label l = this.label7; l.draw(this.win); }
+        if (this.check0 != null) { CheckBox c = this.check0; c.draw(this.win); }
+        if (this.check1 != null) { CheckBox c = this.check1; c.draw(this.win); }
+        if (this.check2 != null) { CheckBox c = this.check2; c.draw(this.win); }
+        if (this.check3 != null) { CheckBox c = this.check3; c.draw(this.win); }
+        if (this.check4 != null) { CheckBox c = this.check4; c.draw(this.win); }
+        if (this.check5 != null) { CheckBox c = this.check5; c.draw(this.win); }
+        if (this.check6 != null) { CheckBox c = this.check6; c.draw(this.win); }
+        if (this.check7 != null) { CheckBox c = this.check7; c.draw(this.win); }
+        if (this.box0 != null) { TextBox t = this.box0; t.draw(this.win); }
+        if (this.box1 != null) { TextBox t = this.box1; t.draw(this.win); }
+        if (this.box2 != null) { TextBox t = this.box2; t.draw(this.win); }
+        if (this.box3 != null) { TextBox t = this.box3; t.draw(this.win); }
+        if (this.box4 != null) { TextBox t = this.box4; t.draw(this.win); }
+        if (this.box5 != null) { TextBox t = this.box5; t.draw(this.win); }
+        if (this.box6 != null) { TextBox t = this.box6; t.draw(this.win); }
+        if (this.box7 != null) { TextBox t = this.box7; t.draw(this.win); }
+        if (this.button0 != null) { Button b = this.button0; b.draw(this.win); }
+        if (this.button1 != null) { Button b = this.button1; b.draw(this.win); }
+        if (this.button2 != null) { Button b = this.button2; b.draw(this.win); }
+        if (this.button3 != null) { Button b = this.button3; b.draw(this.win); }
+        if (this.button4 != null) { Button b = this.button4; b.draw(this.win); }
+        if (this.button5 != null) { Button b = this.button5; b.draw(this.win); }
+        if (this.button6 != null) { Button b = this.button6; b.draw(this.win); }
+        if (this.button7 != null) { Button b = this.button7; b.draw(this.win); }
+    }
+    public void dispatch_press(int x, int y) {
+        if (this.button0 != null) { Button b = this.button0; b.on_press(x, y); }
+        if (this.button1 != null) { Button b = this.button1; b.on_press(x, y); }
+        if (this.button2 != null) { Button b = this.button2; b.on_press(x, y); }
+        if (this.button3 != null) { Button b = this.button3; b.on_press(x, y); }
+        if (this.button4 != null) { Button b = this.button4; b.on_press(x, y); }
+        if (this.button5 != null) { Button b = this.button5; b.on_press(x, y); }
+        if (this.button6 != null) { Button b = this.button6; b.on_press(x, y); }
+        if (this.button7 != null) { Button b = this.button7; b.on_press(x, y); }
+        if (this.check0 != null) { CheckBox c = this.check0; c.on_press(x, y); }
+        if (this.check1 != null) { CheckBox c = this.check1; c.on_press(x, y); }
+        if (this.check2 != null) { CheckBox c = this.check2; c.on_press(x, y); }
+        if (this.check3 != null) { CheckBox c = this.check3; c.on_press(x, y); }
+        if (this.check4 != null) { CheckBox c = this.check4; c.on_press(x, y); }
+        if (this.check5 != null) { CheckBox c = this.check5; c.on_press(x, y); }
+        if (this.check6 != null) { CheckBox c = this.check6; c.on_press(x, y); }
+        if (this.check7 != null) { CheckBox c = this.check7; c.on_press(x, y); }
+        if (this.box0 != null) {
+            TextBox t = this.box0;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box1 != null) {
+            TextBox t = this.box1;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box2 != null) {
+            TextBox t = this.box2;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box3 != null) {
+            TextBox t = this.box3;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box4 != null) {
+            TextBox t = this.box4;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box5 != null) {
+            TextBox t = this.box5;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box6 != null) {
+            TextBox t = this.box6;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box7 != null) {
+            TextBox t = this.box7;
+            t.on_press(x, y);
+            if (t.claim_focus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+    }
+    public void dispatch_release(int x, int y) {
+        if (this.button0 != null) { Button b = this.button0; b.on_release(x, y); }
+        if (this.button1 != null) { Button b = this.button1; b.on_release(x, y); }
+        if (this.button2 != null) { Button b = this.button2; b.on_release(x, y); }
+        if (this.button3 != null) { Button b = this.button3; b.on_release(x, y); }
+        if (this.button4 != null) { Button b = this.button4; b.on_release(x, y); }
+        if (this.button5 != null) { Button b = this.button5; b.on_release(x, y); }
+        if (this.button6 != null) { Button b = this.button6; b.on_release(x, y); }
+        if (this.button7 != null) { Button b = this.button7; b.on_release(x, y); }
+    }
+    public void dispatch_motion(int x, int y) {
+        if (this.button0 != null) { Button b = this.button0; b.on_motion(x, y); }
+        if (this.button1 != null) { Button b = this.button1; b.on_motion(x, y); }
+        if (this.button2 != null) { Button b = this.button2; b.on_motion(x, y); }
+        if (this.button3 != null) { Button b = this.button3; b.on_motion(x, y); }
+        if (this.button4 != null) { Button b = this.button4; b.on_motion(x, y); }
+        if (this.button5 != null) { Button b = this.button5; b.on_motion(x, y); }
+        if (this.button6 != null) { Button b = this.button6; b.on_motion(x, y); }
+        if (this.button7 != null) { Button b = this.button7; b.on_motion(x, y); }
+    }
+    public void dispatch_key(int kc, int state) {
+        if (this.focused != null) { this.focused.on_key(kc, state); }
+    }
+}

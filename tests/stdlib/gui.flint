@@ -1,0 +1,63 @@
+// std.Gui test: widget hit-testing, button/checkbox interaction, textbox
+// input, and Gui dispatch + draw. Uses the framebuffer backend (0), whose
+// open may fail on the host; the widget logic and canvas are
+// backend-independent, so all checks below are deterministic.
+import std.Window;
+import std.Gui;
+
+int main() {
+    // ---- Button: hit + click ----
+    Button b = new Button(10, 10, 20, 20, "X");
+    printi(b.hit(15, 15)); print(" ");   // 1
+    printi(b.hit(5, 5)); print(" ");     // 0
+    printi(b.hit(30, 15)); print(" ");   // 0 (right edge is exclusive)
+    b.on_press(15, 15);
+    b.on_release(15, 15);
+    printi(b.clicked()); print(" ");     // 1
+    b.clear_clicked();
+    printi(b.clicked()); print("\n");    // 0
+    // releasing outside the button => no click
+    Button b2 = new Button(0, 0, 10, 10, "Y");
+    b2.on_press(5, 5);
+    b2.on_release(50, 50);
+    printi(b2.clicked()); print("\n");   // 0
+
+    // ---- CheckBox: toggle on press ----
+    CheckBox cb = new CheckBox(0, 0, 20, 20, "C");
+    cb.on_press(5, 5);
+    printi(cb.checked()); print(" ");    // 1
+    cb.on_press(5, 5);
+    printi(cb.checked()); print("\n");   // 0
+
+    // ---- TextBox: focus, type, backspace ----
+    TextBox tb = new TextBox(0, 0, 40, 16, 8);
+    tb.on_press(5, 8);      // focus (point is inside)
+    tb.on_key(9, 0);        // 'a'
+    tb.on_key(21, 1);       // 'Q' (shift held)
+    printi(tb.length()); print(" ");     // 2
+    print(tb.text()); print(" ");        // aQ
+    tb.on_key(62, 0);       // backspace -> "a"
+    printi(tb.length()); print(" ");     // 1
+    print(tb.text()); print("\n");       // a
+    // an unfocused box ignores keys
+    TextBox tb2 = new TextBox(100, 0, 40, 16, 8);
+    tb2.on_key(9, 0);
+    printi(tb2.length()); print("\n");   // 0
+
+    // ---- Gui: dispatch + draw (backend 0; canvas still works) ----
+    Window w = new Window(64, 32, 0);
+    Gui gui = new Gui(w);
+    Button gb = new Button(0, 20, 20, 10, "B");
+    gui.add_button(gb);
+    gui.add_box(tb);
+    w.clear();
+    gui.draw();
+    printi(w.get(5, 25) != 0 ? 1 : 0); print(" ");  // 1 (button background drawn)
+    // dispatch a press on the textbox (focus) then the key 'P'
+    gui.dispatch_press(5, 8);
+    gui.dispatch_key(30, 0);
+    printi(tb.length()); print(" ");     // 2 ("aP")
+    print(tb.text()); print("\n");       // aP
+    printi(gui.running()); print("\n");  // 1
+    return 0;
+}

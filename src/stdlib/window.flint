@@ -55,6 +55,12 @@ class Window {
     int x_depth;
     int x_lsb;      // 1 = server image byte order is LSBFirst
     int x_idbase;   // resource-id-base from the connection setup
+    // Last X11 event read by pump_event() (valid after it returns 1)
+    int ev_type;    // 2=KeyPress 3=KeyRelease 4=ButtonPress 5=ButtonRelease
+    int ev_key;     // detail: keycode (key) or button number (button)
+    int ev_state;   // modifier/button state bits
+    int ev_x;       // event_x (window-relative)
+    int ev_y;       // event_y (window-relative)
     static string font;   // 95*7 bytes, the 5x7 font (lazy init)
 
     // -------------------------------------------------------- constructor
@@ -547,7 +553,8 @@ class Window {
             return -5;
         }
         // CreateWindow (opcode 1): background-pixel + event-mask.
-        int mask = 0x10 | 0x200;
+        // Request key, button, motion, enter/leave and expose events.
+        int mask = 0x1 | 0x2 | 0x4 | 0x8 | 0x10 | 0x20 | 0x40 | 0x100;
         string cw = alloc(40);
         sys.byte_store(cw + 0, 1);
         sys.byte_store(cw + 1, this.x_depth);
@@ -563,7 +570,7 @@ class Window {
         sys.int_store(cw + 24, 0);         // visual = CopyFromParent
         sys.int_store(cw + 28, mask);
         sys.int_store(cw + 32, 0);         // background-pixel (black)
-        sys.int_store(cw + 36, 0x80 | 0x200);  // event-mask
+        sys.int_store(cw + 36, mask);          // event-mask
         if (this.x11_write(cw, 40) < 0) {
             sys.close(s);
             return -6;
@@ -814,6 +821,42 @@ class Window {
         int r = this.x11_write(req, total);
         free(img);
         return r;
+    }
+    // Read at most one pending X11 event (non-blocking). Decodes it into the
+    // ev_* fields and returns 1, or returns 0 when no event is available.
+    // Event layout (32 bytes, little-endian): type(0), detail(1), sequence(2-3),
+    // time(4-7), root(8-11), event(12-15), child(16-19), root_x(20-21),
+    // root_y(22-23), event_x(24-25), event_y(26-27), state(28-29).
+    public int pump_event() {
+        if (this.backend != 1 || this.alive != 1) {
+            return 0;
+        }
+        string pf = alloc(8);
+        sys.int_store(pf, this.x_fd);    // pollfd.fd
+        sys.short_store(pf + 4, 1);      // pollfd.events = POLLIN
+        sys.short_store(pf + 6, 0);      // pollfd.revents = 0
+        int pr = sys.poll(pf, 1, 0);
+        free(pf);
+        if (pr <= 0) {
+            return 0;
+        }
+        string b = alloc(32);
+        int total = 0;
+        while (total < 32) {
+            int n = sys.read(this.x_fd, b + total, 32 - total);
+            if (n <= 0) {
+                free(b);
+                return 0;
+            }
+            total = total + n;
+        }
+        this.ev_type = sys.byte_load(b);
+        this.ev_key = sys.byte_load(b + 1);     // detail
+        this.ev_x = sys.short_load(b + 24);     // event_x
+        this.ev_y = sys.short_load(b + 26);     // event_y
+        this.ev_state = sys.short_load(b + 28);
+        free(b);
+        return 1;
     }
 
     // ------------------------------------------------------------- font
