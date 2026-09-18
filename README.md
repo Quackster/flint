@@ -588,6 +588,7 @@ int main() {
 | `std.Rand`   | `init(seed)` (xorshift64), `next`, `range(lo, hi)`, `coin`, `shuffle`, `pick`, `bytes`, `hex_id`, `rand_string` |
 | `std.Str`    | `upper`, `lower`, `reverse`, `trim`, `ltrim`, `rtrim`, `count`, `contains`, `last_index_of`, `starts_with`, `ends_with`, `replace_all`, `repeat`, `split`, `join`, `ljust`, `rjust` |
 | `std.Time`   | `millis`, `seconds`, `nanos`, `date` (`YYYY-MM-DD HH:MM:SS`) |
+| `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flip_h`/`flip_v`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fill_rect`/`line`/`circle`/`fill_circle`), multi-format I/O (`save`/`load`, `to_ppm`/`from_ppm`, `to_pgm`/`from_pgm`, `to_bmp`/`from_bmp`) |
 
 </details>
 
@@ -1496,7 +1497,7 @@ Two layers:
 2. **`std.*` modules**: a standard library written entirely in Flint
    (`package std`, in `src/stdlib/`): `std.Math`, `std.Sort`, `std.Bit`,
     `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
-    `std.Str`, `std.Time`. Compile
+    `std.Str`, `std.Time`, `std.Image`. Compile
    `src/stdlib/*.flint` alongside your sources and use
    `import std.X;` + `X.method(...)` (see the `std.*` feature section for
    the per-class method lists).
@@ -1595,9 +1596,9 @@ src/
   middle/   mod.rs  mono/  ensure.rs  expand.rs  infer.rs  mod.rs
                 resolve.rs  resolve_expr.rs
   prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
-   stdlib/   bit.flint  checksum.flint  file.flint  math.flint
-             num.flint  path.flint  rand.flint  sort.flint
-             str.flint  time.flint
+   stdlib/   bit.flint  checksum.flint  file.flint  image.flint
+             math.flint  num.flint  path.flint  rand.flint
+             sort.flint  str.flint  time.flint
   intrinsics.s  collections.s
 tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
 examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint

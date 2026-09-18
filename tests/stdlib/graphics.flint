@@ -1,0 +1,94 @@
+// std.Image test: pixel model, color, transforms, drawing, and
+// multi-format save/load round-trips. Fully deterministic (no time/rand).
+import std.Image;
+
+int main() {
+    // ---- pixel model + color ----
+    Image im = new Image(8, 4);
+    im.fill(Image.rgb(255, 0, 0));
+    printi(im.r(0, 0)); print(" ");
+    printi(im.g(0, 0)); print(" ");
+    printi(im.b(0, 0)); print(" ");
+    printi(im.a(0, 0)); print(" ");
+    im.set(3, 2, Image.rgba(10, 20, 30, 255));
+    printi(Image.cr(im.get(3, 2))); print(" ");
+    printi(Image.cg(im.get(3, 2))); print(" ");
+    printi(Image.cb(im.get(3, 2))); print(" ");
+    printi(im.get(9, 0)); print("\n");
+
+    // ---- drawing ----
+    Image c = new Image(10, 10);
+    c.clear();
+    c.rect(2, 2, 6, 6, Image.rgb(0, 255, 0));
+    printi(c.r(2, 2)); print(" ");
+    printi(c.g(2, 2)); print(" ");
+    printi(c.g(5, 2)); print(" ");
+    printi(c.g(5, 5)); print("\n");
+    c.line(0, 0, 9, 9, Image.rgb(255, 0, 255));
+    printi(c.r(4, 4)); print(" ");
+    printi(c.b(4, 4)); print("\n");
+    c.fill_circle(5, 5, 3, Image.rgb(0, 0, 255));
+    printi(c.b(5, 5)); print(" ");
+    printi(c.b(2, 5)); print("\n");
+
+    // ---- transforms ----
+    Image t = new Image(4, 2);
+    t.set(0, 0, 100);
+    t.set(3, 1, 200);
+    t.flip_h();
+    printi(t.get(3, 0)); print(" ");
+    printi(t.get(0, 1)); print(" ");
+    t.flip_v();
+    printi(t.get(3, 1)); print(" ");
+    t.invert();
+    printi(t.get(3, 1)); print(" ");
+    t.grayscale();
+    printi(t.r(3, 1)); print(" ");
+    printi(t.g(3, 1)); print("\n");
+    Image big = t.scale(8, 4);
+    printi(big.w); print(" ");
+    printi(big.h); print("\n");
+
+    // ---- blur (solid region stays solid) ----
+    Image bl = new Image(5, 5);
+    bl.fill(Image.rgb(255, 0, 0));   // solid red
+    bl.blur();
+    printi(bl.r(2, 2)); print(" ");   // 255 (all neighbors red)
+    printi(bl.r(0, 0)); print("\n");  // 255 (corner, clamped, all red)
+
+    // ---- multi-format round-trips ----
+    Image rt = new Image(8, 4);
+    rt.fill(Image.rgb(1, 2, 3));
+    rt.set(0, 0, Image.rgb(9, 8, 7));
+    rt.set(7, 3, Image.rgb(5, 6, 5));
+
+    printi(rt.to_ppm("/tmp/img_t.ppm") > 0 ? 1 : 0); print(" ");
+    Image l1 = Image.load("/tmp/img_t.ppm");
+    printi(l1 == null ? 0 : 1); print(" ");
+    printi(l1.get(0, 0) == Image.rgb(9, 8, 7) ? 1 : 0); print(" ");
+    printi(l1.get(7, 3) == Image.rgb(5, 6, 5) ? 1 : 0); print("\n");
+
+    printi(rt.to_pgm("/tmp/img_t.pgm") > 0 ? 1 : 0); print(" ");
+    Image l2 = Image.load("/tmp/img_t.pgm");
+    printi(l2 == null ? 0 : 1); print(" ");
+    printi(l2.r(0, 0) == l2.g(0, 0) ? 1 : 0); print(" ");
+    printi(l2.r(7, 3) == l2.g(7, 3) ? 1 : 0); print("\n");
+
+    printi(rt.to_bmp("/tmp/img_t.bmp") > 0 ? 1 : 0); print(" ");
+    Image l3 = Image.load("/tmp/img_t.bmp");
+    printi(l3 == null ? 0 : 1); print(" ");
+    printi(l3.get(0, 0) == Image.rgb(9, 8, 7) ? 1 : 0); print(" ");
+    printi(l3.get(7, 3) == Image.rgb(5, 6, 5) ? 1 : 0); print(" ");
+    printi(l3.w == 8 && l3.h == 4 ? 1 : 0); print("\n");
+
+    // ---- save() dispatcher + set_alpha ----
+    int ws = rt.save("/tmp/img_t2.bmp");
+    Image ls = Image.load("/tmp/img_t2.bmp");
+    printi(ws > 0 && ls.get(0, 0) == Image.rgb(9, 8, 7) ? 1 : 0); print(" ");
+    Image sa = new Image(2, 2);
+    sa.fill(Image.rgb(10, 20, 30));
+    sa.set_alpha(1, 1, 5);
+    printi(sa.a(1, 1)); print(" ");
+    printi(sa.r(1, 1)); print("\n");
+    return 0;
+}
