@@ -1,0 +1,46 @@
+import std.Image;
+import std.Math;
+
+int main() {
+    int w = 256;
+    int h = 256;
+    int cx = 127;
+    int cy = 127;
+    int rad = 110;
+    Image im = new Image(w, h);
+    im.fill(Image.rgb(0, 0, 0));            // black background
+
+    // Colour spectrum stops (red -> orange -> yellow -> green -> cyan -> blue -> violet).
+    int kr[] = [255, 255, 255, 0, 0, 0, 150];
+    int kg[] = [0, 165, 255, 255, 255, 0, 0];
+    int kb[] = [0, 0, 0, 0, 255, 255, 255];
+
+    int y = 0;
+    while (y < h) {
+        int x = 0;
+        while (x < w) {
+            int dx = x - cx;
+            int dy = y - cy;
+            int d2 = dx * dx + dy * dy;
+            if (d2 <= rad * rad) {
+                int d = Math.sqrt(d2);
+                int t6 = d * 6000 / rad;    // 0..6000 (spectrum position)
+                int i = t6 / 1000;          // stop index 0..6
+                if (i > 5) {
+                    i = 5;
+                }
+                int f = t6 - i * 1000;      // 0..999 within the segment
+                int r = kr[i] + (kr[i + 1] - kr[i]) * f / 1000;
+                int g = kg[i] + (kg[i + 1] - kg[i]) * f / 1000;
+                int b = kb[i] + (kb[i + 1] - kb[i]) * f / 1000;
+                im.set(x, y, Image.rgb(r, g, b));
+            }
+            x = x + 1;
+        }
+        y = y + 1;
+    }
+
+    im.save("/opt/git/flint/spectrum.bmp");
+    im.to_ppm("/opt/git/flint/spectrum.ppm");
+    return 0;
+}
