@@ -1,0 +1,26 @@
+// std/sync — mutexes, atomic compare-and-swap, and sleep (import std.Sync).
+//
+// A mutex is just an int: 0 = unlocked, 1 = locked. `cas` is an atomic
+// compare-and-swap: it returns 1 (and updates the cell) when the cell still
+// holds `expect`, else 0.
+//
+// Usage:
+//   import std.Sync;
+//   int m = 0;
+//   Sync.lock(&m);   ...   Sync.unlock(&m);
+//   int ok = Sync.cas(&x, 5, 10);   // 1 if x was 5 (now 10)
+package std;
+class Sync {
+    // Lock a mutex; blocks until it is free.
+    static void lock(*int m) { sys.mutex_lock(m); }
+    // Unlock a mutex.
+    static void unlock(*int m) { sys.mutex_unlock(m); }
+    // Atomic compare-and-swap: 1 and *x updated if *x == expect, else 0.
+    static int cas(*int x, int expect, int value) {
+        return sys.atomic_cas(x, expect, value);
+    }
+    // Sleep for sec seconds + nsec nanoseconds.
+    static int nanosleep(int sec, int nsec) {
+        return sys.nanosleep(sec, nsec);
+    }
+}

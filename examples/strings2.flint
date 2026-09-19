@@ -3,8 +3,8 @@
 // `+` of two strings concatenates. `(string)N` is a fresh single-char
 // string for byte value N. A literal stored into a string variable is a
 // fresh writable copy: `w[0] = 65` writes an 8-byte little-endian slot,
-// yielding "A" (0x41 00 ...). For multi-char builds, use alloc + byte
-// stores.
+// yielding "A" (0x41 00 ...). For multi-char builds, concatenate
+// single-char strings: `(string)65 + (string)66` is "AB".
 int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
@@ -27,11 +27,8 @@ int main() {
     w[0] = 65;
     print(w);                    // A
     print("\n");
-    // multi-char construction: alloc + byte stores + NUL
-    string m = alloc(8);
-    sys.byte_store(m + 0, 65);
-    sys.byte_store(m + 1, 66);
-    sys.byte_store(m + 2, 0);
+    // multi-char construction: concatenate single-char strings
+    string m = (string)65 + (string)66;   // AB
     print(m);                    // AB
     print("\n");
     printi(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1

@@ -396,22 +396,28 @@ int main() {
 <details>
 <summary>Concurrency</summary>
 
-- `sys.thread_create(@fn, arg)` starts a thread; `sys.thread_join(tid)` blocks until it finishes.
+- `Thread.spawn(@fn, arg)` starts a worker thread (returns the id, 0, 1, 2, ... in creation order); `Thread.join(id)` blocks until it finishes and returns the worker's return value. `Thread.n_cpu()` reports the number of online CPUs. (import std.Thread)
 - The `@` operator yields a function's address.
-- Synchronization: `sys.mutex_lock/unlock(&m)`, `sys.atomic_cas(&v, old, new)`.
-- Lower-level: `sys.clone`, `sys.futex`, `sys.nanosleep(sec, nsec)`.
-- At most one thread runs concurrently; join before creating another.
+- Synchronization: `Sync.lock/unlock(&m)`, `Sync.cas(&v, old, new)`, `Sync.nanosleep(sec, nsec)` (import std.Sync). Lower-level: `sys.clone`, `sys.futex`.
+- Spawn workers up front (one per CPU), then join them: they run concurrently.
 
 ```java
-void thread_fn(int arg) {
-    printi(arg);             // 7
+import std.Thread;
+import std.Sync;
+int worker(int arg) {
+    return arg * 2;
 }
 int main() {
     int val = 5;
-    sys.atomic_cas(&val, 5, 10);
+    Sync.cas(&val, 5, 10);
     printi(val);             // 10  (CAS succeeded)
-    int tid = sys.thread_create(@thread_fn, 7);   // @ = fn address
-    sys.thread_join(tid);
+    int n = Thread.n_cpu();
+    for (int k = 0; k < n; k = k + 1) {
+        Thread.spawn(@worker, k);   // @ = fn address
+    }
+    for (int k = 0; k < n; k = k + 1) {
+        printi(Thread.join(k));     // 2 * k
+    }
     return 0;
 }
 ```
@@ -420,23 +426,22 @@ int main() {
 <details>
 <summary>Networking (TCP)</summary>
 
-- `sys.socket(fam, type, proto)`, `sys.sockaddr(port, o1, o2, o3, o4)`,
-  `sys.bind`, `sys.listen`, `sys.accept`, `sys.connect`.
-- Read/write over a socket fd; `sys.close` to release.
-- I/O multiplexing: `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
+- `Socket.stream()` creates an AF_INET / SOCK_STREAM socket; `Socket.bind_port(fd, port)` binds it to 0.0.0.0:port; `Socket.listen(fd, backlog)` marks it passive; `Socket.accept(fd)` takes a connection; `Socket.connect_host(a, b, c, d, port)` opens a client socket; `Socket.send_all(fd, s)` / `Socket.recv(fd)` send/receive; `Socket.close(fd)` releases. (import std.Socket)
+- I/O multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
 
 ```java
+import std.Socket;
 int main() {
-    int s = sys.socket(2, 1, 0);            // AF_INET, SOCK_STREAM
-    sys.bind(s, sys.sockaddr(7777, 0, 0, 0, 0), 16);
-    sys.listen(s, 5);
-    int c = sys.accept(s, 0, 0);
-    string buf = alloc(64);
-    int n = sys.read(c, buf, 64);
-    sys.write(c, buf, n);                 // echo back
-    sys.close(c);
-    free(buf);
-    sys.close(s);
+    int s = Socket.stream();
+    Socket.bind_port(s, 7777);
+    Socket.listen(s, 5);
+    int c = Socket.accept(s);
+    string m = Socket.recv(c);
+    if (m != null) {
+        Socket.send_all(c, m);            // echo back
+    }
+    Socket.close(c);
+    Socket.close(s);
     return 0;
 }
 ```
@@ -445,18 +450,18 @@ int main() {
 <details>
 <summary>I/O & system</summary>
 
-- File I/O: `sys.open(path, flags, mode)`, `sys.read/write`, `sys.close`.
+- File I/O: `File.read_all(path)` / `File.write_all(path, data)` / `File.copy(src, dst)` / `File.size` / `File.exists` / `File.delete` / `File.append` / `File.rename` (import std.File).
 - Standard streams: `print(s)`, `printi(n)`, stdin via `sys.read(0, buf, n)`.
-- `env.get("NAME")`, `time.millis()`, `rand.next()` / `rand.range(min, max)`.
+- `env.get("NAME")`, `time.millis()` / `Time.seconds()`, `rand.next()` / `rand.range(min, max)`.
 - `log.info/warn/error/debug(s)`.
 - `b64.encode/decode`, `json.get(s, key)` / `json.geti(s, key)`.
-- Generic syscall escape hatch: `sys.syscall(num, a1, a2, a3, a4, a5)`.
+- Generic syscall escape hatch (lower-level): `sys.syscall(num, a1, a2, a3, a4, a5)`.
 
 ```java
+import std.File;
 int main() {
-    int f = sys.open("/tmp/flintc_demo.txt", 0x241, 0x1a4);
-    sys.write(f, "hi", 2);
-    sys.close(f);
+    File.write_all("/tmp/flintc_demo.txt", "hi");
+    printi(File.size("/tmp/flintc_demo.txt"));   // 2
     string p = env.get("PATH");
     printi(p != null ? 1 : 0);             // 1
     printi(time.millis() > 1000000000000 ? 1 : 0);  // 1
@@ -1131,9 +1136,11 @@ int main() {
 <details>
 <summary>Pointers & raw memory (escape hatch)</summary>
 
-Low-level access. Standard code should prefer `string` variables plus the
-sized `sys.*` builtins; reach for raw pointers only when you need the
-`*T`/`&`/`*p` mechanics directly.
+Low-level access. **Application code should prefer `std.Mem`**
+(`Mem.int_array` / `Mem.bytes` / `Mem.copy` / `Mem.free_*`) for buffers and
+dynamic arrays; reach for raw pointers and raw `alloc`/`free`/`memcpy` only
+when you need the `*T`/`&`/`*p` mechanics directly (see `examples/rawmem.flint`,
+the one low-level memory reference).
 
 - `&x` is address-of; `*p` is dereference.
 - `alloc(n)` returns a `*byte` of `n` bytes from the heap (usable through a
@@ -1360,69 +1367,71 @@ int main() {
 <summary>Concurrency</summary>
 
 ```java
+import std.Thread;
 void thread_fn(int arg) {
-    sys.write(1, "hello from thread", 19);
+    print("hello from thread\n");
 }
 int main() {
-    int tid = sys.thread_create(@thread_fn, 0);  // @ = function address
-    sys.thread_join(tid);
+    int tid = Thread.spawn(@thread_fn, 0);  // @ = function address
+    Thread.join(tid);
     return 0;
 }
 ```
 
-- `sys.thread_create(@fn, arg)` starts a thread; `sys.thread_join(tid)` blocks until it finishes.
+- `Thread.spawn(@fn, arg)` starts a worker thread (returns the id); `Thread.join(id)` blocks until it finishes and returns the worker's return value. `Thread.n_cpu()` reports the online CPU count. (import std.Thread)
 - The `@` operator yields a function's address (required to launch a thread).
-- `sys.mutex_lock(&m)` / `sys.mutex_unlock(&m)`: a simple mutex (futex-based).
-- `sys.atomic_cas(&v, old, new)`: compare-and-swap; returns 1 on success.
-- Lower-level: `sys.clone`, `sys.futex`, `sys.nanosleep(sec, nsec)`.
-- Note: at most one thread may run concurrently; `thread_join` must be called before creating another thread.
+- `Sync.lock(&m)` / `Sync.unlock(&m)`: a simple mutex (futex-based); `Sync.cas(&v, old, new)`: compare-and-swap, 1 on success; `Sync.nanosleep(sec, nsec)`. (import std.Sync)
+- Lower-level: `sys.clone`, `sys.futex`.
+- Spawn workers up front (one per CPU), then join them: they run concurrently.
 </details>
 
 <details>
 <summary>Networking (TCP)</summary>
 
 ```java
+import std.Socket;
 int main() {
-    int s = sys.socket(2, 1, 0);           // AF_INET, SOCK_STREAM
-    sys.bind(s, sys.sockaddr(7777, 127, 0, 0, 1), 16);
-    sys.listen(s, 5);
-    int c = sys.accept(s, 0, 0);           // or: sys.connect(s, sys.sockaddr(7777, 127, 0, 0, 1), 16)
-    string buf = alloc(64);
-    int n = sys.read(c, buf, 64);
-    sys.write(c, buf, n);                 // echo
-    sys.close(c);
+    int s = Socket.stream();               // AF_INET, SOCK_STREAM
+    Socket.bind_port(s, 7777);
+    Socket.listen(s, 5);
+    int c = Socket.accept(s);              // or: int c = Socket.connect_host(127, 0, 0, 1, 7777);
+    string m = Socket.recv(c);
+    if (m != null) {
+        Socket.send_all(c, m);            // echo
+    }
+    Socket.close(c);
     return 0;
 }
 ```
 
-- `sys.socket(fam, type, proto)`: create a socket (`AF_INET=2`, `SOCK_STREAM=1`).
-- `sys.sockaddr(port, o1, o2, o3, o4)`: build a 16-byte `sockaddr_in`.
-- `sys.bind`, `sys.listen`, `sys.accept` (server); `sys.connect` (client).
-- Read/write over a socket fd; `sys.close` to release.
-- Multiplexing: `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
+- `Socket.stream()`: create an AF_INET / SOCK_STREAM socket.
+- `Socket.bind_port(fd, port)` / `Socket.listen(fd, backlog)` (server); `Socket.connect_host(a, b, c, d, port)` (client).
+- `Socket.accept(fd)`: take a connection; `Socket.send_all(fd, s)` / `Socket.recv(fd)`; `Socket.close(fd)` to release. (import std.Socket)
+- Multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
 </details>
 
 <details>
 <summary>I/O & system</summary>
 
-- File I/O: `sys.open(path, flags, mode)` -> fd, `sys.read/write(fd, buf, n)`,
-  `sys.close(fd)`.
+- File I/O (import std.File): `File.read_all(path)`, `File.write_all(path, data)`,
+  `File.copy(src, dst)`, `File.size(path)`, `File.exists`, `File.delete`,
+  `File.append`, `File.rename`.
 - Standard streams: `print(s)`, `printi(n)`; stdin via `sys.read(0, buf, n)`.
 - `sys.exit(code)` terminates the process.
 - `env.get("NAME")`: an environment variable (a `string`, or `null` if unset).
-- `time.millis()`: wall-clock milliseconds.
+- `time.millis()` / `Time.seconds()`: wall-clock time (import std.Time).
 - `rand.next()`: a 64-bit draw; `rand.range(min, max)`: in `[min, max)`.
 - `log.info/warn/error/debug(s)`: levelled log output.
 - `b64.encode(s)` / `b64.decode(s)`: base64 round-trip.
 - `json.get(s, key)` / `json.geti(s, key)`: key extraction from a flat JSON object.
 - `sys.brk(addr)`: move the program break.
-- `sys.syscall(num, a1, a2, a3, a4, a5)`: a generic raw-syscall escape hatch.
+- `sys.syscall(num, a1, a2, a3, a4, a5)`: a generic raw-syscall escape hatch (lower-level).
 
 ```java
+import std.File;
 int main() {
-    int f = sys.open("/tmp/flint_io.txt", 0x241, 0x1a4);  // O_RDWR|O_CREAT|O_TRUNC
-    sys.write(f, "hi", 2);
-    sys.close(f);
+    File.write_all("/tmp/flint_io.txt", "hi");  // O_WRONLY|O_CREAT|O_TRUNC
+    printi(File.size("/tmp/flint_io.txt"));    // 2
     string p = env.get("PATH");
     printi(p != null ? 1 : 0);           // 1
     printi(time.millis() > 1000000000000 ? 1 : 0);  // 1
@@ -1498,11 +1507,12 @@ Two layers:
    `src/prelude/`. Always available.
 2. **`std.*` modules**: a standard library written entirely in Flint
    (`package std`, in `src/stdlib/`): `std.Math`, `std.Sort`, `std.Bit`,
-    `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
-    `std.Str`, `std.Time`, `std.Image`. Compile
-   `src/stdlib/*.flint` alongside your sources and use
-   `import std.X;` + `X.method(...)` (see the `std.*` feature section for
-   the per-class method lists).
+   `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
+   `std.Str`, `std.Time`, `std.Image`, `std.Thread`, `std.Socket`,
+   `std.Sync`, `std.Mem`, `std.Gui`, `std.Window`. **Prefer these over the
+   raw builtins in application code.** Compile `src/stdlib/*.flint` alongside
+   your sources and use `import std.X;` + `X.method(...)` (see the `std.*`
+   feature section for the per-class method lists).
 
 Builtins, grouped by module:
 

@@ -26,8 +26,8 @@ int main() {
     int x = 10;
     increment(&x);
     printi(x); print(" ");                  // 11
-    // @ yields a function's address (an int); sys.thread_create takes it
-    // int tid = sys.thread_create(@doubleIt, 0);
+    // @ yields a function's address (an int); std.Thread.spawn takes it
+    // int tid = Thread.spawn(@doubleIt, 0);
     printi(1); print("\n");
     return 0;
 }

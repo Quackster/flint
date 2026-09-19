@@ -1,11 +1,15 @@
-// alloc_demo: use the heap (mmap-based alloc/free) for a dynamic array.
-// Builds a Fibonacci table of length n, then prints the sum.
+// alloc_demo: use the heap (via std.Mem) for a dynamic array. Builds a
+// Fibonacci table of length n, then prints the sum.
+//
+//   $ flintc src/stdlib/mem.flint examples/alloc_demo.flint -o alloc_demo && ./alloc_demo
+import std.Mem;
+
 int main() {
     int n = 10;
-    *int fib = alloc(n * 8);
+    *int fib = Mem.int_array(n);
     fib[0] = 0;
     fib[1] = 1;
-    for (int i = 2; i < n; i++) {
+    for (int i = 2; i < n; i = i + 1) {
         fib[i] = fib[i - 1] + fib[i - 2];
     }
     // print the table
@@ -17,11 +21,11 @@ int main() {
             print(" ");
         }
         sum = sum + fib[j];
-        j++;
+        j = j + 1;
     }
     print("\nsum=");
     printi(sum);
     print("\n");
-    free(fib);
+    Mem.free_int(fib);
     return 0;
 }

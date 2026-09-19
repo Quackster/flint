@@ -1,8 +1,10 @@
-// rawmem: raw pointers (*T, &x, *p) and the heap (alloc/free/memcpy)
-// are the low-level escape hatch. buf[i] reads/writes the 8-byte slot
-// at i; sys.byte/short/int_load/store do sub-word little-endian access.
-// sys.syscall(num, a1..a5) is the generic raw-syscall escape hatch
-// (args land in rdi rsi rdx r10 r8 r9; the 4th is r10).
+// rawmem: the low-level memory reference — the ONLY example that shows raw
+// `alloc` / `free` / `memcpy`, raw pointers (*T, &x, *p), sub-word
+// little-endian access (sys.byte/short/int_load/store), and the generic
+// syscall escape hatch (sys.syscall(num, a1..a5): args land in rdi rsi rdx
+// r10 r8 r9, 4th in r10). Every other example allocates through std.Mem.
+//
+//   $ flintc examples/rawmem.flint -o rawmem && ./rawmem
 int main() {
     // *int pointer to a local: writes go through the address
     int x = 10;
@@ -10,7 +12,7 @@ int main() {
     *p = 99;
     printi(x);                     // 99
     print("\n");
-    // dynamic array over alloc(); buf[i] is an 8-byte slot
+    // dynamic array over alloc(); fib[i] is an 8-byte slot
     int n = 5;
     *int fib = alloc(n * 8);
     fib[0] = 0;
@@ -40,6 +42,7 @@ int main() {
     sys.int_store(buf + 12, 0x12345678);
     printi(sys.int_load(buf + 12));   // 305419896 (== 0x12345678)
     print("\n");
+    free(buf);
     // memcpy: copy 16 bytes
     *byte src = alloc(16);
     src[0] = 111;

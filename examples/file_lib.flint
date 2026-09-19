@@ -1,6 +1,8 @@
-// file_lib: the std.File class (import std.File) — file I/O built on
-// the sys.open/read/write/close syscalls. All results are printed as
-// stable 1/0 checks so the output is deterministic.
+// file_lib: the std.File class (import std.File) — high-level file I/O.
+// All results are printed as stable 1/0 checks so the output is
+// deterministic.
+//
+//   $ flintc src/stdlib/file.flint examples/file_lib.flint -o file_lib && ./file_lib
 import std.File;
 
 int main() {

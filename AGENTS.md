@@ -47,11 +47,20 @@ like ordinary application code, **not** like a systems-programming demo:
 - If a capability an example needs is missing from the stdlib, **add a stdlib
   wrapper for it** (in `package std;`, e.g. `class Thread`) and have the example
   call that wrapper. Keep the raw `sys.*` / `alloc` calls *inside* the stdlib
-  module, where they belong. Model: `src/stdlib/thread.flint` hides the
-  `sched_getaffinity` syscall and the raw `sys.thread_create`/`join` behind
-  `Thread.n_cpu()`, `Thread.spawn()`, `Thread.join()`.
+  module, where they belong. Models: `thread.flint` (Thread: n_cpu/spawn/join),
+  `net.flint` (Socket: stream/bind_port/listen/accept/connect_host/send_all/
+  recv/close), `sync.flint` (Sync: lock/unlock/cas/nanosleep), `mem.flint`
+  (Mem: int_array/bytes/copy/free_*), `file.flint` (File: read_all/write_all/
+  copy/size/...).
 - Show the build line in the header comment, including the stdlib files it
   needs (e.g. `flintc src/stdlib/thread.flint examples/...flint -o ...`).
+- **Exactly one** example may show raw `alloc` / `free` / `memcpy`:
+  `rawmem.flint`, the low-level memory reference. **Every other example must
+  allocate through `std.Mem`** (`Mem.int_array` / `Mem.bytes` / `Mem.free_*` /
+  `Mem.copy`) and use the stdlib (`File`, `Socket`, `Thread`, `Sync`) for any
+  other capability. (The byte-level parts of `strings2.flint` also *document*
+  the raw string API and may show `sys.byte_load`, but must not use raw
+  `alloc`.)
 - Prefer `for` loops and small, focused helpers; use `str.itoa(n)` (or
   `printi(n)`) to print numbers — never rely on `string + int`.
 

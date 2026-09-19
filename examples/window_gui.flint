@@ -10,6 +10,7 @@
 // (ClientMessage) or after you press Enter in the text box.
 import std.Window;
 import std.Gui;
+import std.Sync;
 
 int main() {
     print("opening X11 window (backend 1)...\n");
@@ -54,7 +55,7 @@ int main() {
         w.fill(0x00101020);
         gui.draw();
         w.refresh();
-        sys.nanosleep(0, 10000000);   // ~10 ms, avoid a busy loop
+        Sync.nanosleep(0, 10000000);   // ~10 ms, avoid a busy loop
     }
     print("done. checkbox was ");
     printi(check.checked());

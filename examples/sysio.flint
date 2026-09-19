@@ -1,6 +1,10 @@
-// sysio: the I/O-related builtin namespaces (b64, json, env, log) plus
-// raw file I/O through the sys.* syscalls. Output is stable 1/0 checks
-// (env values and log lines are verified, not printed verbatim).
+// sysio: the I/O-related builtin namespaces (b64, json, env, log) plus file
+// I/O through std.File. Output is stable 1/0 checks (env values and log lines
+// are verified, not printed verbatim).
+//
+//   $ flintc src/stdlib/file.flint examples/sysio.flint -o sysio && ./sysio
+import std.File;
+
 int main() {
     // ---- b64 ----
     // "hello" encodes to "aGVsbG8="; decoding round-trips.
@@ -29,17 +33,9 @@ int main() {
     log.info("sio ok");
     log.warn("sio warn");
 
-    // ---- raw file I/O via syscalls ----
-    // O_WRONLY|O_CREAT|O_TRUNC = 1|64|512 = 577; mode 0644 (octal) = 420.
-    int fd = sys.open("/tmp/flint_sysio.txt", 577, 420);
-    printi(fd >= 0 ? 1 : 0); print(" ");                  // 1
-    sys.write(fd, "raw io", 6);
-    sys.close(fd);
-    int fd2 = sys.open("/tmp/flint_sysio.txt", 0, 0);    // O_RDONLY
-    string buf = alloc(16);
-    int n = sys.read(fd2, buf, 16);
-    sys.close(fd2);
-    printi(n == 6 ? 1 : 0); print(" ");                  // 1
-    free(buf);
+    // ---- file I/O via std.File ----
+    // write_all returns the number of bytes written; size() reports them back.
+    printi(File.write_all("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
+    printi(File.size("/tmp/flint_sysio.txt") == 6 ? 1 : 0); print(" ");               // 1
     return 0;
 }

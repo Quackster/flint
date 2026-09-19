@@ -1,0 +1,25 @@
+// std/mem — dynamic arrays and byte buffers over the heap (import std.Mem).
+//
+// `int_array(n)` returns a fresh array of n 8-byte slots (index as a[i]);
+// `bytes(n)` returns a fresh n-byte buffer (index as b[i]); `copy` copies n
+// bytes; `free_int` / `free_byte` release them.
+//
+// Usage:
+//   import std.Mem;
+//   *int fib = Mem.int_array(10);
+//   fib[0] = 0; fib[1] = 1;
+//   ...
+//   Mem.free_int(fib);
+package std;
+class Mem {
+    // A fresh array of n 8-byte slots (index with a[i]).
+    static *int int_array(int n) { return alloc(n * 8); }
+    // A fresh n-byte buffer (index with b[i]).
+    static *byte bytes(int n) { return alloc(n); }
+    // Release an int array.
+    static void free_int(*int p) { free(p); }
+    // Release a byte buffer.
+    static void free_byte(*byte p) { free(p); }
+    // Copy n bytes from src to dst.
+    static void copy(*byte dst, *byte src, int n) { memcpy(dst, src, n); }
+}
