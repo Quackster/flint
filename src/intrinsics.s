@@ -1787,16 +1787,60 @@ flint_fcmp:
     ret
     .size flint_fcmp, .-flint_fcmp
 
-# Thread support: CLONE_THREAD with custom stack, pipe for join.
+# Thread support: CLONE_VM with custom stack, per-thread pipe for join.
+# Supports up to 8 concurrent threads via a fixed pipe-fd table.
     .data
-    .globl flint_pipe_read
+    .globl flint_thread_pipe_read
     .balign 8
-flint_pipe_read:
-    .quad -1
-    .globl flint_pipe_write
+flint_thread_pipe_read:
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .globl flint_thread_pipe_write
     .balign 8
-flint_pipe_write:
-    .quad -1
+flint_thread_pipe_write:
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .globl flint_thread_next_id
+    .balign 8
+flint_thread_next_id:
+    .quad 0
+    .globl flint_thread_pid
+    .balign 8
+flint_thread_pid:
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .globl flint_wait_status
+flint_wait_status:
+    .quad 0
+    .globl flint_thread_result
+    .balign 8
+flint_thread_result:
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
+    .quad 0; .quad 0; .quad 0; .quad 0
     .globl flint_pipe_byte
 flint_pipe_byte:
     .byte 0
@@ -1806,22 +1850,28 @@ flint_pipe_byte:
     .type flint_thread_wrapper, @function
 # flint_thread_wrapper: entry point for the new thread.
 # Stack layout (set up by flint_thread_create):
-#   [rsp+0] = fn (function pointer)
-#   [rsp+8] = arg (argument)
+#   [rsp+0]  = fn  (function pointer)
+#   [rsp+8]  = arg (argument)
+#   [rsp+16] = tid (thread id, index into pipe table)
 flint_thread_wrapper:
     mov 0(%rsp), %r10    # r10 = fn
     mov 8(%rsp), %r11    # r11 = arg
+    mov 16(%rsp), %r12   # r12 = tid
     # Call fn(arg)
     mov %r11, %rdi       # arg in rdi
-    call *%r10           # call fn(arg)
-    # Signal done: write 1 byte to the pipe
-    mov flint_pipe_write(%rip), %rdi   # write fd
-    lea flint_pipe_byte(%rip), %rsi    # buffer
-    mov $1, %rdx             # count = 1
-    xor %r10, %r10           # extra args = 0
+    call *%r10           # call fn(arg); rax = return value
+    # Store the worker's return value so thread_join can hand it back
+    lea flint_thread_result(%rip), %r14
+    movq %rax, 0(%r14, %r12, 8)
+    # Signal done: write 1 byte to this thread's pipe
+    lea flint_thread_pipe_write(%rip), %r13  # r13 = &table
+    movq 0(%r13, %r12, 8), %rdi             # rdi = write fd for tid
+    lea flint_pipe_byte(%rip), %rsi          # buffer
+    mov $1, %rdx               # count = 1
+    xor %r10, %r10            # extra args = 0
     xor %r8, %r8
     xor %r9, %r9
-    mov $1, %rax             # SYS_write
+    mov $1, %rax              # SYS_write
     syscall
     # Exit the thread
     mov $60, %rax        # SYS_exit
@@ -1834,13 +1884,18 @@ flint_thread_wrapper:
     .globl flint_thread_create
     .type flint_thread_create, @function
 # flint_thread_create(fn, arg) -> int
-# Creates a new thread using clone(CLONE_THREAD). Returns 0 on success or -1 on error.
+# Creates a new thread using clone(CLONE_VM). Returns tid on success or -1 on error.
 flint_thread_create:
     push %rbp
     mov %rsp, %rbp
-    sub $32, %rsp          # space for pipe fds + alignment
+    sub $32, %rsp          # space for pipe fds
     mov %rdi, %rbx        # rbx = fn
     mov %rsi, %r12        # r12 = arg
+    # Allocate a tid from the counter
+    movq flint_thread_next_id(%rip), %r13  # r13 = tid
+    # Bounds check: max 32 threads
+    cmp $32, %r13
+    jae .Lthread_too_many
     # Create a pipe for thread synchronization
     lea 16(%rsp), %rdi     # rdi = &pipe_fds (on stack)
     mov $22, %rax          # SYS_pipe
@@ -1848,33 +1903,41 @@ flint_thread_create:
     test %rax, %rax
     jne .Lthread_pipe_fail  # rax < 0 on error
     # Save pipe fds (int is 4 bytes)
-    movl 16(%rsp), %r13d   # r13 = read fd
-    movl 20(%rsp), %r14d   # r14 = write fd
-    # Store in globals (for join and wrapper)
-    movq %r13, flint_pipe_read(%rip)
-    movq %r14, flint_pipe_write(%rip)
+    movl 16(%rsp), %r14d   # r14 = read fd
+    movl 20(%rsp), %r15d   # r15 = write fd
+    # Store in per-thread table
+    lea flint_thread_pipe_read(%rip), %r10
+    movq %r14, 0(%r10, %r13, 8)   # table_read[tid] = read fd
+    lea flint_thread_pipe_write(%rip), %r10
+    movq %r15, 0(%r10, %r13, 8)   # table_write[tid] = write fd
+    # Increment counter
+    lea 1(%r13), %r10
+    movq %r10, flint_thread_next_id(%rip)
     # Allocate a new stack (8KB)
     mov $8192, %rdi
-    call flint_alloc         # rax = start (clobbers r10/r11 etc.)
+    call flint_alloc         # rax = start
     # Stack top = start + 8192
     lea 8192(%rax), %r10   # r10 = stack top
     # Set up the stack (stack grows down, 16-byte aligned):
-    mov %rbx, -48(%r10)   # [stack_top-48] = fn
-    mov %r12, -40(%r10)   # [stack_top-40] = arg
+    mov %rbx, -64(%r10)   # [stack_top-64] = fn
+    mov %r12, -56(%r10)   # [stack_top-56] = arg
+    mov %r13, -48(%r10)   # [stack_top-48] = tid
     # clone(CLONE_VM, stack, NULL, NULL, NULL)
     mov $0x00000100, %rdi  # CLONE_VM
-    lea -48(%r10), %rsi    # stack = stack_top - 48 (16-byte aligned)
+    lea -64(%r10), %rsi    # stack = stack_top - 64 (16-byte aligned)
     xor %rdx, %rdx         # ptid = NULL
     xor %r10, %r10         # tcred = NULL (4th arg in r10)
     xor %r8, %r8           # tls = NULL (5th arg in r8)
     mov $56, %rax          # SYS_clone
     syscall
-    # rax = pid (parent) or 0 (child)
+    # rax = child pid (parent) or 0 (child)
     test %rax, %rax
     jz .Lthread_child
-    # Parent: restore stack and return 0
+    # Parent: store child pid for reaping, then return tid
+    lea flint_thread_pid(%rip), %r10
+    movq %rax, 0(%r10, %r13, 8)   # pid_table[tid] = child pid
     leave
-    xor %eax, %eax
+    mov %r13, %rax
     ret
     .Lthread_child:
     jmp flint_thread_wrapper
@@ -1882,25 +1945,41 @@ flint_thread_create:
     leave
     movq $-1, %rax
     ret
+    .Lthread_too_many:
+    leave
+    movq $-1, %rax
+    ret
     .size flint_thread_create, .-flint_thread_create
 
     .globl flint_thread_join
     .type flint_thread_join, @function
-# flint_thread_join(id) -> int
-# Wait for a thread to finish using a blocking pipe read.
-# The argument (rdi) is ignored (supports 1 concurrent thread).
+# flint_thread_join(tid) -> int
+# Wait for a specific thread to finish using a blocking pipe read.
 flint_thread_join:
+    # rdi = tid (save it)
+    mov %rdi, %r12          # r12 = tid
     # Blocking read from the pipe
-    mov flint_pipe_read(%rip), %rdi   # read fd
-    lea flint_pipe_byte(%rip), %rsi   # buffer
+    lea flint_thread_pipe_read(%rip), %r10   # r10 = &table
+    movq 0(%r10, %r12, 8), %rdi             # rdi = read fd for tid
+    lea flint_pipe_byte(%rip), %rsi          # buffer
     mov $1, %rdx             # count = 1
-    xor %r10, %r10           # extra = 0
     xor %r8, %r8
     xor %r9, %r9
     mov $0, %rax             # SYS_read
     syscall
-    # rax = 1 (byte read) or 0 (EOF) or -1 (error)
-    xor %eax, %eax          # return 0 (success)
+    # Reap the child: wait4(pid, &status, 0, NULL)
+    lea flint_thread_pid(%rip), %r10
+    movq 0(%r10, %r12, 8), %rdi             # rdi = child pid for tid
+    lea flint_wait_status(%rip), %rsi        # rsi = &status
+    xor %rdx, %rdx           # options = 0
+    xor %r10, %r10           # rusage = NULL (4th arg)
+    xor %r8, %r8
+    xor %r9, %r9
+    mov $61, %rax            # SYS_wait4
+    syscall
+    # Return the worker's result value
+    lea flint_thread_result(%rip), %r10
+    movq 0(%r10, %r12, 8), %rax
     ret
     .size flint_thread_join, .-flint_thread_join
 

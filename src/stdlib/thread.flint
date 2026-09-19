@@ -1,0 +1,47 @@
+// std/thread — lightweight worker threads and CPU count (import std.Thread).
+//
+// A worker is any `int fn(int arg)` (or `void fn(int arg)`). `spawn` starts it
+// on its own thread and returns the thread id (0, 1, 2, ... in creation order);
+// `join(id)` blocks until that thread finishes and returns the value its worker
+// returned. `n_cpu()` reports the number of online CPUs so an example can spawn
+// one worker per core.
+//
+// Usage:
+//   import std.Thread;
+//   int n = Thread.n_cpu();
+//   for (int k = 0; k < n; k = k + 1) {
+//       Thread.spawn(@worker, k);
+//   }
+//   for (int k = 0; k < n; k = k + 1) {
+//       printi(Thread.join(k));
+//   }
+package std;
+class Thread {
+    // Number of online CPUs (0 if the query fails, which is clamped to 1).
+    static int n_cpu() {
+        int mask = alloc(128);
+        sys.syscall(204, 0, 128, mask, 0, 0); // sched_getaffinity(0, 128, mask)
+        int total = 0;
+        for (int i = 0; i < 128; i = i + 1) {
+            int b = sys.byte_load(mask + i);
+            while (b > 0) {
+                total = total + (b % 2);
+                b = b / 2;
+            }
+        }
+        if (total < 1) {
+            total = 1;
+        }
+        return total;
+    }
+
+    // Start `fn` on a new thread with `arg`; returns the new thread id.
+    static int spawn(int fn, int arg) {
+        return sys.thread_create(fn, arg);
+    }
+
+    // Block until thread `id` finishes; returns the value its worker returned.
+    static int join(int id) {
+        return sys.thread_join(id);
+    }
+}

@@ -1,0 +1,78 @@
+// primes_thread: count the primes in [2, N] with one worker thread per CPU.
+//
+// The range [2, N] is split into K = n_cpu() contiguous chunks; each chunk is
+// counted by its own worker thread. All workers are spawned up front (so they
+// run concurrently, in tandem) and then joined one by one; each worker returns
+// the number of primes in its chunk, and main sums the results. 168 is the
+// known count of primes below 1000 — a self-check.
+//
+//   $ flintc src/stdlib/thread.flint examples/primes_thread.flint -o primes_thread && ./primes_thread
+import std.Thread;
+
+class Cfg {
+    static int N;  // upper bound (inclusive)
+    static int K;  // number of workers (= n_cpu())
+}
+
+// 1 if n is prime, else 0 (6k±1 fast path + trial division up to sqrt(n)).
+int is_prime(int n) {
+    if (n < 2) {
+        return 0;
+    }
+    if (n == 2 || n == 3) {
+        return 1;
+    }
+    if (n % 2 == 0 || n % 3 == 0) {
+        return 0;
+    }
+    int i = 5;
+    while (i * i <= n) {
+        if (n % i == 0 || n % (i + 2) == 0) {
+            return 0;
+        }
+        i = i + 6;
+    }
+    return 1;
+}
+
+// Worker: arg is the chunk id k. Recompute this chunk's [lo, hi] from the
+// (static) N and K, count the primes in it, and return that count.
+int worker(int k) {
+    int span = (Cfg.N - 2 + 1) / Cfg.K;
+    int lo = 2 + k * span;
+    int hi = lo + span - 1;
+    if (k == Cfg.K - 1) {
+        hi = Cfg.N;  // last chunk absorbs the remainder
+    }
+    int count = 0;
+    int n = lo;
+    while (n <= hi) {
+        if (is_prime(n) == 1) {
+            count = count + 1;
+        }
+        n = n + 1;
+    }
+    return count;
+}
+
+int main() {
+    int N = 1000;           // count primes in [2, N]
+    Cfg.N = N;
+    int K = Thread.n_cpu(); // one worker per CPU
+    Cfg.K = K;
+
+    // Spawn every worker up front so they all run concurrently (in tandem).
+    for (int k = 0; k < K; k = k + 1) {
+        Thread.spawn(@worker, k);
+    }
+
+    // Join them all and sum the per-chunk counts.
+    int total = 0;
+    for (int k = 0; k < K; k = k + 1) {
+        total = total + Thread.join(k);
+    }
+
+    print("primes in [2, " + str.itoa(N) + "]: " + str.itoa(total) + "\n");
+    print(total == 168 ? "PASS\n" : "FAIL\n");
+    return 0;
+}
