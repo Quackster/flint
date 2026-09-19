@@ -1861,8 +1861,8 @@ flint_thread_create:
     # Set up the stack (stack grows down, 16-byte aligned):
     mov %rbx, -48(%r10)   # [stack_top-48] = fn
     mov %r12, -40(%r10)   # [stack_top-40] = arg
-    # clone(CLONE_THREAD, stack, NULL, NULL, NULL)
-    mov $0x01000000, %rdi  # CLONE_THREAD (implies CLONE_VM)
+    # clone(CLONE_VM, stack, NULL, NULL, NULL)
+    mov $0x00000100, %rdi  # CLONE_VM
     lea -48(%r10), %rsi    # stack = stack_top - 48 (16-byte aligned)
     xor %rdx, %rdx         # ptid = NULL
     xor %r10, %r10         # tcred = NULL (4th arg in r10)

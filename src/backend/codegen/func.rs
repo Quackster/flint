@@ -111,10 +111,9 @@ impl Ctx<'_> {
             frame.this_class = Some(sidx);
             // this is slot 0
             frame.this_offset = Some(frame.param_slot(0));
-            // ctors do not take ownership of `this`: the caller (new) does.
-            if meth.is_ctor {
-                frame.release_this = false;
-            }
+            // `this` is borrowed, not owned: the caller retains the reference
+            // and releases it. The method must not release `this`.
+            frame.release_this = false;
         }
         // store params: this at slot 0, then explicit params
         if !meth.is_static {
