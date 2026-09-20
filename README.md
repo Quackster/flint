@@ -15,6 +15,8 @@ in Rust with zero external dependencies.
 ## Quick start
 
 ```sh
+git clone https://github.com/Quackster/flint.git
+cd flint
 cargo build --release          # -> target/release/flintc
 cargo build                    # -> target/debug/flintc
 ```

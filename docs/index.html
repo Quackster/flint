@@ -86,6 +86,22 @@ real captured output of that run — not a transcription.</div>
 <p class="lede">Building a Flint program, the <code>flintc</code> command-line
 interface, and the <code>flint.toml</code> manifest.</p></div>
 
+<h2>Clone &amp; build</h2>
+<p>The whole project — the <code>flintc</code> compiler, the standard
+library, and the examples — lives in one
+<a href="https://github.com/Quackster/flint">repository</a> on GitHub. Clone
+it, build the compiler with cargo, then compile your first program:</p>
+<div class="code"><div class="head"><span>get the toolchain</span></div>
+<pre><code class="flint">$ git clone https://github.com/Quackster/flint.git
+$ cd flint
+$ cargo build --release
+$ target/release/flintc examples/hello.flint -o hello
+$ ./hello</code></pre></div>
+<p>Requires <code>cargo</code> (the Rust toolchain) to build the compiler and
+<code>as</code> / <code>ld</code> (binutils) on the PATH to link programs.
+The resulting binary is <code>target/release/flintc</code> (debug builds go to
+<code>target/debug/flintc</code>).</p>
+
 <h2>What you need</h2>
 <p>Flint compiles to a standalone native ELF executable. The toolchain is a
 single Rust binary, <code>flintc</code>, which drives the system
