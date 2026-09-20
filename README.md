@@ -595,6 +595,10 @@ int main() {
 | `std.Str`    | `upper`, `lower`, `reverse`, `trim`, `ltrim`, `rtrim`, `count`, `contains`, `last_index_of`, `starts_with`, `ends_with`, `replace_all`, `repeat`, `split`, `join`, `ljust`, `rjust` |
 | `std.Time`   | `millis`, `seconds`, `nanos`, `date` (`YYYY-MM-DD HH:MM:SS`) |
 | `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flip_h`/`flip_v`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fill_rect`/`line`/`circle`/`fill_circle`), multi-format I/O (`save`/`load`, `to_ppm`/`from_ppm`, `to_pgm`/`from_pgm`, `to_bmp`/`from_bmp`) |
+| `std.Thread` | `n_cpu` (online CPU count), `spawn(@fn, arg)` (returns the id), `join(id)` (blocks; returns the worker's return value) |
+| `std.Sync`   | `lock(&m)` / `unlock(&m)` (mutex: 0 unlocked, 1 locked), `cas(&v, old, new)` (1 on success), `nanosleep(sec, nsec)` |
+| `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bind_port(fd, port)`, `listen(fd, backlog)`, `accept(fd)`, `connect_host(a, b, c, d, port)`, `send_all(fd, s)`, `recv(fd)` (string or `null`), `close(fd)` |
+| `std.Mem`    | `int_array(n)` (`*int`), `bytes(n)` (`*byte`), `copy(dst, src, n)`, `free_int(*int)`, `free_byte(*byte)` — the high-level replacement for raw `alloc`/`free`/`memcpy` |
 
 </details>
 
@@ -1509,7 +1513,7 @@ Two layers:
    (`package std`, in `src/stdlib/`): `std.Math`, `std.Sort`, `std.Bit`,
    `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
    `std.Str`, `std.Time`, `std.Image`, `std.Thread`, `std.Socket`,
-   `std.Sync`, `std.Mem`, `std.Gui`, `std.Window`. **Prefer these over the
+   `std.Sync`, `std.Mem`. **Prefer these over the
    raw builtins in application code.** Compile `src/stdlib/*.flint` alongside
    your sources and use `import std.X;` + `X.method(...)` (see the `std.*`
    feature section for the per-class method lists).

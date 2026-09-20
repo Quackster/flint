@@ -74,3 +74,23 @@ like ordinary application code, **not** like a systems-programming demo:
 - `src/stdlib/*.flint` — the `std` library (each file declares `package std;`).
 - `examples/*.flint` — runnable examples (the code's public face — see above).
 - `tests/` — the test suite (`run_tests.sh`), plus `tests/cases` for error tests.
+- `docs/` — the public documentation site (`index.html` + `app.js`/`style.css`):
+  one `<section id="...">` per topic, a `Standard library` nav section with a
+  link **per stdlib class** (e.g. `#std-file`), and `concurrency`/`networking`/
+  `io` how-to sections that lead with the stdlib.
+
+## Keeping the docs in sync
+
+`docs/` is the public face of the language and **must stay current**:
+
+- **Every time a feature, stdlib class, builtin, or example is added,
+  changed, or removed, update `docs/` in the same change.** A new stdlib class
+  in `src/stdlib/` needs a `Standard library: <X>` section *and* a nav link in
+  the `Standard library` nav section; a changed API, example, or behaviour must
+  be reflected in the matching section.
+- Keep `docs/index.html` consistent with `README.md`: the same sections, the
+  same stdlib class list, and the same examples/build lines. When one changes,
+  change both.
+- Check the `Standard library` nav section against `src/stdlib/*.flint`: every
+  class file should have a section, and every section should match the class
+  signature. A missing/extra entry means the docs are stale.
