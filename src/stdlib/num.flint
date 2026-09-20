@@ -2,18 +2,18 @@
 //
 // Usage:
 //   import std.Num;
-//   print(Num.to_hex(-1));        // ffffffffffffffff (two's complement)
-//   printi(Num.from_hex("ff"));   // 255
+//   print(Num.toHex(-1));        // ffffffffffffffff (two's complement)
+//   printi(Num.fromHex("ff"));   // 255
 //
 // Negative values are rendered as 16-hex / 64-bin / 22-oct two's-complement
 // digits; non-negative values are trimmed of leading zeros.
 package std;
 class Num {
-    static string to_string(int n) { return str.itoa(n); }
-    static string hex_digit(int d) {
+    static string toString(int n) { return str.itoa(n); }
+    static string hexDigit(int d) {
         return str.substring("0123456789abcdef", d, 1);
     }
-    static int hex_val(string c) {
+    static int hexVal(string c) {
         int i = 0;
         while (i < 16) {
             if (str.cmp(c, str.substring("0123456789abcdef", i, 1)) == 0) {
@@ -23,23 +23,23 @@ class Num {
         }
         return -1;
     }
-    static string to_hex(int n) {
+    static string toHex(int n) {
         int neg = n < 0 ? 1 : 0;
         string s = "";
         for (int i = 15; i >= 0; i = i - 1) {
-            s = Num.hex_digit((n % 16 + 16) % 16) + s;
+            s = Num.hexDigit((n % 16 + 16) % 16) + s;
             n = n >> 4;
         }
         if (neg == 0) {
-            s = Num.trim_leading_zeros(s);
+            s = Num.trimLeadingZeros(s);
         }
         return s;
     }
-    static int from_hex(string s) {
+    static int fromHex(string s) {
         int v = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int d = Num.hex_val(str.substring(s, i, 1));
+            int d = Num.hexVal(str.substring(s, i, 1));
             if (d < 0) {
                 return -1;
             }
@@ -47,22 +47,22 @@ class Num {
         }
         return v;
     }
-    static string to_bin(int n) {
+    static string toBin(int n) {
         int neg = n < 0 ? 1 : 0;
         string s = "";
         for (int i = 0; i < 64; i = i + 1) {
             s = str.substring("01", (n >> i) & 1, 1) + s;
         }
         if (neg == 0) {
-            s = Num.trim_leading_zeros(s);
+            s = Num.trimLeadingZeros(s);
         }
         return s;
     }
-    static int from_bin(string s) {
+    static int fromBin(string s) {
         int v = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int c = sys.byte_load(s + i);
+            int c = sys.byteLoad(s + i);
             if (c != 48 && c != 49) {
                 return -1;
             }
@@ -70,22 +70,22 @@ class Num {
         }
         return v;
     }
-    static string to_oct(int n) {
+    static string toOct(int n) {
         int neg = n < 0 ? 1 : 0;
         string s = "";
         for (int i = 0; i < 22; i = i + 1) {
             s = str.substring("01234567", (n >> (i * 3)) & 7, 1) + s;
         }
         if (neg == 0) {
-            s = Num.trim_leading_zeros(s);
+            s = Num.trimLeadingZeros(s);
         }
         return s;
     }
-    static int from_oct(string s) {
+    static int fromOct(string s) {
         int v = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int c = sys.byte_load(s + i);
+            int c = sys.byteLoad(s + i);
             if (c < 48 || c > 55) {
                 return -1;
             }
@@ -93,7 +93,7 @@ class Num {
         }
         return v;
     }
-    static int sum_digits(int n) {
+    static int sumDigits(int n) {
         if (n == 0) {
             return 0;
         }
@@ -105,7 +105,7 @@ class Num {
         }
         return s;
     }
-    static int digit_count(int n) {
+    static int digitCount(int n) {
         if (n == 0) {
             return 1;
         }
@@ -118,7 +118,7 @@ class Num {
         return c;
     }
     // "-123" -> "321-"; "0" -> "0".
-    static string reverse_digits(int n) {
+    static string reverseDigits(int n) {
         string s = str.itoa(n);
         string r = "";
         for (int i = strlen(s) - 1; i >= 0; i = i - 1) {
@@ -126,16 +126,16 @@ class Num {
         }
         return r;
     }
-    static string trim_leading_zeros(string s) {
+    static string trimLeadingZeros(string s) {
         int l = strlen(s);
-        while (l > 1 && sys.byte_load(s) == 48) {
+        while (l > 1 && sys.byteLoad(s) == 48) {
             s = str.substring(s, 1, l - 1);
             l = l - 1;
         }
         return s;
     }
     // 1 when the decimal digits of n read the same forwards and backwards.
-    static int is_palindrome(int n) {
+    static int isPalindrome(int n) {
         n = Math.abs(n);
         int orig = n;
         int r = 0;
@@ -146,7 +146,7 @@ class Num {
         return r == orig ? 1 : 0;
     }
     // The i-th digit of n (0 = units), ignoring sign.
-    static int digit_at(int n, int i) {
+    static int digitAt(int n, int i) {
         n = Math.abs(n);
         int k = 0;
         while (k < i) {
@@ -156,19 +156,19 @@ class Num {
         return n % 10;
     }
     // Uppercase hex of n (two's complement for negatives).
-    static string to_upper_hex(int n) {
-        string s = Num.to_hex(n);
+    static string toUpperHex(int n) {
+        string s = Num.toHex(n);
         string out = alloc(strlen(s) + 1);
         int i = 0;
         while (i < strlen(s)) {
-            int c = sys.byte_load(s + i);
+            int c = sys.byteLoad(s + i);
             if (c >= 97 && c <= 102) {
                 c = c - 32;
             }
-            sys.byte_store(out + i, c);
+            sys.byteStore(out + i, c);
             i = i + 1;
         }
-        sys.byte_store(out + strlen(s), 0);
+        sys.byteStore(out + strlen(s), 0);
         return out;
     }
 }

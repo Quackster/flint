@@ -8,7 +8,7 @@
 int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
-    printi(sys.byte_load(p + 1));  // 101 ('e')
+    printi(sys.byteLoad(p + 1));  // 101 ('e')
     print("\n");
     printi(strlen(p));             // 5
     print("\n");

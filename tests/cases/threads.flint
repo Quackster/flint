@@ -8,18 +8,18 @@ int main() {
     State s = new State();
 
     // Test mutex lock/unlock
-    sys.mutex_lock(&s.mutex);
-    sys.mutex_unlock(&s.mutex);
+    sys.mutexLock(&s.mutex);
+    sys.mutexUnlock(&s.mutex);
     printi(s.mutex == 0 ? 1 : 0); print("\n");
 
     // Test atomic CAS
     int val = 5;
-    int r1 = sys.atomic_cas(&val, 5, 10);
+    int r1 = sys.atomicCas(&val, 5, 10);
     printi(r1 == 1 ? 1 : 0); print("\n");
     printi(val == 10 ? 1 : 0); print("\n");
 
     // Test atomic CAS failure
-    int r2 = sys.atomic_cas(&val, 5, 20);
+    int r2 = sys.atomicCas(&val, 5, 20);
     printi(r2 == 0 ? 1 : 0); print("\n");
     printi(val == 10 ? 1 : 0); print("\n");
 

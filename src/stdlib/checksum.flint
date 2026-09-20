@@ -6,7 +6,7 @@
 package std;
 class Checksum {
     static string crc_table;
-    static void crc_init() {
+    static void crcInit() {
         string t = alloc(256 * 4);
         int c = 0;
         int i = 0;
@@ -19,26 +19,26 @@ class Checksum {
                     crc = crc >> 1;
                 }
             }
-            sys.byte_store(t + c * 4, crc & 255);
-            sys.byte_store(t + c * 4 + 1, (crc >> 8) & 255);
-            sys.byte_store(t + c * 4 + 2, (crc >> 16) & 255);
-            sys.byte_store(t + c * 4 + 3, (crc >> 24) & 255);
+            sys.byteStore(t + c * 4, crc & 255);
+            sys.byteStore(t + c * 4 + 1, (crc >> 8) & 255);
+            sys.byteStore(t + c * 4 + 2, (crc >> 16) & 255);
+            sys.byteStore(t + c * 4 + 3, (crc >> 24) & 255);
         }
         Checksum.crc_table = t;
     }
-    static int read_u32(string p, int i) {
+    static int readU32(string p, int i) {
         int o = i * 4;
-        return sys.byte_load(p + o) | (sys.byte_load(p + o + 1) << 8) | (sys.byte_load(p + o + 2) << 16) | (sys.byte_load(p + o + 3) << 24);
+        return sys.byteLoad(p + o) | (sys.byteLoad(p + o + 1) << 8) | (sys.byteLoad(p + o + 2) << 16) | (sys.byteLoad(p + o + 3) << 24);
     }
     static int crc32(string s) {
         if (Checksum.crc_table == null) {
-            Checksum.crc_init();
+            Checksum.crcInit();
         }
         int crc = 0xFFFFFFFF;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int b = sys.byte_load(s + i);
-            crc = Checksum.read_u32(Checksum.crc_table, (crc ^ b) & 255) ^ (crc >> 8);
+            int b = sys.byteLoad(s + i);
+            crc = Checksum.readU32(Checksum.crc_table, (crc ^ b) & 255) ^ (crc >> 8);
         }
         return crc ^ 0xFFFFFFFF;
     }
@@ -47,7 +47,7 @@ class Checksum {
         int h = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = h + sys.byte_load(s + i);
+            h = h + sys.byteLoad(s + i);
         }
         return h;
     }
@@ -56,7 +56,7 @@ class Checksum {
         int h = 5381;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = (h * 33) + sys.byte_load(s + i);
+            h = (h * 33) + sys.byteLoad(s + i);
         }
         return h;
     }
@@ -65,7 +65,7 @@ class Checksum {
         int h = 0xcbf29ce484222325;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = (h ^ sys.byte_load(s + i)) * 0x100000001b3;
+            h = (h ^ sys.byteLoad(s + i)) * 0x100000001b3;
         }
         return h;
     }
@@ -74,7 +74,7 @@ class Checksum {
         int h = 0x811c9dc5;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = ((h ^ sys.byte_load(s + i)) * 0x01000193) & 0xFFFFFFFF;
+            h = ((h ^ sys.byteLoad(s + i)) * 0x01000193) & 0xFFFFFFFF;
         }
         return h;
     }
@@ -84,7 +84,7 @@ class Checksum {
         int b = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            a = (a + sys.byte_load(s + i)) % 65521;
+            a = (a + sys.byteLoad(s + i)) % 65521;
             b = (b + a) % 65521;
         }
         return (b << 16) | a;

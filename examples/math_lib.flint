@@ -10,7 +10,7 @@ int main() {
     printi(Math.gcd(48, 18)); print(" "); // 6
     printi(Math.lcm(4, 6)); print(" ");   // 12
     printi(Math.factorial(5)); print(" "); // 120
-    printi(Math.is_prime(97)); print(" "); // 1
+    printi(Math.isPrime(97)); print(" "); // 1
     printi(Math.sqrt(81)); print(" ");     // 9
     printi(Math.pow(2, 10)); print(" ");  // 1024
     printi(Math.fib(10)); print("\n");     // 55

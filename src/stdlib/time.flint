@@ -20,13 +20,13 @@ class Time {
             return s;
         }
         string out = alloc(4);
-        sys.byte_store(out, 48);
+        sys.byteStore(out, 48);
         if (n == 1) {
-            sys.byte_store(out + 1, sys.byte_load(s));
-            sys.byte_store(out + 2, 0);
+            sys.byteStore(out + 1, sys.byteLoad(s));
+            sys.byteStore(out + 2, 0);
         } else {
-            sys.byte_store(out + 1, 48);
-            sys.byte_store(out + 2, 0);
+            sys.byteStore(out + 1, 48);
+            sys.byteStore(out + 2, 0);
         }
         return out;
     }
@@ -40,16 +40,16 @@ class Time {
         string out = alloc(8);
         int o = 0;
         while (o < 4 - n) {
-            sys.byte_store(out + o, 48);
+            sys.byteStore(out + o, 48);
             o = o + 1;
         }
         int i = 0;
         while (i < n) {
-            sys.byte_store(out + o, sys.byte_load(s + i));
+            sys.byteStore(out + o, sys.byteLoad(s + i));
             o = o + 1;
             i = i + 1;
         }
-        sys.byte_store(out + o, 0);
+        sys.byteStore(out + o, 0);
         return out;
     }
     // "YYYY-MM-DD HH:MM:SS" for the current instant (UTC, via epoch seconds).

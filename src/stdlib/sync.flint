@@ -12,12 +12,12 @@
 package std;
 class Sync {
     // Lock a mutex; blocks until it is free.
-    static void lock(*int m) { sys.mutex_lock(m); }
+    static void lock(*int m) { sys.mutexLock(m); }
     // Unlock a mutex.
-    static void unlock(*int m) { sys.mutex_unlock(m); }
+    static void unlock(*int m) { sys.mutexUnlock(m); }
     // Atomic compare-and-swap: 1 and *x updated if *x == expect, else 0.
     static int cas(*int x, int expect, int value) {
-        return sys.atomic_cas(x, expect, value);
+        return sys.atomicCas(x, expect, value);
     }
     // Sleep for sec seconds + nsec nanoseconds.
     static int nanosleep(int sec, int nsec) {

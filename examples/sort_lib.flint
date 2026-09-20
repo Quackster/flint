@@ -10,7 +10,7 @@ int main() {
     printi(a[4]); print("\n");            // 1 2 9
 
     int d[] = [3, 8, 1, 6];
-    Sort.sort_desc(d);
+    Sort.sortDesc(d);
     printi(d[0]); print(" ");
     printi(d[3]); print("\n");            // 8 1
 
@@ -21,13 +21,13 @@ int main() {
     printi(Sort.avg(q)); print(" ");      // 5
     printi(Sort.contains(q, 7)); print(" "); // 1
     printi(Sort.contains(q, 8)); print(" "); // 0
-    printi(Sort.index_of(q, 9)); print(" "); // 1
+    printi(Sort.indexOf(q, 9)); print(" "); // 1
     printi(Sort.count(q, 4)); print(" ");  // 1
     printi(Sort.argmax(q)); print("\n");   // 1
 
-    // binary_search needs a sorted array
+    // binarySearch needs a sorted array
     int s[] = [1, 3, 5, 7, 9];
-    printi(Sort.binary_search(s, 7)); print(" "); // 3
-    printi(Sort.binary_search(s, 8)); print("\n"); // -1 (not found)
+    printi(Sort.binarySearch(s, 7)); print(" "); // 3
+    printi(Sort.binarySearch(s, 8)); print("\n"); // -1 (not found)
     return 0;
 }

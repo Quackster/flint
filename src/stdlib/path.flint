@@ -1,21 +1,21 @@
 // std/path — string path utilities (import std.Path).
 package std;
 class Path {
-    static int last_slash(string p) {
+    static int lastSlash(string p) {
         int n = strlen(p);
         int last = -1;
         for (int i = 0; i < n; i = i + 1) {
-            if (sys.byte_load(p + i) == 47) {
+            if (sys.byteLoad(p + i) == 47) {
                 last = i;
             }
         }
         return last;
     }
-    static int last_dot(string p) {
+    static int lastDot(string p) {
         int n = strlen(p);
         int last = -1;
         for (int i = 0; i < n; i = i + 1) {
-            if (sys.byte_load(p + i) == 46) {
+            if (sys.byteLoad(p + i) == 46) {
                 last = i;
             }
         }
@@ -23,7 +23,7 @@ class Path {
     }
     // "a/b/c.txt" -> "c.txt" (the whole string when there is no slash).
     static string base(string p) {
-        int i = Path.last_slash(p);
+        int i = Path.lastSlash(p);
         int n = strlen(p);
         if (i < 0) {
             return str.copy(p);
@@ -35,7 +35,7 @@ class Path {
     }
     // "a/b/c.txt" -> "a/b" ("" for a top-level path).
     static string dir(string p) {
-        int i = Path.last_slash(p);
+        int i = Path.lastSlash(p);
         if (i <= 0) {
             return "";
         }
@@ -45,7 +45,7 @@ class Path {
     static string ext(string p) {
         string b = Path.base(p);
         int n = strlen(b);
-        int i = Path.last_dot(b);
+        int i = Path.lastDot(b);
         if (i < 1 || i == n - 1) {
             return "";
         }
@@ -57,15 +57,15 @@ class Path {
         if (na == 0) {
             return str.copy(b);
         }
-        if (sys.byte_load(a + na - 1) == 47) {
+        if (sys.byteLoad(a + na - 1) == 47) {
             return a + b;
         }
         return a + "/" + b;
     }
     static string parent(string p) { return Path.dir(p); }
     // 1 when the path starts with a slash.
-    static int is_absolute(string p) {
-        return strlen(p) > 0 && sys.byte_load(p) == 47 ? 1 : 0;
+    static int isAbsolute(string p) {
+        return strlen(p) > 0 && sys.byteLoad(p) == 47 ? 1 : 0;
     }
     // Split p into its slash-separated parts.
     static list<string> split(string p) {
@@ -74,7 +74,7 @@ class Path {
         int start = 0;
         int i = 0;
         while (i < n) {
-            if (sys.byte_load(p + i) == 47) {
+            if (sys.byteLoad(p + i) == 47) {
                 out.add(str.substring(p, start, i - start));
                 i = i + 1;
                 start = i;

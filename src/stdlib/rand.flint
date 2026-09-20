@@ -61,14 +61,14 @@ class Rand {
         string out = alloc(n + 1);
         int i = 0;
         while (i < n) {
-            sys.byte_store(out + i, Rand.next() & 255);
+            sys.byteStore(out + i, Rand.next() & 255);
             i = i + 1;
         }
-        sys.byte_store(out + n, 0);
+        sys.byteStore(out + n, 0);
         return out;
     }
     // n random lowercase hex characters.
-    static string hex_id(int n) {
+    static string hexId(int n) {
         string out = "";
         int i = 0;
         while (i < n) {
@@ -78,7 +78,7 @@ class Rand {
         return out;
     }
     // n random lowercase letters.
-    static string rand_string(int n) {
+    static string randString(int n) {
         string out = "";
         int i = 0;
         while (i < n) {

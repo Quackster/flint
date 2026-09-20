@@ -5,8 +5,8 @@
 import std.Socket;
 
 int main() {
-    int s = Socket.connect_host(127, 0, 0, 1, 7777);
-    Socket.send_all(s, "hello");
+    int s = Socket.connectHost(127, 0, 0, 1, 7777);
+    Socket.sendAll(s, "hello");
     string reply = Socket.recv(s);
     if (reply != null) {
         print(reply);

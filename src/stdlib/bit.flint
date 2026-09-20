@@ -36,13 +36,13 @@ class Bit {
         }
         return 64;
     }
-    static int set_bit(int x, int i) { return x | (1 << i); }
+    static int setBit(int x, int i) { return x | (1 << i); }
     // (no `~` in v1; `x & ~m` as `x & (-1 ^ m)`)
-    static int clr_bit(int x, int i) { return x & (-1 ^ (1 << i)); }
-    static int test_bit(int x, int i) { return (x >> i) & 1; }
-    static int toggle_bit(int x, int i) { return x ^ (1 << i); }
+    static int clrBit(int x, int i) { return x & (-1 ^ (1 << i)); }
+    static int testBit(int x, int i) { return (x >> i) & 1; }
+    static int toggleBit(int x, int i) { return x ^ (1 << i); }
     // Bit-reverse all 64 bits.
-    static int bit_rev(int x) {
+    static int bitRev(int x) {
         int r = 0;
         for (int i = 0; i < 64; i = i + 1) {
             r = (r << 1) | ((x >> i) & 1);
@@ -50,9 +50,9 @@ class Bit {
         return r;
     }
     // 1 when x is a power of two.
-    static int is_power_of_two(int x) { return x > 0 && (x & (x - 1)) == 0 ? 1 : 0; }
+    static int isPowerOfTwo(int x) { return x > 0 && (x & (x - 1)) == 0 ? 1 : 0; }
     // Smallest power of two >= x (1 for x <= 1).
-    static int next_power_of_two(int x) {
+    static int nextPowerOfTwo(int x) {
         if (x <= 1) {
             return 1;
         }
@@ -63,7 +63,7 @@ class Bit {
         return r;
     }
     // Reverse the byte order of a 64-bit value.
-    static int byte_swap(int x) {
+    static int byteSwap(int x) {
         int r = 0;
         int i = 0;
         while (i < 8) {
@@ -74,6 +74,6 @@ class Bit {
     }
     // Parity: 1 when an odd number of bits are set.
     static int parity(int x) { return Bit.popcount(x) % 2; }
-    static int get_byte(int x, int i) { return (x >> (i * 8)) & 255; }
-    static int set_byte(int x, int i, int v) { return x | ((v & 255) << (i * 8)); }
+    static int getByte(int x, int i) { return (x >> (i * 8)) & 255; }
+    static int setByte(int x, int i, int v) { return x | ((v & 255) << (i * 8)); }
 }

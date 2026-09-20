@@ -7,7 +7,7 @@ int main() {
     // A 64x64 RGBA image (4 bytes/pixel, row-major).
     Image im = new Image(64, 64);
     im.fill(Image.rgb(255, 0, 0));            // solid red
-    im.fill_circle(32, 32, 20, Image.rgb(0, 255, 0)); // green filled disc
+    im.fillCircle(32, 32, 20, Image.rgb(0, 255, 0)); // green filled disc
     // The centre is inside the disc -> green; a corner is red.
     int centre = im.get(32, 32);
     int corner = im.get(0, 0);

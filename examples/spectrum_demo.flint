@@ -41,6 +41,6 @@ int main() {
     }
 
     im.save("/opt/git/flint/spectrum.bmp");
-    im.to_ppm("/opt/git/flint/spectrum.ppm");
+    im.toPpm("/opt/git/flint/spectrum.ppm");
     return 0;
 }

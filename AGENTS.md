@@ -9,7 +9,7 @@ x86_64 Linux assembly (no libc).
 
 ```sh
 cargo build                 # -> target/debug/flintc (release: --release)
-bash tests/run_tests.sh     # full suite (expect: PASS=81  FAIL=0)
+bash tests/run_tests.sh     # full suite (expect: PASS=80  FAIL=0)
 ```
 
 Requires `as` and `ld` (binutils) on the PATH. Compile one program:
@@ -30,8 +30,13 @@ Follow the Java conventions the language is built around:
   `string s`, `*int buf`.
 - Control flow in C/Java form: `for (int i = 0; i < n; i = i + 1) { ... }`,
   `while`, `if`/`else`.
-- Naming: classes `PascalCase` (`Num`, `Thread`); methods and variables
-  `snake_case` (`n_cpu`, `to_hex`, `grand_count`).
+- Naming: classes `PascalCase` (`Num`, `Thread`); variables and fields
+  `snake_case` (`grand_count`).
+- **Function naming: every function and method is `camelCase` — including the
+  standard functions (builtins such as `sys.byteLoad`, `sys.threadCreate`,
+  `str.indexOf`) and all `std` library methods (`Thread.nCpu`,
+  `Socket.bindPort`, `Mem.intArray`). Never use `snake_case` for a function
+  name** (`nCpu`, not `n_cpu`; `readAll`, not `read_all`).
 - One statement per line; keep bodies short.
 
 ## Writing examples
@@ -43,23 +48,25 @@ like ordinary application code, **not** like a systems-programming demo:
   low-level primitives directly in an example:
   - `alloc`, `free`, `memcpy`
   - `sys.syscall`, `sys.read`, `sys.write`, `sys.mmap`, ...
-  - raw memory ops: `sys.byte_load`/`byte_store`, `sys.short_*`, `sys.int_*`
+  - raw memory ops: `sys.byteLoad`/`byteStore`, `sys.shortLoad`/`shortStore`,
+    `sys.intLoad`/`intStore`
 - If a capability an example needs is missing from the stdlib, **add a stdlib
   wrapper for it** (in `package std;`, e.g. `class Thread`) and have the example
   call that wrapper. Keep the raw `sys.*` / `alloc` calls *inside* the stdlib
-  module, where they belong. Models: `thread.flint` (Thread: n_cpu/spawn/join),
-  `net.flint` (Socket: stream/bind_port/listen/accept/connect_host/send_all/
+  module, where they belong. Models: `thread.flint` (Thread: nCpu/spawn/join),
+  `net.flint` (Socket: stream/bindPort/listen/accept/connectHost/sendAll/
   recv/close), `sync.flint` (Sync: lock/unlock/cas/nanosleep), `mem.flint`
-  (Mem: int_array/bytes/copy/free_*), `file.flint` (File: read_all/write_all/
+  (Mem: intArray/bytes/copy/freeInt/freeByte), `file.flint` (File: readAll/writeAll/
   copy/size/...).
 - Show the build line in the header comment, including the stdlib files it
   needs (e.g. `flintc src/stdlib/thread.flint examples/...flint -o ...`).
 - **Exactly one** example may show raw `alloc` / `free` / `memcpy`:
   `rawmem.flint`, the low-level memory reference. **Every other example must
-  allocate through `std.Mem`** (`Mem.int_array` / `Mem.bytes` / `Mem.free_*` /
+  allocate through `std.Mem`** (`Mem.intArray` / `Mem.bytes` / `Mem.freeInt` /
+  `Mem.freeByte` /
   `Mem.copy`) and use the stdlib (`File`, `Socket`, `Thread`, `Sync`) for any
   other capability. (The byte-level parts of `strings2.flint` also *document*
-  the raw string API and may show `sys.byte_load`, but must not use raw
+  the raw string API and may show `sys.byteLoad`, but must not use raw
   `alloc`.)
 - Prefer `for` loops and small, focused helpers; use `str.itoa(n)` (or
   `printi(n)`) to print numbers — never rely on `string + int`.

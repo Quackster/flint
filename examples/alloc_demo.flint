@@ -6,7 +6,7 @@ import std.Mem;
 
 int main() {
     int n = 10;
-    *int fib = Mem.int_array(n);
+    *int fib = Mem.intArray(n);
     fib[0] = 0;
     fib[1] = 1;
     for (int i = 2; i < n; i = i + 1) {
@@ -26,6 +26,6 @@ int main() {
     print("\nsum=");
     printi(sum);
     print("\n");
-    Mem.free_int(fib);
+    Mem.freeInt(fib);
     return 0;
 }

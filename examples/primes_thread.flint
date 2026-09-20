@@ -1,6 +1,6 @@
 // primes_thread: count the primes in [2, N] with one worker thread per CPU.
 //
-// The range [2, N] is split into K = n_cpu() contiguous chunks; each chunk is
+// The range [2, N] is split into K = nCpu() contiguous chunks; each chunk is
 // counted by its own worker thread. All workers are spawned up front (so they
 // run concurrently, in tandem) and then joined one by one; each worker returns
 // the number of primes in its chunk, and main sums the results. 168 is the
@@ -11,11 +11,11 @@ import std.Thread;
 
 class Cfg {
     static int N;  // upper bound (inclusive)
-    static int K;  // number of workers (= n_cpu())
+    static int K;  // number of workers (= nCpu())
 }
 
 // 1 if n is prime, else 0 (6k±1 fast path + trial division up to sqrt(n)).
-int is_prime(int n) {
+int isPrime(int n) {
     if (n < 2) {
         return 0;
     }
@@ -47,7 +47,7 @@ int worker(int k) {
     int count = 0;
     int n = lo;
     while (n <= hi) {
-        if (is_prime(n) == 1) {
+        if (isPrime(n) == 1) {
             count = count + 1;
         }
         n = n + 1;
@@ -58,7 +58,7 @@ int worker(int k) {
 int main() {
     int N = 1000;           // count primes in [2, N]
     Cfg.N = N;
-    int K = Thread.n_cpu(); // one worker per CPU
+    int K = Thread.nCpu(); // one worker per CPU
     Cfg.K = K;
 
     // Spawn every worker up front so they all run concurrently (in tandem).

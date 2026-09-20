@@ -299,21 +299,21 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             noreturn: false,
             params: &[P, I, I],
         }),
-        "sys.epoll_create1" => Some(Builtin {
+        "sys.epollCreate1" => Some(Builtin {
             target: "flint_epoll_create1",
             arity: 1,
             ret: Ty::Int,
             noreturn: false,
             params: &[I],
         }),
-        "sys.epoll_ctl" => Some(Builtin {
+        "sys.epollCtl" => Some(Builtin {
             target: "flint_epoll_ctl",
             arity: 4,
             ret: Ty::Int,
             noreturn: false,
             params: &[I, I, P, P],
         }),
-        "sys.epoll_wait" => Some(Builtin {
+        "sys.epollWait" => Some(Builtin {
             target: "flint_epoll_wait",
             arity: 4,
             ret: Ty::Int,
@@ -360,42 +360,42 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             noreturn: false,
             params: &[P, I],
         }),
-        "sys.byte_load" | "byte_load" => Some(Builtin {
+        "sys.byteLoad" | "byteLoad" => Some(Builtin {
             target: "flint_byte_load",
             arity: 1,
             ret: Ty::Int,
             noreturn: false,
             params: &[P],
         }),
-        "sys.byte_store" | "byte_store" => Some(Builtin {
+        "sys.byteStore" | "byteStore" => Some(Builtin {
             target: "flint_byte_store",
             arity: 2,
             ret: Ty::Void,
             noreturn: false,
             params: &[P, I],
         }),
-        "sys.short_load" | "short_load" => Some(Builtin {
+        "sys.shortLoad" | "shortLoad" => Some(Builtin {
             target: "flint_short_load",
             arity: 1,
             ret: Ty::Int,
             noreturn: false,
             params: &[P],
         }),
-        "sys.short_store" | "short_store" => Some(Builtin {
+        "sys.shortStore" | "shortStore" => Some(Builtin {
             target: "flint_short_store",
             arity: 2,
             ret: Ty::Void,
             noreturn: false,
             params: &[P, I],
         }),
-        "sys.int_load" | "int_load" => Some(Builtin {
+        "sys.intLoad" | "intLoad" => Some(Builtin {
             target: "flint_int_load",
             arity: 1,
             ret: Ty::Int,
             noreturn: false,
             params: &[P],
         }),
-        "sys.int_store" | "int_store" => Some(Builtin {
+        "sys.intStore" | "intStore" => Some(Builtin {
             target: "flint_int_store",
             arity: 2,
             ret: Ty::Void,
@@ -453,35 +453,35 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             params: &[I, I],
         }),
         // Thread and synchronization builtins.
-        "sys.thread_create" => Some(Builtin {
+        "sys.threadCreate" => Some(Builtin {
             target: "flint_thread_create",
             arity: 2,
             ret: Ty::Int,
             noreturn: false,
             params: &[I, I],
         }),
-        "sys.thread_join" => Some(Builtin {
+        "sys.threadJoin" => Some(Builtin {
             target: "flint_thread_join",
             arity: 1,
             ret: Ty::Int,
             noreturn: false,
             params: &[I],
         }),
-        "sys.mutex_lock" => Some(Builtin {
+        "sys.mutexLock" => Some(Builtin {
             target: "flint_mutex_lock",
             arity: 1,
             ret: Ty::Void,
             noreturn: false,
             params: &[P],
         }),
-        "sys.mutex_unlock" => Some(Builtin {
+        "sys.mutexUnlock" => Some(Builtin {
             target: "flint_mutex_unlock",
             arity: 1,
             ret: Ty::Void,
             noreturn: false,
             params: &[P],
         }),
-        "sys.atomic_cas" => Some(Builtin {
+        "sys.atomicCas" => Some(Builtin {
             target: "flint_atomic_cas",
             arity: 3,
             ret: Ty::Int,

@@ -5,20 +5,20 @@
 //   int a[] = [3, 1, 2];
 //   Sort.sort(a);            // [1, 2, 3]
 //
-// `sort`/`sort_desc` are a merge sort (stable); the scratch buffer is
+// `sort`/`sortDesc` are a merge sort (stable); the scratch buffer is
 // `alloc`ed per merge step and `free`d (a no-op in v1).
 package std;
 class Sort {
-    static void sort(int a[]) { Sort.sort_impl(a, 0, len(a), 0); }
-    static void sort_desc(int a[]) { Sort.sort_impl(a, 0, len(a), 1); }
-    static void sort_impl(int a[], int lo, int hi, int desc) {
+    static void sort(int a[]) { Sort.sortImpl(a, 0, len(a), 0); }
+    static void sortDesc(int a[]) { Sort.sortImpl(a, 0, len(a), 1); }
+    static void sortImpl(int a[], int lo, int hi, int desc) {
         if (hi - lo < 2) {
             return;
         }
         int n = hi - lo;
         int mid = lo + n / 2;
-        Sort.sort_impl(a, lo, mid, desc);
-        Sort.sort_impl(a, mid, hi, desc);
+        Sort.sortImpl(a, lo, mid, desc);
+        Sort.sortImpl(a, mid, hi, desc);
         string scratch = alloc(n * 8);
         int i = lo;
         int j = mid;
@@ -95,7 +95,7 @@ class Sort {
         }
         return 0;
     }
-    static int index_of(int a[], int v) {
+    static int indexOf(int a[], int v) {
         for (int i = 0; i < len(a); i = i + 1) {
             if (a[i] == v) {
                 return i;
@@ -118,7 +118,7 @@ class Sort {
         }
     }
     // Index of v in a sorted array a, or -1.
-    static int binary_search(int a[], int v) {
+    static int binarySearch(int a[], int v) {
         int lo = 0;
         int hi = len(a) - 1;
         while (lo <= hi) {

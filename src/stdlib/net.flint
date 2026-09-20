@@ -1,25 +1,25 @@
 // std/net — TCP (AF_INET / SOCK_STREAM) sockets (import std.Socket).
 //
-// `connect_host` opens a socket and connects to a.b.c.d:port in one step;
-// `bind_port` binds a listening socket to 0.0.0.0:port. `recv` reads one
+// `connectHost` opens a socket and connects to a.b.c.d:port in one step;
+// `bindPort` binds a listening socket to 0.0.0.0:port. `recv` reads one
 // message and returns it as a NUL-terminated string (null when the peer has
-// closed); `send_all` writes a whole string.
+// closed); `sendAll` writes a whole string.
 //
 // Usage:
 //   import std.Socket;
 //   int s = Socket.stream();
-//   Socket.bind_port(s, 7777);
+//   Socket.bindPort(s, 7777);
 //   Socket.listen(s, 5);
 //   int c = Socket.accept(s);
 //   string m = Socket.recv(c);
-//   if (m != null) { Socket.send_all(c, m); }
+//   if (m != null) { Socket.sendAll(c, m); }
 //   Socket.close(c);
 package std;
 class Socket {
     // Create an AF_INET SOCK_STREAM socket.
     static int stream() { return sys.socket(2, 1, 0); }
     // Bind fd to 0.0.0.0:port.
-    static int bind_port(int fd, int port) {
+    static int bindPort(int fd, int port) {
         *int addr = sys.sockaddr(port, 0, 0, 0, 0);
         return sys.bind(fd, addr, 16);
     }
@@ -28,14 +28,14 @@ class Socket {
     // Accept a connection; returns the client fd or -1 on error.
     static int accept(int fd) { return sys.accept(fd, 0, 0); }
     // Open a socket and connect to a.b.c.d:port; returns the connected fd.
-    static int connect_host(int a, int b, int c, int d, int port) {
+    static int connectHost(int a, int b, int c, int d, int port) {
         int s = sys.socket(2, 1, 0);
         *int addr = sys.sockaddr(port, a, b, c, d);
         sys.connect(s, addr, 16);
         return s;
     }
     // Write the whole string to fd.
-    static void send_all(int fd, string msg) { sys.write(fd, msg, strlen(msg)); }
+    static void sendAll(int fd, string msg) { sys.write(fd, msg, strlen(msg)); }
     // Read up to 64 bytes; NUL-terminated string, or null when the peer closed.
     static string recv(int fd) {
         string buf = alloc(64);
@@ -43,7 +43,7 @@ class Socket {
         if (n <= 0) {
             return null;
         }
-        sys.byte_store(buf + n, 0);
+        sys.byteStore(buf + n, 0);
         return buf;
     }
     // Close fd.

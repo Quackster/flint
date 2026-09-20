@@ -12,12 +12,12 @@
 //   sys.connect(fd, addr, len)   -> int   connect a socket to a remote address
 //   sys.sockaddr(port, o1, o2, o3, o4) -> *int  build a 16-byte AF_INET sockaddr_in
 //   sys.exit(code)                       terminate the process
-//   sys.byte_load(*byte ptr) -> int      load 1 byte from memory
-//   sys.byte_store(*byte ptr, int val)   store 1 byte to memory
-//   sys.short_load(*short ptr) -> int    load 2 bytes (LE) from memory
-//   sys.short_store(*short ptr, int val) store 2 bytes (LE) to memory
-//   sys.int_load(*int ptr) -> int        load 4 bytes (LE) from memory
-//   sys.int_store(*int ptr, int val)     store 4 bytes (LE) to memory
+//   sys.byteLoad(*byte ptr) -> int      load 1 byte from memory
+//   sys.byteStore(*byte ptr, int val)   store 1 byte to memory
+//   sys.shortLoad(*short ptr) -> int    load 2 bytes (LE) from memory
+//   sys.shortStore(*short ptr, int val) store 2 bytes (LE) to memory
+//   sys.intLoad(*int ptr) -> int        load 4 bytes (LE) from memory
+//   sys.intStore(*int ptr, int val)     store 4 bytes (LE) to memory
 //
 // Syscall convention: rax = number, args in rdi rsi rdx r10 r8 r9 (4th is r10!),
 // `syscall` clobbers rcx and r11.

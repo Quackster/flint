@@ -17,7 +17,7 @@
 <div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#collections">Collections overview</a></li><li><a href="#coll-list">list</a></li><li><a href="#coll-queue">queue</a></li><li><a href="#coll-hashset">hashset</a></li><li><a href="#coll-hashmap">hashmap</a></li><li><a href="#coll-dictionary">dictionary</a></li><li><a href="#coll-typed">Typed elements</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li><li><a href="#std-window">Window</a></li></ul></div>
 </nav>
 <main class="main">
 <section id="index" class="doc-section" data-label="Overview">
@@ -662,7 +662,7 @@ of the compilation (see <a href="modules.html">Modules</a>).</li>
 address-of, <code>*p</code> dereferences. See
 <a href="pointers.html">Pointers &amp; raw memory</a>.</li>
 <li><b><code>@</code> yields a function's address</b> as an <code>int</code> —
-this is how a function is handed to <code>sys.thread_create(@fn, arg)</code>.
+this is how a function is handed to <code>sys.threadCreate(@fn, arg)</code>.
 See <a href="concurrency.html">Concurrency</a>.</li>
 <li>Functions may <code>return</code> early; a <code>void</code> function needs
 no return.</li>
@@ -1503,12 +1503,12 @@ little-endian access and a generic syscall.</p></div>
     free(fib);
     // sub-word little-endian access into a buffer
     *byte buf = alloc(16);
-    sys.byte_store(buf + 8, 65);
-    printi(sys.byte_load(buf + 8));   // 65 ('A')
-    sys.short_store(buf, 1000);
-    printi(sys.short_load(buf));      // 1000
-    sys.int_store(buf + 12, 0x12345678);
-    printi(sys.int_load(buf + 12));   // 305419896 (== 0x12345678)
+    sys.byteStore(buf + 8, 65);
+    printi(sys.byteLoad(buf + 8));   // 65 ('A')
+    sys.shortStore(buf, 1000);
+    printi(sys.shortLoad(buf));      // 1000
+    sys.intStore(buf + 12, 0x12345678);
+    printi(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
     // memcpy: copy 16 bytes
     *byte src = alloc(16);
     src[0] = 111;
@@ -1545,8 +1545,8 @@ little-endian access and a generic syscall.</p></div>
 <li><b>Heap:</b> <code>alloc(n)</code> / <code>free(p)</code> /
 <code>memcpy(dst, src, n)</code>.</li>
 <li><b>Sub-word little-endian access:</b>
-<code>sys.byte/short/int_load</code> and
-<code>sys.byte/short/int_store</code>.
+<code>sys.byte/short/intLoad</code> and
+<code>sys.byte/short/intStore</code>.
 <code>0x12345678</code> loads back as <code>305419896</code>.</li>
 <li><b>Generic syscall:</b> <code>sys.syscall(num, a1..a5)</code> — arguments
 land in <code>rdi rsi rdx r10 r8 r9</code> (the 4th is
@@ -1646,7 +1646,7 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
 <pre><code class="flint">int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
-    printi(sys.byte_load(p + 1));  // 101 ('e')
+    printi(sys.byteLoad(p + 1));  // 101 ('e')
     printi(strlen(p));             // 5
     // concatenation with + of two strings
     string s = "hello" + " world";
@@ -1661,9 +1661,9 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
     print(w);                    // A
     // multi-char construction: alloc + byte stores + NUL
     string m = alloc(8);
-    sys.byte_store(m + 0, 65);
-    sys.byte_store(m + 1, 66);
-    sys.byte_store(m + 2, 0);
+    sys.byteStore(m + 0, 65);
+    sys.byteStore(m + 1, 66);
+    sys.byteStore(m + 2, 0);
     print(m);                    // AB
     printi(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
     return 0;
@@ -2317,7 +2317,7 @@ and <code>queue</code>.</li>
 without retaining, and do not release the displaced element. Prefer
 <code>add</code>/<code>put</code> for object elements; a program that mixes
 <code>add</code> with index-overwrites of the same slot can leak or double-free
-the displaced object. <code>thread_join</code> is a separate known
+the displaced object. <code>threadJoin</code> is a separate known
 limitation — see <a href="concurrency.html">Concurrency</a>.</div>
 </section>
 <section id="concurrency" class="doc-section" data-label="Concurrency">
@@ -2330,7 +2330,7 @@ raw <code>sys.*</code> primitives below are the escape hatch.</p></div>
 <h2>High-level (std.Thread / std.Sync)</h2>
 <table>
 <tr><th>Call</th><th>Behaviour</th></tr>
-<tr><td><code>Thread.n_cpu()</code></td><td>number of available CPUs</td></tr>
+<tr><td><code>Thread.nCpu()</code></td><td>number of available CPUs</td></tr>
 <tr><td><code>Thread.spawn(@fn, arg)</code></td><td>start a thread; returns
 the id to pass to <code>join</code></td></tr>
 <tr><td><code>Thread.join(tid)</code></td><td>block until the thread
@@ -2382,17 +2382,17 @@ int main() {
 
 <h2>Example — one worker per CPU (verified)</h2>
 <p>Count the primes in <code>[2, N]</code> by splitting the range into
-<code>K = n_cpu()</code> chunks, one per thread, all spawned up front (so they
+<code>K = nCpu()</code> chunks, one per thread, all spawned up front (so they
 run concurrently, in tandem) and joined one by one:</p>
 <div class="code"><div class="head"><span>examples/primes_thread.flint</span></div>
 <pre><code class="flint">import std.Thread;
 
 class Cfg {
     static int N;  // upper bound (inclusive)
-    static int K;  // number of workers (= n_cpu())
+    static int K;  // number of workers (= nCpu())
 }
 
-int is_prime(int n) {
+int isPrime(int n) {
     if (n &lt; 2) { return 0; }
     if (n == 2 || n == 3) { return 1; }
     if (n % 2 == 0 || n % 3 == 0) { return 0; }
@@ -2412,7 +2412,7 @@ int worker(int k) {
     int count = 0;
     int n = lo;
     while (n &lt;= hi) {
-        if (is_prime(n) == 1) { count = count + 1; }
+        if (isPrime(n) == 1) { count = count + 1; }
         n = n + 1;
     }
     return count;
@@ -2421,7 +2421,7 @@ int worker(int k) {
 int main() {
     int N = 1000;
     Cfg.N = N;
-    int K = Thread.n_cpu();            // one worker per CPU
+    int K = Thread.nCpu();            // one worker per CPU
     Cfg.K = K;
     for (int k = 0; k &lt; K; k = k + 1) {
         Thread.spawn(@worker, k);      // spawn all up front (run in tandem)
@@ -2438,13 +2438,13 @@ int main() {
 <h2>Low-level (raw sys.*)</h2>
 <table>
 <tr><th>Call</th><th>Behaviour</th></tr>
-<tr><td><code>sys.thread_create(@fn, arg)</code></td><td>start a thread
+<tr><td><code>sys.threadCreate(@fn, arg)</code></td><td>start a thread
 (<code>@</code> = function address)</td></tr>
-<tr><td><code>sys.thread_join(tid)</code></td><td>wait for the thread;
+<tr><td><code>sys.threadJoin(tid)</code></td><td>wait for the thread;
 returns the worker's return value</td></tr>
-<tr><td><code>sys.mutex_lock(&amp;m)</code></td><td>lock a mutex</td></tr>
-<tr><td><code>sys.mutex_unlock(&amp;m)</code></td><td>unlock</td></tr>
-<tr><td><code>sys.atomic_cas(&amp;x, old, new)</code></td><td>compare-and-
+<tr><td><code>sys.mutexLock(&amp;m)</code></td><td>lock a mutex</td></tr>
+<tr><td><code>sys.mutexUnlock(&amp;m)</code></td><td>unlock</td></tr>
+<tr><td><code>sys.atomicCas(&amp;x, old, new)</code></td><td>compare-and-
 set</td></tr>
 <tr><td><code>sys.nanosleep(sec, nsec)</code></td><td>sleep</td></tr>
 <tr><td><code>sys.clone</code> / <code>sys.futex</code></td><td>lower-level
@@ -2454,8 +2454,8 @@ primitives</td></tr>
 <section id="networking" class="doc-section" data-label="Networking">
 <div class="page-head"><h1>Networking</h1>
 <p class="lede">TCP sockets through <code>std.Socket</code>
-(<code>stream</code> / <code>bind_port</code> / <code>listen</code> /
-<code>accept</code> / <code>connect_host</code> / <code>send_all</code> /
+(<code>stream</code> / <code>bindPort</code> / <code>listen</code> /
+<code>accept</code> / <code>connectHost</code> / <code>sendAll</code> /
 <code>recv</code> / <code>close</code>), which wraps the raw
 <code>sys.*</code> socket builtins. <code>select</code> /
 <code>poll</code> / <code>epoll_*</code> remain for multiplexing.</p></div>
@@ -2465,14 +2465,14 @@ primitives</td></tr>
 <tr><th>Call</th><th>Behaviour</th></tr>
 <tr><td><code>Socket.stream()</code></td><td>an <code>AF_INET</code> /
 <code>SOCK_STREAM</code> socket</td></tr>
-<tr><td><code>Socket.bind_port(fd, port)</code></td><td>bind to
+<tr><td><code>Socket.bindPort(fd, port)</code></td><td>bind to
 <code>0.0.0.0:port</code></td></tr>
 <tr><td><code>Socket.listen(fd, backlog)</code></td><td>listen</td></tr>
 <tr><td><code>Socket.accept(fd)</code></td><td>take a connection
 (<code>&gt;= 0</code> on success, negative on error)</td></tr>
-<tr><td><code>Socket.connect_host(a, b, c, d, port)</code></td><td>open a
+<tr><td><code>Socket.connectHost(a, b, c, d, port)</code></td><td>open a
 client socket connected to <code>a.b.c.d:port</code></td></tr>
-<tr><td><code>Socket.send_all(fd, s)</code></td><td>send all of
+<tr><td><code>Socket.sendAll(fd, s)</code></td><td>send all of
 <code>s</code></td></tr>
 <tr><td><code>Socket.recv(fd)</code></td><td>read a message (a <code>string</code>,
 or <code>null</code> when the peer closes)</td></tr>
@@ -2485,7 +2485,7 @@ or <code>null</code> when the peer closes)</td></tr>
 
 int main() {
     int s = Socket.stream();
-    Socket.bind_port(s, 7777);
+    Socket.bindPort(s, 7777);
     Socket.listen(s, 5);
     while (1) {
         int c = Socket.accept(s);
@@ -2494,7 +2494,7 @@ int main() {
         }
         string msg = Socket.recv(c);
         while (msg != null) {
-            Socket.send_all(c, msg);
+            Socket.sendAll(c, msg);
             msg = Socket.recv(c);
         }
         Socket.close(c);
@@ -2508,8 +2508,8 @@ int main() {
 <pre><code class="flint">import std.Socket;
 
 int main() {
-    int s = Socket.connect_host(127, 0, 0, 1, 7777);
-    Socket.send_all(s, "hello");
+    int s = Socket.connectHost(127, 0, 0, 1, 7777);
+    Socket.sendAll(s, "hello");
     string reply = Socket.recv(s);
     if (reply != null) {
         print(reply);
@@ -2524,13 +2524,13 @@ int main() {
 <ul>
 <li><b>Application code uses <code>std.Socket</code></b> — it hides the
 <code>sockaddr_in</code> build and the raw <code>read</code>/<code>write</code>
-loops behind <code>send_all</code>/<code>recv</code>.</li>
+loops behind <code>sendAll</code>/<code>recv</code>.</li>
 <li><b>Lower-level</b> <code>sys.socket</code> / <code>sys.sockaddr</code> /
 <code>sys.bind</code> / <code>sys.listen</code> / <code>sys.accept</code> /
 <code>sys.connect</code> are what the wrapper is built on.</li>
 <li><b>Multiplexing</b> is available via <code>sys.select</code>,
-<code>sys.poll</code>, <code>sys.epoll_create1</code>,
-<code>sys.epoll_ctl</code>, and <code>sys.epoll_wait</code>.</li>
+<code>sys.poll</code>, <code>sys.epollCreate1</code>,
+<code>sys.epollCtl</code>, and <code>sys.epollWait</code>.</li>
 </ul>
 </section>
 <section id="io" class="doc-section" data-label="I/O & syscalls">
@@ -2542,15 +2542,15 @@ the I/O-related builtin namespaces (<code>b64</code>, <code>json</code>,
 
 <h2>File I/O (std.File)</h2>
 <p>Use <code>std.File</code> for all file I/O in application code (see the
-<a href="std-file.html">File</a> section): <code>read_all</code>,
-<code>write_all</code>, <code>copy</code>, <code>size</code>, <code>exists</code>,
+<a href="std-file.html">File</a> section): <code>readAll</code>,
+<code>writeAll</code>, <code>copy</code>, <code>size</code>, <code>exists</code>,
 <code>delete</code>, <code>append</code>, <code>rename</code>.</p>
 <div class="code"><div class="head"><span>examples/sysio.flint (file I/O section)</span></div>
 <pre><code class="flint">import std.File;
 
 int main() {
-    // write_all returns the number of bytes written; size() reports them back
-    printi(File.write_all("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
+    // writeAll returns the number of bytes written; size() reports them back
+    printi(File.writeAll("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
     printi(File.size("/tmp/flint_sysio.txt") == 6 ? 1 : 0); print(" ");               // 1
     return 0;
 }</code></pre></div>
@@ -2594,13 +2594,13 @@ goes in <code>rax</code>, and the arguments land in
 <h2>Other builtins</h2>
 <ul>
 <li><b>Process:</b> <code>sys.exit</code>, <code>sys.syscall</code>.</li>
-<li><b>Memory:</b> <code>sys.byte_load</code>/<code>byte_store</code>,
-<code>short_load</code>/<code>short_store</code>,
-<code>int_load</code>/<code>int_store</code> (see
+<li><b>Memory:</b> <code>sys.byteLoad</code>/<code>byteStore</code>,
+<code>shortLoad</code>/<code>shortStore</code>,
+<code>intLoad</code>/<code>intStore</code> (see
 <a href="pointers.html">Pointers &amp; raw memory</a>).</li>
 <li><b>Concurrency:</b> <code>std.Thread</code> / <code>std.Sync</code> (raw
-<code>sys.thread_create</code>, <code>thread_join</code>, <code>mutex_*</code>,
-<code>atomic_cas</code>, <code>nanosleep</code>; see
+<code>sys.threadCreate</code>, <code>threadJoin</code>, <code>mutex_*</code>,
+<code>atomicCas</code>, <code>nanosleep</code>; see
 <a href="concurrency.html">Concurrency</a>).</li>
 </ul>
 </section>
@@ -2617,10 +2617,10 @@ utilities. They are compiled directly to the runtime — no
 <tr><td><code>sys</code></td>
 <td><code>open read write close brk exit syscall</code> ·
 <code>socket bind listen accept connect sockaddr</code> ·
-<code>select poll epoll_create1 epoll_ctl epoll_wait</code> ·
-<code>clone futex thread_create thread_join nanosleep</code> ·
-<code>mutex_lock mutex_unlock atomic_cas</code> ·
-<code>byte/short/int_load/store</code> · <code>alloc free</code></td>
+<code>select poll epollCreate1 epollCtl epollWait</code> ·
+<code>clone futex threadCreate threadJoin nanosleep</code> ·
+<code>mutexLock mutexUnlock atomicCas</code> ·
+<code>byte/short/intLoad/store</code> · <code>alloc free</code></td>
 <td><a href="io.html">I/O</a> / <a href="concurrency.html">Concurrency</a> /
 <a href="networking.html">Networking</a></td></tr>
 <tr><td><code>str</code></td>
@@ -2683,9 +2683,9 @@ fixed-point (Q48.16) helpers built on the <code>math.*</code> builtins.</p></div
 <tr><th>Integer</th><th>Fixed-point (Q48.16)</th></tr>
 <tr><td><code>abs min max clamp gcd lcm</code></td>
 <td><code>fround fceil ffloor fabs fsqrt</code></td></tr>
-<tr><td><code>factorial is_prime sqrt pow pow10</code></td>
+<tr><td><code>factorial isPrime sqrt pow pow10</code></td>
 <td>—</td></tr>
-<tr><td><code>fib cbrt is_even is_odd mod sum_range</code></td>
+<tr><td><code>fib cbrt isEven isOdd mod sumRange</code></td>
 <td>—</td></tr>
 </table>
 
@@ -2701,7 +2701,7 @@ int main() {
     printi(Math.gcd(48, 18)); print(" "); // 6
     printi(Math.lcm(4, 6)); print(" ");   // 12
     printi(Math.factorial(5)); print(" "); // 120
-    printi(Math.is_prime(97)); print(" "); // 1
+    printi(Math.isPrime(97)); print(" "); // 1
     printi(Math.sqrt(81)); print(" ");     // 9
     printi(Math.pow(2, 10)); print(" ");  // 1024
     printi(Math.fib(10)); print("\n");     // 55
@@ -2724,9 +2724,9 @@ int main() {
 array queries. Sorting is done on the array itself.</p></div>
 
 <h2>Methods</h2>
-<p><code>sort</code> <code>sort_desc</code> <code>reverse</code> ·
-<code>min max sum avg</code> · <code>contains index_of count</code> ·
-<code>fill binary_search argmin argmax swap rotate</code></p>
+<p><code>sort</code> <code>sortDesc</code> <code>reverse</code> ·
+<code>min max sum avg</code> · <code>contains indexOf count</code> ·
+<code>fill binarySearch argmin argmax swap rotate</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/sort_lib.flint</span></div>
@@ -2739,7 +2739,7 @@ int main() {
     printi(a[1]); print(" ");
     printi(a[4]); print("\n");            // 1 2 9
     int d[] = [3, 8, 1, 6];
-    Sort.sort_desc(d);
+    Sort.sortDesc(d);
     printi(d[0]); print(" ");
     printi(d[3]); print("\n");            // 8 1
     int q[] = [4, 9, 2, 7];
@@ -2749,13 +2749,13 @@ int main() {
     printi(Sort.avg(q)); print(" ");      // 5
     printi(Sort.contains(q, 7)); print(" "); // 1
     printi(Sort.contains(q, 8)); print(" "); // 0
-    printi(Sort.index_of(q, 9)); print(" "); // 1
+    printi(Sort.indexOf(q, 9)); print(" "); // 1
     printi(Sort.count(q, 4)); print(" ");  // 1
     printi(Sort.argmax(q)); print("\n");   // 1
-    // binary_search needs a sorted array
+    // binarySearch needs a sorted array
     int s[] = [1, 3, 5, 7, 9];
-    printi(Sort.binary_search(s, 7)); print(" "); // 3
-    printi(Sort.binary_search(s, 8)); print("\n"); // -1 (not found)
+    printi(Sort.binarySearch(s, 7)); print(" "); // 3
+    printi(Sort.binarySearch(s, 8)); print("\n"); // -1 (not found)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1 2 9
@@ -2770,9 +2770,9 @@ ints. (Flint has no <code>0b…</code> binary literals, so values are written
 in decimal/hex.)</p></div>
 
 <h2>Methods</h2>
-<p><code>popcount nlz ntz</code> · <code>set_bit clr_bit test_bit
-toggle_bit</code> · <code>bit_rev is_power_of_two next_power_of_two</code> ·
-<code>byte_swap parity get_byte set_byte</code></p>
+<p><code>popcount nlz ntz</code> · <code>setBit clrBit testBit
+toggleBit</code> · <code>bitRev isPowerOfTwo nextPowerOfTwo</code> ·
+<code>byteSwap parity getByte setByte</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/bit_lib.flint</span></div>
@@ -2782,13 +2782,13 @@ int main() {
     printi(Bit.popcount(255)); print(" ");       // 8 (255 = 0xFF, eight set bits)
     printi(Bit.nlz(1)); print(" ");             // 63 (single bit at position 0)
     printi(Bit.ntz(8)); print(" ");            // 3 (8 = 1&lt;&lt;3)
-    printi(Bit.set_bit(0, 3)); print(" ");     // 8
-    printi(Bit.test_bit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
-    printi(Bit.toggle_bit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
-    printi(Bit.is_power_of_two(64)); print(" "); // 1
-    printi(Bit.is_power_of_two(65)); print(" "); // 0
-    printi(Bit.next_power_of_two(100)); print(" "); // 128
-    printi(Bit.byte_swap(0x1234)); print("\n");   // 0x3412000000000000 (all 8 bytes swapped)
+    printi(Bit.setBit(0, 3)); print(" ");     // 8
+    printi(Bit.testBit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
+    printi(Bit.toggleBit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
+    printi(Bit.isPowerOfTwo(64)); print(" "); // 1
+    printi(Bit.isPowerOfTwo(65)); print(" "); // 0
+    printi(Bit.nextPowerOfTwo(100)); print(" "); // 128
+    printi(Bit.byteSwap(0x1234)); print("\n");   // 0x3412000000000000 (all 8 bytes swapped)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>8 63 3 8 1 12 1 0 128 3752061439553044480</div>
@@ -2799,27 +2799,27 @@ int main() {
 math.</p></div>
 
 <h2>Methods</h2>
-<p><code>to_string hex_digit hex_val</code> · <code>to_hex from_hex
-to_bin from_bin to_oct from_oct</code> · <code>to_upper_hex</code> ·
-<code>sum_digits digit_count reverse_digits trim_leading_zeros
-is_palindrome digit_at</code></p>
+<p><code>toString hexDigit hexVal</code> · <code>toHex fromHex
+toBin fromBin toOct fromOct</code> · <code>toUpperHex</code> ·
+<code>sumDigits digitCount reverseDigits trimLeadingZeros
+isPalindrome digitAt</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/num_lib.flint</span></div>
 <pre><code class="flint">import std.Num;
 
 int main() {
-    print(Num.to_hex(255)); print(" ");    // ff
-    print(Num.to_upper_hex(255)); print(" "); // FF
-    printi(Num.from_hex("ff")); print(" ");   // 255
-    print(Num.to_bin(5)); print(" ");         // 101
-    printi(Num.from_bin("101")); print(" ");  // 5
-    print(Num.to_oct(8)); print(" ");         // 10
-    printi(Num.from_oct("10")); print(" ");   // 8
-    printi(Num.sum_digits(1234)); print(" "); // 10
-    printi(Num.digit_count(1000)); print(" "); // 4
-    print(Num.reverse_digits(1234)); print(" "); // 4321
-    printi(Num.is_palindrome(1221)); print("\n"); // 1
+    print(Num.toHex(255)); print(" ");    // ff
+    print(Num.toUpperHex(255)); print(" "); // FF
+    printi(Num.fromHex("ff")); print(" ");   // 255
+    print(Num.toBin(5)); print(" ");         // 101
+    printi(Num.fromBin("101")); print(" ");  // 5
+    print(Num.toOct(8)); print(" ");         // 10
+    printi(Num.fromOct("10")); print(" ");   // 8
+    printi(Num.sumDigits(1234)); print(" "); // 10
+    printi(Num.digitCount(1000)); print(" "); // 4
+    print(Num.reverseDigits(1234)); print(" "); // 4321
+    printi(Num.isPalindrome(1221)); print("\n"); // 1
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>ff FF 255 101 5 10 8 10 4 4321 1</div>
@@ -2831,8 +2831,8 @@ int main() {
 syscalls. Results are printed as stable 1/0 checks.</p></div>
 
 <h2>Methods</h2>
-<p><code>open open_for_write close size read_all write_all exists delete
-append copy rename read_line</code></p>
+<p><code>open openForWrite close size readAll writeAll exists delete
+append copy rename readLine</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/file_lib.flint</span></div>
@@ -2840,13 +2840,13 @@ append copy rename read_line</code></p>
 
 int main() {
     string p = "/tmp/flint_file_lib.txt";
-    // write_all creates/truncates; returns the byte count written
+    // writeAll creates/truncates; returns the byte count written
     // (or a negative errno on failure)
-    int w = File.write_all(p, "hello file");
+    int w = File.writeAll(p, "hello file");
     printi(w &gt; 0 ? 1 : 0);
     printi(File.exists(p));              // 1
     printi(File.size(p));               // 10
-    string back = File.read_all(p);
+    string back = File.readAll(p);
     printi(str.cmp(back, "hello file") == 0 ? 1 : 0);  // 1
     File.append(p, "!");
     printi(File.size(p));               // 11
@@ -2869,8 +2869,8 @@ int main() {
 manipulation (no filesystem access).</p></div>
 
 <h2>Methods</h2>
-<p><code>base dir ext join parent is_absolute normalize</code>
-(+ <code>last_slash</code> <code>last_dot</code>)</p>
+<p><code>base dir ext join parent isAbsolute normalize</code>
+(+ <code>lastSlash</code> <code>lastDot</code>)</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/path_lib.flint</span></div>
@@ -2882,8 +2882,8 @@ int main() {
     print(Path.ext("/a/b/c.txt")); print(" ");    // txt (no dot)
     print(Path.join("/a/b", "c.txt")); print(" "); // /a/b/c.txt
     print(Path.parent("/a/b/c.txt")); print(" ");  // /a/b
-    printi(Path.is_absolute("/a/b")); print(" ");  // 1
-    printi(Path.is_absolute("a/b")); print(" ");   // 0
+    printi(Path.isAbsolute("/a/b")); print(" ");  // 1
+    printi(Path.isAbsolute("a/b")); print(" ");   // 0
     print(Path.normalize("/a/b/../c/./d")); print("\n"); // a/c/d (relative form)
     return 0;
 }</code></pre></div>
@@ -2928,8 +2928,8 @@ Without a seed, <code>next</code> lazily seeds from the hardware
 <code>rand.next()</code> builtin.</p></div>
 
 <h2>Methods</h2>
-<p><code>init next range coin shuffle pick bytes hex_id
-rand_string</code></p>
+<p><code>init next range coin shuffle pick bytes hexId
+randString</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/rand_lib.flint</span></div>
@@ -2970,7 +2970,7 @@ no character literals; a padding character is passed as a byte value, e.g.
 
 <h2>Methods</h2>
 <p><code>upper lower reverse trim ltrim rtrim</code> · <code>count
-contains last_index_of starts_with ends_with</code> · <code>replace_all
+contains lastIndexOf startsWith endsWith</code> · <code>replaceAll
 repeat join ljust rjust</code></p>
 
 <h2>Example</h2>
@@ -2984,10 +2984,10 @@ int main() {
     print(Str.trim("  hi  ")); print(" ");     // hi
     printi(Str.count("banana", "an")); print(" "); // 2
     printi(Str.contains("banana", "nana")); print(" "); // 1
-    printi(Str.last_index_of("banana", "an")); print(" "); // 3 ("an" at index 3)
-    printi(Str.starts_with("flint", "fli")); print(" "); // 1
-    printi(Str.ends_with("flint", "nt")); print(" "); // 1
-    print(Str.replace_all("a-b-c", "-", "+")); print(" "); // a+b+c
+    printi(Str.lastIndexOf("banana", "an")); print(" "); // 3 ("an" at index 3)
+    printi(Str.startsWith("flint", "fli")); print(" "); // 1
+    printi(Str.endsWith("flint", "nt")); print(" "); // 1
+    print(Str.replaceAll("a-b-c", "-", "+")); print(" "); // a+b+c
     print(Str.repeat("ab", 3)); print(" ");    // ababab
     print(Str.rjust("7", 5, 48)); print(" ");  // 00007  (48 is '0')
     print(Str.ljust("7", 5, 48)); print("\n"); // 70000
@@ -3037,21 +3037,21 @@ won't find there.</p></div>
 <h2>Color &amp; pixel R/W</h2>
 <p>Static: <code>rgba(r,g,b,a)</code> <code>rgb(r,g,b)</code>
 <code>cr cg cb ca</code> (channel getters). Instance: <code>get(x,y)</code>
-(packed, 0 out of range) <code>set(x,y,c)</code> <code>set_alpha</code>
+(packed, 0 out of range) <code>set(x,y,c)</code> <code>setAlpha</code>
 <code>r g b a</code> (individual channels).</p>
 
 <h2>Transforms &amp; drawing</h2>
-<p>Whole-image: <code>fill clear invert grayscale flip_h flip_v</code>.
+<p>Whole-image: <code>fill clear invert grayscale flipH flipV</code>.
 Instance: <code>scale(nw,nh)</code> (nearest-neighbor, returns a new image)
-<code>blur</code> (3×3 box). Drawing: <code>hline vline fill_rect rect
-line circle fill_circle</code>.</p>
+<code>blur</code> (3×3 box). Drawing: <code>hline vline fillRect rect
+line circle fillCircle</code>.</p>
 
 <h2>I/O (by extension)</h2>
 <p><code>save(path)</code> dispatches on the extension:
-<code>.png</code> → <code>to_png</code>, <code>.bmp</code> →
-<code>to_bmp</code>, <code>.pgm</code> → <code>to_pgm</code>, else
-<code>to_ppm</code>. <code>Image.load(path)</code> detects by magic bytes
-(PNG / "BM" / "P5" / PPM). Also <code>from_ppm/pgm/bmp/png</code>.
+<code>.png</code> → <code>toPng</code>, <code>.bmp</code> →
+<code>toBmp</code>, <code>.pgm</code> → <code>toPgm</code>, else
+<code>toPpm</code>. <code>Image.load(path)</code> detects by magic bytes
+(PNG / "BM" / "P5" / PPM). Also <code>fromPpm / fromPgm / fromBmp / fromPng</code>.
 <code>save</code>/<code>to_*</code> return the byte count written.</p>
 
 <h2>Example</h2>
@@ -3062,7 +3062,7 @@ int main() {
     // A 64x64 RGBA image (4 bytes/pixel, row-major)
     Image im = new Image(64, 64);
     im.fill(Image.rgb(255, 0, 0));              // solid red
-    im.fill_circle(32, 32, 20, Image.rgb(0, 255, 0)); // green filled disc
+    im.fillCircle(32, 32, 20, Image.rgb(0, 255, 0)); // green filled disc
     // The centre is inside the disc -&gt; green; a corner is red
     int centre = im.get(32, 32);
     int corner = im.get(0, 0);
@@ -3091,11 +3091,11 @@ int main() {
 <div class="page-head"><h1>Standard library: <code>Thread</code></h1>
 <p class="lede"><code>import std.Thread;</code> — spawn/join worker threads
 (one per CPU) and read the CPU count, hiding the raw
-<code>sys.thread_create</code>/<code>thread_join</code> and the
+<code>sys.threadCreate</code>/<code>threadJoin</code> and the
 <code>sched_getaffinity</code> syscall.</p></div>
 
 <h2>Methods</h2>
-<p><code>n_cpu</code> <code>spawn</code> <code>join</code></p>
+<p><code>nCpu</code> <code>spawn</code> <code>join</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/primes_thread.flint</span></div>
@@ -3103,10 +3103,10 @@ int main() {
 
 class Cfg {
     static int N;  // upper bound (inclusive)
-    static int K;  // number of workers (= n_cpu())
+    static int K;  // number of workers (= nCpu())
 }
 
-int is_prime(int n) {
+int isPrime(int n) {
     if (n &lt; 2) { return 0; }
     if (n == 2 || n == 3) { return 1; }
     if (n % 2 == 0 || n % 3 == 0) { return 0; }
@@ -3126,7 +3126,7 @@ int worker(int k) {
     int count = 0;
     int n = lo;
     while (n &lt;= hi) {
-        if (is_prime(n) == 1) { count = count + 1; }
+        if (isPrime(n) == 1) { count = count + 1; }
         n = n + 1;
     }
     return count;
@@ -3135,7 +3135,7 @@ int worker(int k) {
 int main() {
     int N = 1000;
     Cfg.N = N;
-    int K = Thread.n_cpu();            // one worker per CPU
+    int K = Thread.nCpu();            // one worker per CPU
     Cfg.K = K;
     for (int k = 0; k &lt; K; k = k + 1) {
         Thread.spawn(@worker, k);      // spawn all up front (run in tandem)
@@ -3156,8 +3156,8 @@ int main() {
 <code>net.flint</code>.)</p></div>
 
 <h2>Methods</h2>
-<p><code>stream</code> <code>bind_port</code> <code>listen</code>
-<code>accept</code> <code>connect_host</code> <code>send_all</code>
+<p><code>stream</code> <code>bindPort</code> <code>listen</code>
+<code>accept</code> <code>connectHost</code> <code>sendAll</code>
 <code>recv</code> <code>close</code></p>
 
 <h2>Example</h2>
@@ -3165,8 +3165,8 @@ int main() {
 <pre><code class="flint">import std.Socket;
 
 int main() {
-    int s = Socket.connect_host(127, 0, 0, 1, 7777);
-    Socket.send_all(s, "hello");
+    int s = Socket.connectHost(127, 0, 0, 1, 7777);
+    Socket.sendAll(s, "hello");
     string reply = Socket.recv(s);
     if (reply != null) {
         print(reply);
@@ -3181,7 +3181,7 @@ int main() {
 <div class="page-head"><h1>Standard library: <code>Sync</code></h1>
 <p class="lede"><code>import std.Sync;</code> — mutexes, atomic CAS, and
 sleeps, wrapping the raw <code>sys.mutex_*</code> /
-<code>atomic_cas</code> / <code>nanosleep</code>.</p></div>
+<code>atomicCas</code> / <code>nanosleep</code>.</p></div>
 
 <h2>Methods</h2>
 <p><code>lock</code> <code>unlock</code> <code>cas</code>
@@ -3231,8 +3231,8 @@ instead of raw <code>alloc</code> (only <code>examples/rawmem.flint</code>
 shows the raw API).</p></div>
 
 <h2>Methods</h2>
-<p><code>int_array</code> <code>bytes</code> <code>copy</code>
-<code>free_int</code> <code>free_byte</code></p>
+<p><code>intArray</code> <code>bytes</code> <code>copy</code>
+<code>freeInt</code> <code>freeByte</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/alloc_demo.flint</span></div>
@@ -3240,7 +3240,7 @@ shows the raw API).</p></div>
 
 int main() {
     int n = 10;
-    *int fib = Mem.int_array(n);   // a fresh array of n 8-byte slots
+    *int fib = Mem.intArray(n);   // a fresh array of n 8-byte slots
     fib[0] = 0;
     fib[1] = 1;
     for (int i = 2; i &lt; n; i = i + 1) {
@@ -3257,11 +3257,61 @@ int main() {
     print("\nsum=");
     printi(sum);                   // 88
     print("\n");
-    Mem.free_int(fib);
+    Mem.freeInt(fib);
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>0 1 1 2 3 5 8 13 21 34
 sum=88</div>
+</section>
+<section id="std-window" class="doc-section" data-label="Window">
+<div class="page-head"><h1>Standard library: <code>Window</code></h1>
+<p class="lede"><code>import std.Window;</code> — a Wayland
+desktop window: open a window, draw an <code>std.Image</code> into
+it, and receive basic input events (frame, key, mouse motion and
+button). It speaks the raw <code>wayland-client</code> protocol
+directly over the display socket (no X, no extra tools). Without a
+compositor (e.g. headless), <code>Window.open</code> returns
+<code>null</code>. (File: <code>gui.flint</code>.)</p></div>
+
+<h2>Methods</h2>
+<p><code>open</code> <code>close</code> <code>running</code>
+<code>width</code> <code>height</code> <code>present</code>
+<code>nextEvent</code> <code>peekEvent</code> <code>evX</code>
+<code>evY</code> <code>evButton</code> <code>evKey</code>
+<code>evState</code> — static <code>FRAME</code> <code>KEY</code>
+<code>BUTTON</code> <code>MOTION</code> <code>CLOSE</code>
+<code>fixed</code> <code>keyChar</code> <code>parseDisplay</code></p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/gui.flint</span></div>
+<pre><code class="flint">import std.Window;
+import std.Image;
+
+int main() {
+    Window w = Window.open(320, 200, "flint gui");
+    if (w == null) {
+        print("no display\n");
+        return 0;
+    }
+    Image c = new Image(320, 200);
+    c.fill(Image.rgb(10, 10, 20));
+    int t = 0;
+    while (w.running()) {
+        int e = w.peekEvent();
+        while (e != 0) {
+            if (e == Window.KEY() && Window.keyChar(w.evKey()) == 113) {
+                return 0;   // 'q' quits
+            }
+            e = w.peekEvent();
+        }
+        t = t + 1;
+        int px = (t * 7) % 320;
+        c.set(px, 100, Image.rgb(0, 255, 0));
+        w.present(c);
+    }
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 </section>
 </main>
 </div>

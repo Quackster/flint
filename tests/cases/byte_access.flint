@@ -1,27 +1,27 @@
 int main() {
-    // byte_load / byte_store
+    // byteLoad / byteStore
     *byte buf = alloc(16);
-    sys.byte_store(buf, 0xAB);
-    int b = sys.byte_load(buf);
+    sys.byteStore(buf, 0xAB);
+    int b = sys.byteLoad(buf);
     printi(b == 0xAB ? 1 : 0); print("\n");
 
-    // short_load / short_store
-    sys.short_store(buf, 0x1234);
-    int s = sys.short_load(buf);
+    // shortLoad / shortStore
+    sys.shortStore(buf, 0x1234);
+    int s = sys.shortLoad(buf);
     printi(s == 0x1234 ? 1 : 0); print("\n");
 
-    // int_load / int_store
-    sys.int_store(buf, 0xDEADBEEF);
-    int i = sys.int_load(buf);
+    // intLoad / intStore
+    sys.intStore(buf, 0xDEADBEEF);
+    int i = sys.intLoad(buf);
     printi(i == 0xDEADBEEF ? 1 : 0); print("\n");
 
     // byte-level wire encoding: pack 3 bytes into a slot, read them back
-    sys.byte_store(buf, 0x01);
-    sys.byte_store(buf + 1, 0x02);
-    sys.byte_store(buf + 2, 0x03);
-    int b0 = sys.byte_load(buf);
-    int b1 = sys.byte_load(buf + 1);
-    int b2 = sys.byte_load(buf + 2);
+    sys.byteStore(buf, 0x01);
+    sys.byteStore(buf + 1, 0x02);
+    sys.byteStore(buf + 2, 0x03);
+    int b0 = sys.byteLoad(buf);
+    int b1 = sys.byteLoad(buf + 1);
+    int b2 = sys.byteLoad(buf + 2);
     printi(b0 == 1 && b1 == 2 && b2 == 3 ? 1 : 0); print("\n");
 
     free(buf);

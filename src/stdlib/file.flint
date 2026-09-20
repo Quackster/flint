@@ -2,8 +2,8 @@
 //
 // Usage:
 //   import std.File;
-//   File.write_all("/tmp/hello.txt", "hi");
-//   string data = File.read_all("/tmp/hello.txt");
+//   File.writeAll("/tmp/hello.txt", "hi");
+//   string data = File.readAll("/tmp/hello.txt");
 //
 // x86_64 syscalls: open=2 read=0 write=1 close=3 fstat=5
 //                  pread=17 pwrite=1 unlink=87
@@ -12,7 +12,7 @@ class File {
     // O_RDWR
     static int open(string path) { return sys.open(path, 2, 0); }
     // O_WRONLY | O_CREAT | O_TRUNC, mode 0644
-    static int open_for_write(string path) {
+    static int openForWrite(string path) {
         return sys.open(path, 0x241, 0x1a4);
     }
     static int close(int fd) { return sys.close(fd); }
@@ -30,7 +30,7 @@ class File {
         return st[6];  // struct stat: st_size at offset 48
     }
     // NUL-terminated copy of the whole file, or null if it cannot be opened.
-    static string read_all(string path) {
+    static string readAll(string path) {
         int sz = File.size(path);
         if (sz < 0) {
             return null;
@@ -49,11 +49,11 @@ class File {
             off = off + n;
         }
         sys.close(fd);
-        sys.byte_store(out + off, 0);
+        sys.byteStore(out + off, 0);
         return out;
     }
     // O_WRONLY | O_CREAT | O_TRUNC; returns the fd or a negative errno.
-    static int write_all(string path, string data) {
+    static int writeAll(string path, string data) {
         int fd = sys.open(path, 0x241, 0x1a4);
         if (fd < 0) {
             return fd;
@@ -87,26 +87,26 @@ class File {
     }
     // Copy the whole file src to dst; -1 if src cannot be read.
     static int copy(string src, string dst) {
-        string data = File.read_all(src);
+        string data = File.readAll(src);
         if (data == null) {
             return -1;
         }
-        return File.write_all(dst, data);
+        return File.writeAll(dst, data);
     }
     // rename is syscall 82 on this toolchain's kernel.
     static int rename(string path, string newpath) {
         return sys.syscall(82, path, newpath, 0, 0, 0);
     }
     // First newline-terminated line of the file (else the whole file, or null).
-    static string read_line(string path) {
-        string data = File.read_all(path);
+    static string readLine(string path) {
+        string data = File.readAll(path);
         if (data == null) {
             return null;
         }
         int i = 0;
         int n = strlen(data);
         while (i < n) {
-            if (sys.byte_load(data + i) == 10) {
+            if (sys.byteLoad(data + i) == 10) {
                 return str.substring(data, 0, i);
             }
             i = i + 1;

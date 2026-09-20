@@ -7,12 +7,12 @@ int main() {
     printi(Bit.popcount(255)); print(" ");       // 8 (255 = 0xFF, eight set bits)
     printi(Bit.nlz(1)); print(" ");             // 63 (single bit at position 0)
     printi(Bit.ntz(8)); print(" ");            // 3 (8 = 1<<3)
-    printi(Bit.set_bit(0, 3)); print(" ");     // 8
-    printi(Bit.test_bit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
-    printi(Bit.toggle_bit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
-    printi(Bit.is_power_of_two(64)); print(" "); // 1
-    printi(Bit.is_power_of_two(65)); print(" "); // 0
-    printi(Bit.next_power_of_two(100)); print(" "); // 128
-    printi(Bit.byte_swap(0x1234)); print("\n");   // 0x3412000000000000 (all 8 bytes swapped)
+    printi(Bit.setBit(0, 3)); print(" ");     // 8
+    printi(Bit.testBit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
+    printi(Bit.toggleBit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
+    printi(Bit.isPowerOfTwo(64)); print(" "); // 1
+    printi(Bit.isPowerOfTwo(65)); print(" "); // 0
+    printi(Bit.nextPowerOfTwo(100)); print(" "); // 128
+    printi(Bit.byteSwap(0x1234)); print("\n");   // 0x3412000000000000 (all 8 bytes swapped)
     return 0;
 }

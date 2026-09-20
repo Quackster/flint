@@ -12,14 +12,14 @@ class Str {
         string out = alloc(n + 1);
         int i = 0;
         while (i < n) {
-            int c = sys.byte_load(s + i);
+            int c = sys.byteLoad(s + i);
             if (c >= 97 && c <= 122) {
                 c = c - 32;
             }
-            sys.byte_store(out + i, c);
+            sys.byteStore(out + i, c);
             i = i + 1;
         }
-        sys.byte_store(out + n, 0);
+        sys.byteStore(out + n, 0);
         return out;
     }
     // Lowercase the ASCII letters of s.
@@ -28,14 +28,14 @@ class Str {
         string out = alloc(n + 1);
         int i = 0;
         while (i < n) {
-            int c = sys.byte_load(s + i);
+            int c = sys.byteLoad(s + i);
             if (c >= 65 && c <= 90) {
                 c = c + 32;
             }
-            sys.byte_store(out + i, c);
+            sys.byteStore(out + i, c);
             i = i + 1;
         }
-        sys.byte_store(out + n, 0);
+        sys.byteStore(out + n, 0);
         return out;
     }
     // Reverse s.
@@ -44,21 +44,21 @@ class Str {
         string out = alloc(n + 1);
         int i = 0;
         while (i < n) {
-            sys.byte_store(out + (n - 1 - i), sys.byte_load(s + i));
+            sys.byteStore(out + (n - 1 - i), sys.byteLoad(s + i));
             i = i + 1;
         }
-        sys.byte_store(out + n, 0);
+        sys.byteStore(out + n, 0);
         return out;
     }
     // Strip leading and trailing spaces.
     static string trim(string s) {
         int n = strlen(s);
         int i = 0;
-        while (i < n && sys.byte_load(s + i) == 32) {
+        while (i < n && sys.byteLoad(s + i) == 32) {
             i = i + 1;
         }
         int j = n;
-        while (j > i && sys.byte_load(s + j - 1) == 32) {
+        while (j > i && sys.byteLoad(s + j - 1) == 32) {
             j = j - 1;
         }
         return str.substring(s, i, j - i);
@@ -67,7 +67,7 @@ class Str {
     static string ltrim(string s) {
         int n = strlen(s);
         int i = 0;
-        while (i < n && sys.byte_load(s + i) == 32) {
+        while (i < n && sys.byteLoad(s + i) == 32) {
             i = i + 1;
         }
         return str.substring(s, i, n - i);
@@ -76,7 +76,7 @@ class Str {
     static string rtrim(string s) {
         int n = strlen(s);
         int j = n;
-        while (j > 0 && sys.byte_load(s + j - 1) == 32) {
+        while (j > 0 && sys.byteLoad(s + j - 1) == 32) {
             j = j - 1;
         }
         return str.substring(s, 0, j);
@@ -94,7 +94,7 @@ class Str {
             int k = 0;
             int match = 1;
             while (k < nsub) {
-                if (sys.byte_load(s + i + k) != sys.byte_load(sub + k)) {
+                if (sys.byteLoad(s + i + k) != sys.byteLoad(sub + k)) {
                     match = 0;
                 }
                 k = k + 1;
@@ -113,7 +113,7 @@ class Str {
         return str.indexOf(s, sub) >= 0 ? 1 : 0;
     }
     // Index of the last occurrence of sub in s, or -1.
-    static int last_index_of(string s, string sub) {
+    static int lastIndexOf(string s, string sub) {
         int nsub = strlen(sub);
         int n = strlen(s);
         if (nsub == 0 || nsub > n) {
@@ -124,7 +124,7 @@ class Str {
             int k = 0;
             int match = 1;
             while (k < nsub) {
-                if (sys.byte_load(s + i + k) != sys.byte_load(sub + k)) {
+                if (sys.byteLoad(s + i + k) != sys.byteLoad(sub + k)) {
                     match = 0;
                 }
                 k = k + 1;
@@ -137,7 +137,7 @@ class Str {
         return -1;
     }
     // 1 when s starts with prefix p.
-    static int starts_with(string s, string p) {
+    static int startsWith(string s, string p) {
         int np = strlen(p);
         int ns = strlen(s);
         if (np > ns) {
@@ -146,7 +146,7 @@ class Str {
         return str.cmp(str.substring(s, 0, np), p) == 0 ? 1 : 0;
     }
     // 1 when s ends with suffix p.
-    static int ends_with(string s, string p) {
+    static int endsWith(string s, string p) {
         int np = strlen(p);
         int ns = strlen(s);
         if (np > ns) {
@@ -156,7 +156,7 @@ class Str {
     }
     // Replace every (non-overlapping) occurrence of from with to.
     // The output buffer assumes a modest size ratio of to to from.
-    static string replace_all(string s, string from, string to) {
+    static string replaceAll(string s, string from, string to) {
         int nfrom = strlen(from);
         if (nfrom == 0) {
             return str.copy(s);
@@ -171,7 +171,7 @@ class Str {
             if (i + nfrom <= n) {
                 match = 1;
                 while (k < nfrom) {
-                    if (sys.byte_load(s + i + k) != sys.byte_load(from + k)) {
+                    if (sys.byteLoad(s + i + k) != sys.byteLoad(from + k)) {
                         match = 0;
                     }
                     k = k + 1;
@@ -181,18 +181,18 @@ class Str {
                 int j = 0;
                 int nto = strlen(to);
                 while (j < nto) {
-                    sys.byte_store(out + o, sys.byte_load(to + j));
+                    sys.byteStore(out + o, sys.byteLoad(to + j));
                     o = o + 1;
                     j = j + 1;
                 }
                 i = i + nfrom;
             } else {
-                sys.byte_store(out + o, sys.byte_load(s + i));
+                sys.byteStore(out + o, sys.byteLoad(s + i));
                 o = o + 1;
                 i = i + 1;
             }
         }
-        sys.byte_store(out + o, 0);
+        sys.byteStore(out + o, 0);
         return out;
     }
     // s repeated n times.
@@ -204,13 +204,13 @@ class Str {
         while (i < n) {
             int j = 0;
             while (j < ns) {
-                sys.byte_store(out + o, sys.byte_load(s + j));
+                sys.byteStore(out + o, sys.byteLoad(s + j));
                 o = o + 1;
                 j = j + 1;
             }
             i = i + 1;
         }
-        sys.byte_store(out + o, 0);
+        sys.byteStore(out + o, 0);
         return out;
     }
     // Split s on sep into a list of segments.
@@ -227,7 +227,7 @@ class Str {
             int k = 0;
             int match = 1;
             while (k < nsep) {
-                if (sys.byte_load(s + i + k) != sys.byte_load(sep + k)) {
+                if (sys.byteLoad(s + i + k) != sys.byteLoad(sep + k)) {
                     match = 0;
                 }
                 k = k + 1;
@@ -251,14 +251,14 @@ class Str {
         string out = alloc(w + 1);
         int i = 0;
         while (i < ns) {
-            sys.byte_store(out + i, sys.byte_load(s + i));
+            sys.byteStore(out + i, sys.byteLoad(s + i));
             i = i + 1;
         }
         while (i < w) {
-            sys.byte_store(out + i, ch);
+            sys.byteStore(out + i, ch);
             i = i + 1;
         }
-        sys.byte_store(out + w, 0);
+        sys.byteStore(out + w, 0);
         return out;
     }
     // Pad s on the left with ch up to width w.
@@ -267,16 +267,16 @@ class Str {
         string out = alloc(w + 1);
         int i = 0;
         while (i < w - ns) {
-            sys.byte_store(out + i, ch);
+            sys.byteStore(out + i, ch);
             i = i + 1;
         }
         int j = 0;
         while (j < ns) {
-            sys.byte_store(out + i, sys.byte_load(s + j));
+            sys.byteStore(out + i, sys.byteLoad(s + j));
             i = i + 1;
             j = j + 1;
         }
-        sys.byte_store(out + w, 0);
+        sys.byteStore(out + w, 0);
         return out;
     }
 }

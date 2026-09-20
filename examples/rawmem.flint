@@ -1,6 +1,6 @@
 // rawmem: the low-level memory reference — the ONLY example that shows raw
 // `alloc` / `free` / `memcpy`, raw pointers (*T, &x, *p), sub-word
-// little-endian access (sys.byte/short/int_load/store), and the generic
+// little-endian access (sys.byte/short/intLoad/store), and the generic
 // syscall escape hatch (sys.syscall(num, a1..a5): args land in rdi rsi rdx
 // r10 r8 r9, 4th in r10). Every other example allocates through std.Mem.
 //
@@ -33,14 +33,14 @@ int main() {
     free(fib);
     // sub-word little-endian access into a buffer
     *byte buf = alloc(16);
-    sys.byte_store(buf + 8, 65);
-    printi(sys.byte_load(buf + 8));   // 65 ('A')
+    sys.byteStore(buf + 8, 65);
+    printi(sys.byteLoad(buf + 8));   // 65 ('A')
     print("\n");
-    sys.short_store(buf, 1000);
-    printi(sys.short_load(buf));      // 1000
+    sys.shortStore(buf, 1000);
+    printi(sys.shortLoad(buf));      // 1000
     print("\n");
-    sys.int_store(buf + 12, 0x12345678);
-    printi(sys.int_load(buf + 12));   // 305419896 (== 0x12345678)
+    sys.intStore(buf + 12, 0x12345678);
+    printi(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
     print("\n");
     free(buf);
     // memcpy: copy 16 bytes

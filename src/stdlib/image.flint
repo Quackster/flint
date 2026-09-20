@@ -23,7 +23,7 @@ class Image {
         int i = 0;
         int n = w * h * 4;
         while (i < n) {
-            sys.byte_store(this.data + i, 0);
+            sys.byteStore(this.data + i, 0);
             i = i + 1;
         }
     }
@@ -44,10 +44,10 @@ class Image {
             return 0;
         }
         int o = (y * this.w + x) * 4;
-        int b = sys.byte_load(this.data + o);
-        int g = sys.byte_load(this.data + o + 1);
-        int r = sys.byte_load(this.data + o + 2);
-        int a = sys.byte_load(this.data + o + 3);
+        int b = sys.byteLoad(this.data + o);
+        int g = sys.byteLoad(this.data + o + 1);
+        int r = sys.byteLoad(this.data + o + 2);
+        int a = sys.byteLoad(this.data + o + 3);
         return (a << 24) | (r << 16) | (g << 8) | b;
     }
     // Store a packed 0xAARRGGBB pixel (no-op out of range).
@@ -56,21 +56,21 @@ class Image {
             return;
         }
         int o = (y * this.w + x) * 4;
-        sys.byte_store(this.data + o, c & 255);
-        sys.byte_store(this.data + o + 1, (c >> 8) & 255);
-        sys.byte_store(this.data + o + 2, (c >> 16) & 255);
-        sys.byte_store(this.data + o + 3, (c >> 24) & 255);
+        sys.byteStore(this.data + o, c & 255);
+        sys.byteStore(this.data + o + 1, (c >> 8) & 255);
+        sys.byteStore(this.data + o + 2, (c >> 16) & 255);
+        sys.byteStore(this.data + o + 3, (c >> 24) & 255);
     }
     // Set only the alpha channel (RGB preserved).
-    public void set_alpha(int x, int y, int a) {
+    public void setAlpha(int x, int y, int a) {
         int c = this.get(x, y);
         this.set(x, y, Image.rgba(Image.cr(c), Image.cg(c), Image.cb(c), a));
     }
     // Individual channels (assumes (x, y) in range).
-    public int r(int x, int y) { return sys.byte_load(this.data + (y * this.w + x) * 4 + 2); }
-    public int g(int x, int y) { return sys.byte_load(this.data + (y * this.w + x) * 4 + 1); }
-    public int b(int x, int y) { return sys.byte_load(this.data + (y * this.w + x) * 4); }
-    public int a(int x, int y) { return sys.byte_load(this.data + (y * this.w + x) * 4 + 3); }
+    public int r(int x, int y) { return sys.byteLoad(this.data + (y * this.w + x) * 4 + 2); }
+    public int g(int x, int y) { return sys.byteLoad(this.data + (y * this.w + x) * 4 + 1); }
+    public int b(int x, int y) { return sys.byteLoad(this.data + (y * this.w + x) * 4); }
+    public int a(int x, int y) { return sys.byteLoad(this.data + (y * this.w + x) * 4 + 3); }
     // ------------------------------------------------------ whole image
     // Fill the whole image with a packed color.
     public void fill(int c) {
@@ -82,10 +82,10 @@ class Image {
         int n = this.w * this.h;
         while (i < n) {
             int o = i * 4;
-            sys.byte_store(this.data + o, b);
-            sys.byte_store(this.data + o + 1, g);
-            sys.byte_store(this.data + o + 2, r);
-            sys.byte_store(this.data + o + 3, a);
+            sys.byteStore(this.data + o, b);
+            sys.byteStore(this.data + o + 1, g);
+            sys.byteStore(this.data + o + 2, r);
+            sys.byteStore(this.data + o + 3, a);
             i = i + 1;
         }
     }
@@ -97,9 +97,9 @@ class Image {
         int n = this.w * this.h;
         while (i < n) {
             int o = i * 4;
-            sys.byte_store(this.data + o, 255 - sys.byte_load(this.data + o));
-            sys.byte_store(this.data + o + 1, 255 - sys.byte_load(this.data + o + 1));
-            sys.byte_store(this.data + o + 2, 255 - sys.byte_load(this.data + o + 2));
+            sys.byteStore(this.data + o, 255 - sys.byteLoad(this.data + o));
+            sys.byteStore(this.data + o + 1, 255 - sys.byteLoad(this.data + o + 1));
+            sys.byteStore(this.data + o + 2, 255 - sys.byteLoad(this.data + o + 2));
             i = i + 1;
         }
     }
@@ -109,15 +109,15 @@ class Image {
         int n = this.w * this.h;
         while (i < n) {
             int o = i * 4;
-            int lum = (sys.byte_load(this.data + o + 2) * 299 + sys.byte_load(this.data + o + 1) * 587 + sys.byte_load(this.data + o) * 114) / 1000;
-            sys.byte_store(this.data + o, lum);
-            sys.byte_store(this.data + o + 1, lum);
-            sys.byte_store(this.data + o + 2, lum);
+            int lum = (sys.byteLoad(this.data + o + 2) * 299 + sys.byteLoad(this.data + o + 1) * 587 + sys.byteLoad(this.data + o) * 114) / 1000;
+            sys.byteStore(this.data + o, lum);
+            sys.byteStore(this.data + o + 1, lum);
+            sys.byteStore(this.data + o + 2, lum);
             i = i + 1;
         }
     }
     // Mirror horizontally (left/right).
-    public void flip_h() {
+    public void flipH() {
         int y = 0;
         while (y < this.h) {
             int x = 0;
@@ -126,9 +126,9 @@ class Image {
                 int b = (y * this.w + (this.w - 1 - x)) * 4;
                 int k = 0;
                 while (k < 4) {
-                    int t = sys.byte_load(this.data + a + k);
-                    sys.byte_store(this.data + a + k, sys.byte_load(this.data + b + k));
-                    sys.byte_store(this.data + b + k, t);
+                    int t = sys.byteLoad(this.data + a + k);
+                    sys.byteStore(this.data + a + k, sys.byteLoad(this.data + b + k));
+                    sys.byteStore(this.data + b + k, t);
                     k = k + 1;
                 }
                 x = x + 1;
@@ -137,7 +137,7 @@ class Image {
         }
     }
     // Mirror vertically (top/bottom).
-    public void flip_v() {
+    public void flipV() {
         int y = 0;
         while (y < this.h / 2) {
             int y2 = this.h - 1 - y;
@@ -147,9 +147,9 @@ class Image {
                 int b = (y2 * this.w + x) * 4;
                 int k = 0;
                 while (k < 4) {
-                    int t = sys.byte_load(this.data + a + k);
-                    sys.byte_store(this.data + a + k, sys.byte_load(this.data + b + k));
-                    sys.byte_store(this.data + b + k, t);
+                    int t = sys.byteLoad(this.data + a + k);
+                    sys.byteStore(this.data + a + k, sys.byteLoad(this.data + b + k));
+                    sys.byteStore(this.data + b + k, t);
                     k = k + 1;
                 }
                 x = x + 1;
@@ -170,7 +170,7 @@ class Image {
                 int dst = (x * oh + (oh - 1 - y)) * 4;
                 int k = 0;
                 while (k < 4) {
-                    sys.byte_store(s + dst + k, sys.byte_load(this.data + so + k));
+                    sys.byteStore(s + dst + k, sys.byteLoad(this.data + so + k));
                     k = k + 1;
                 }
                 x = x + 1;
@@ -181,7 +181,7 @@ class Image {
         this.h = ow;
         int i = 0;
         while (i < ow * oh * 4) {
-            sys.byte_store(this.data + i, sys.byte_load(s + i));
+            sys.byteStore(this.data + i, sys.byteLoad(s + i));
             i = i + 1;
         }
         free(s);
@@ -205,7 +205,7 @@ class Image {
                 int doff = (y * nw + x) * 4;
                 int k = 0;
                 while (k < 4) {
-                    sys.byte_store(o.data + doff + k, sys.byte_load(this.data + so + k));
+                    sys.byteStore(o.data + doff + k, sys.byteLoad(this.data + so + k));
                     k = k + 1;
                 }
                 x = x + 1;
@@ -234,9 +234,9 @@ class Image {
                             int xx = x + dx;
                             if (xx >= 0 && xx < this.w) {
                                 int o = (yy * this.w + xx) * 4;
-                                sb = sb + sys.byte_load(this.data + o);
-                                sg = sg + sys.byte_load(this.data + o + 1);
-                                sr = sr + sys.byte_load(this.data + o + 2);
+                                sb = sb + sys.byteLoad(this.data + o);
+                                sg = sg + sys.byteLoad(this.data + o + 1);
+                                sr = sr + sys.byteLoad(this.data + o + 2);
                                 cnt = cnt + 1;
                             }
                             dx = dx + 1;
@@ -245,17 +245,17 @@ class Image {
                     dy = dy + 1;
                 }
                 int o = (y * this.w + x) * 4;
-                sys.byte_store(s + o, sb / cnt);
-                sys.byte_store(s + o + 1, sg / cnt);
-                sys.byte_store(s + o + 2, sr / cnt);
-                sys.byte_store(s + o + 3, sys.byte_load(this.data + o + 3));
+                sys.byteStore(s + o, sb / cnt);
+                sys.byteStore(s + o + 1, sg / cnt);
+                sys.byteStore(s + o + 2, sr / cnt);
+                sys.byteStore(s + o + 3, sys.byteLoad(this.data + o + 3));
                 x = x + 1;
             }
             y = y + 1;
         }
         int i = 0;
         while (i < this.w * this.h * 4) {
-            sys.byte_store(this.data + i, sys.byte_load(s + i));
+            sys.byteStore(this.data + i, sys.byteLoad(s + i));
             i = i + 1;
         }
         free(s);
@@ -285,7 +285,7 @@ class Image {
             y = y + 1;
         }
     }
-    public void fill_rect(int x, int y, int w, int h, int c) {
+    public void fillRect(int x, int y, int w, int h, int c) {
         int dy = 0;
         while (dy < h) {
             int dx = 0;
@@ -354,7 +354,7 @@ class Image {
             }
         }
     }
-    public void fill_circle(int cx, int cy, int r, int c) {
+    public void fillCircle(int cx, int cy, int r, int c) {
         int y = -r;
         while (y <= r) {
             int xr = Math.sqrt(r * r - y * y);
@@ -364,7 +364,7 @@ class Image {
     }
     // ------------------------------------------------------------- I/O
     // Write a P6 (binary) PPM; returns bytes written or a negative errno.
-    public int to_ppm(string path) {
+    public int toPpm(string path) {
         int fd = sys.open(path, 0x241, 0x1a4);
         if (fd < 0) {
             return fd;
@@ -378,9 +378,9 @@ class Image {
             int col = 0;
             while (col < this.w) {
                 int o = (row * this.w + col) * 4;
-                sys.byte_store(buf + col * 3, sys.byte_load(this.data + o));
-                sys.byte_store(buf + col * 3 + 1, sys.byte_load(this.data + o + 1));
-                sys.byte_store(buf + col * 3 + 2, sys.byte_load(this.data + o + 2));
+                sys.byteStore(buf + col * 3, sys.byteLoad(this.data + o));
+                sys.byteStore(buf + col * 3 + 1, sys.byteLoad(this.data + o + 1));
+                sys.byteStore(buf + col * 3 + 2, sys.byteLoad(this.data + o + 2));
                 col = col + 1;
             }
             written = written + sys.write(fd, buf, this.w * 3);
@@ -390,7 +390,7 @@ class Image {
         return written;
     }
     // Write a P5 (binary) PGM (grayscale); returns bytes written.
-    public int to_pgm(string path) {
+    public int toPgm(string path) {
         int fd = sys.open(path, 0x241, 0x1a4);
         if (fd < 0) {
             return fd;
@@ -404,8 +404,8 @@ class Image {
             int col = 0;
             while (col < this.w) {
                 int o = (row * this.w + col) * 4;
-                int lum = (sys.byte_load(this.data + o + 2) * 299 + sys.byte_load(this.data + o + 1) * 587 + sys.byte_load(this.data + o) * 114) / 1000;
-                sys.byte_store(buf + col, lum);
+                int lum = (sys.byteLoad(this.data + o + 2) * 299 + sys.byteLoad(this.data + o + 1) * 587 + sys.byteLoad(this.data + o) * 114) / 1000;
+                sys.byteStore(buf + col, lum);
                 col = col + 1;
             }
             written = written + sys.write(fd, buf, this.w);
@@ -415,7 +415,7 @@ class Image {
         return written;
     }
     // Write an uncompressed 24-bit BMP; returns the file size.
-    public int to_bmp(string path) {
+    public int toBmp(string path) {
         int fd = sys.open(path, 0x241, 0x1a4);
         if (fd < 0) {
             return fd;
@@ -424,8 +424,8 @@ class Image {
         int imgsize = rowsize * this.h;
         int filesize = 54 + imgsize;
         string hdr = alloc(54);
-        sys.byte_store(hdr + 0, 66);
-        sys.byte_store(hdr + 1, 77);
+        sys.byteStore(hdr + 0, 66);
+        sys.byteStore(hdr + 1, 77);
         Image.store_u32(hdr, 2, filesize);
         Image.store_u32(hdr, 6, 0);
         Image.store_u32(hdr, 10, 54);
@@ -447,15 +447,15 @@ class Image {
             int col = 0;
             while (col < this.w) {
                 int o = (r * this.w + col) * 4;
-                sys.byte_store(row + col * 3, sys.byte_load(this.data + o));
-                sys.byte_store(row + col * 3 + 1, sys.byte_load(this.data + o + 1));
-                sys.byte_store(row + col * 3 + 2, sys.byte_load(this.data + o + 2));
+                sys.byteStore(row + col * 3, sys.byteLoad(this.data + o));
+                sys.byteStore(row + col * 3 + 1, sys.byteLoad(this.data + o + 1));
+                sys.byteStore(row + col * 3 + 2, sys.byteLoad(this.data + o + 2));
                 col = col + 1;
             }
             int pad = rowsize - this.w * 3;
             int p = 0;
             while (p < pad) {
-                sys.byte_store(row + this.w * 3 + p, 0);
+                sys.byteStore(row + this.w * 3 + p, 0);
                 p = p + 1;
             }
             sys.write(fd, row, rowsize);
@@ -469,27 +469,27 @@ class Image {
         int n = strlen(path);
         int e = n - 4;
         int e5 = n - 5;
-        if (e5 >= 0 && Image.eq4(path, e5, 46, 106, 112, 101) && sys.byte_load(path + e5 + 4) == 103) {   // ".jpeg"
-            return this.to_jpeg(path);
+        if (e5 >= 0 && Image.eq4(path, e5, 46, 106, 112, 101) && sys.byteLoad(path + e5 + 4) == 103) {   // ".jpeg"
+            return this.toJpeg(path);
         }
         if (e >= 0 && Image.eq4(path, e, 46, 106, 112, 103)) {   // ".jpg"
-            return this.to_jpeg(path);
+            return this.toJpeg(path);
         }
         if (e >= 0 && Image.eq4(path, e, 46, 112, 110, 103)) {   // ".png"
-            return this.to_png(path);
+            return this.toPng(path);
         }
         if (e >= 0 && Image.eq4(path, e, 46, 98, 109, 112)) {   // ".bmp"
-            return this.to_bmp(path);
+            return this.toBmp(path);
         }
         if (e >= 0 && Image.eq4(path, e, 46, 112, 103, 109)) {   // ".pgm"
-            return this.to_pgm(path);
+            return this.toPgm(path);
         }
-        return this.to_ppm(path);
+        return this.toPpm(path);
     }
     // Read the whole file into this.rbuf (length this.rlen); null on error.
     string rbuf;
     int rlen;
-    void read_file(string path) {
+    void readFile(string path) {
         int fd = sys.open(path, 0, 0);
         if (fd < 0) {
             this.rbuf = null;
@@ -506,7 +506,7 @@ class Image {
                 string nb = alloc(cap);
                 int k = 0;
                 while (k < total) {
-                    sys.byte_store(nb + k, sys.byte_load(buf + k));
+                    sys.byteStore(nb + k, sys.byteLoad(buf + k));
                     k = k + 1;
                 }
                 buf = nb;
@@ -524,28 +524,28 @@ class Image {
     // Load by magic bytes: PNG, JPEG (0xFFD8), "BM" -> BMP, "P5" -> PGM, else PPM.
     static Image load(string path) {
         Image im = new Image(0, 0);
-        im.read_file(path);
+        im.readFile(path);
         string b = im.rbuf;
         int n = im.rlen;
         if (b == null || n < 2) {
             return null;
         }
-        if (n >= 8 && sys.byte_load(b) == 137 && sys.byte_load(b + 1) == 80 && sys.byte_load(b + 2) == 78 && sys.byte_load(b + 3) == 71) {
-            return im.from_png();
+        if (n >= 8 && sys.byteLoad(b) == 137 && sys.byteLoad(b + 1) == 80 && sys.byteLoad(b + 2) == 78 && sys.byteLoad(b + 3) == 71) {
+            return im.fromPng();
         }
-        if (sys.byte_load(b) == 255 && sys.byte_load(b + 1) == 216) {
-            return im.from_jpeg();
+        if (sys.byteLoad(b) == 255 && sys.byteLoad(b + 1) == 216) {
+            return im.fromJpeg();
         }
-        if (sys.byte_load(b) == 66 && sys.byte_load(b + 1) == 77) {
-            return im.from_bmp();
+        if (sys.byteLoad(b) == 66 && sys.byteLoad(b + 1) == 77) {
+            return im.fromBmp();
         }
-        if (sys.byte_load(b) == 80 && sys.byte_load(b + 1) == 53) {
-            return im.from_pgm();
+        if (sys.byteLoad(b) == 80 && sys.byteLoad(b + 1) == 53) {
+            return im.fromPgm();
         }
-        return im.from_ppm();
+        return im.fromPpm();
     }
     // Parse "P6\n<w> <h>\n<max>\n" + binary RGB.
-    Image from_ppm() {
+    Image fromPpm() {
         string b = this.rbuf;
         int n = this.rlen;
         if (b == null || n < 10) {
@@ -553,42 +553,42 @@ class Image {
         }
         int p = 2;
         while (p < n) {
-            if (sys.byte_load(b + p) >= 48 && sys.byte_load(b + p) <= 57) {
+            if (sys.byteLoad(b + p) >= 48 && sys.byteLoad(b + p) <= 57) {
                 break;
             }
             p = p + 1;
         }
         int w = 0;
         while (p < n) {
-            if (sys.byte_load(b + p) < 48 || sys.byte_load(b + p) > 57) {
+            if (sys.byteLoad(b + p) < 48 || sys.byteLoad(b + p) > 57) {
                 break;
             }
-            w = w * 10 + (sys.byte_load(b + p) - 48);
+            w = w * 10 + (sys.byteLoad(b + p) - 48);
             p = p + 1;
         }
         while (p < n) {
-            if (sys.byte_load(b + p) >= 48 && sys.byte_load(b + p) <= 57) {
+            if (sys.byteLoad(b + p) >= 48 && sys.byteLoad(b + p) <= 57) {
                 break;
             }
             p = p + 1;
         }
         int h = 0;
         while (p < n) {
-            if (sys.byte_load(b + p) < 48 || sys.byte_load(b + p) > 57) {
+            if (sys.byteLoad(b + p) < 48 || sys.byteLoad(b + p) > 57) {
                 break;
             }
-            h = h * 10 + (sys.byte_load(b + p) - 48);
+            h = h * 10 + (sys.byteLoad(b + p) - 48);
             p = p + 1;
         }
         // skip maxval
         while (p < n) {
-            if (sys.byte_load(b + p) >= 48 && sys.byte_load(b + p) <= 57) {
+            if (sys.byteLoad(b + p) >= 48 && sys.byteLoad(b + p) <= 57) {
                 break;
             }
             p = p + 1;
         }
         while (p < n) {
-            if (sys.byte_load(b + p) < 48 || sys.byte_load(b + p) > 57) {
+            if (sys.byteLoad(b + p) < 48 || sys.byteLoad(b + p) > 57) {
                 break;
             }
             p = p + 1;
@@ -602,17 +602,17 @@ class Image {
         int np = w * h;
         while (i < np && p + 2 < n) {
             int o = i * 4;
-            sys.byte_store(im.data + o, sys.byte_load(b + p));
-            sys.byte_store(im.data + o + 1, sys.byte_load(b + p + 1));
-            sys.byte_store(im.data + o + 2, sys.byte_load(b + p + 2));
-            sys.byte_store(im.data + o + 3, 255);
+            sys.byteStore(im.data + o, sys.byteLoad(b + p));
+            sys.byteStore(im.data + o + 1, sys.byteLoad(b + p + 1));
+            sys.byteStore(im.data + o + 2, sys.byteLoad(b + p + 2));
+            sys.byteStore(im.data + o + 3, 255);
             p = p + 3;
             i = i + 1;
         }
         return im;
     }
     // Parse "P5\n<w> <h>\n<max>\n" + binary grayscale.
-    Image from_pgm() {
+    Image fromPgm() {
         string b = this.rbuf;
         int n = this.rlen;
         if (b == null || n < 10) {
@@ -620,41 +620,41 @@ class Image {
         }
         int p = 2;
         while (p < n) {
-            if (sys.byte_load(b + p) >= 48 && sys.byte_load(b + p) <= 57) {
+            if (sys.byteLoad(b + p) >= 48 && sys.byteLoad(b + p) <= 57) {
                 break;
             }
             p = p + 1;
         }
         int w = 0;
         while (p < n) {
-            if (sys.byte_load(b + p) < 48 || sys.byte_load(b + p) > 57) {
+            if (sys.byteLoad(b + p) < 48 || sys.byteLoad(b + p) > 57) {
                 break;
             }
-            w = w * 10 + (sys.byte_load(b + p) - 48);
+            w = w * 10 + (sys.byteLoad(b + p) - 48);
             p = p + 1;
         }
         while (p < n) {
-            if (sys.byte_load(b + p) >= 48 && sys.byte_load(b + p) <= 57) {
+            if (sys.byteLoad(b + p) >= 48 && sys.byteLoad(b + p) <= 57) {
                 break;
             }
             p = p + 1;
         }
         int h = 0;
         while (p < n) {
-            if (sys.byte_load(b + p) < 48 || sys.byte_load(b + p) > 57) {
+            if (sys.byteLoad(b + p) < 48 || sys.byteLoad(b + p) > 57) {
                 break;
             }
-            h = h * 10 + (sys.byte_load(b + p) - 48);
+            h = h * 10 + (sys.byteLoad(b + p) - 48);
             p = p + 1;
         }
         while (p < n) {
-            if (sys.byte_load(b + p) >= 48 && sys.byte_load(b + p) <= 57) {
+            if (sys.byteLoad(b + p) >= 48 && sys.byteLoad(b + p) <= 57) {
                 break;
             }
             p = p + 1;
         }
         while (p < n) {
-            if (sys.byte_load(b + p) < 48 || sys.byte_load(b + p) > 57) {
+            if (sys.byteLoad(b + p) < 48 || sys.byteLoad(b + p) > 57) {
                 break;
             }
             p = p + 1;
@@ -667,19 +667,19 @@ class Image {
         int i = 0;
         int np = w * h;
         while (i < np && p < n) {
-            int v = sys.byte_load(b + p);
+            int v = sys.byteLoad(b + p);
             p = p + 1;
             int o = i * 4;
-            sys.byte_store(im.data + o, v);
-            sys.byte_store(im.data + o + 1, v);
-            sys.byte_store(im.data + o + 2, v);
-            sys.byte_store(im.data + o + 3, 255);
+            sys.byteStore(im.data + o, v);
+            sys.byteStore(im.data + o + 1, v);
+            sys.byteStore(im.data + o + 2, v);
+            sys.byteStore(im.data + o + 3, 255);
             i = i + 1;
         }
         return im;
     }
     // Parse an uncompressed 24-bit BMP (bottom-up rows, BGR).
-    Image from_bmp() {
+    Image fromBmp() {
         string b = this.rbuf;
         int n = this.rlen;
         if (b == null || n < 54) {
@@ -699,10 +699,10 @@ class Image {
             while (col < w) {
                 int so = base + col * 3;
                 int o = (row * w + col) * 4;
-                sys.byte_store(im.data + o, sys.byte_load(b + so));
-                sys.byte_store(im.data + o + 1, sys.byte_load(b + so + 1));
-                sys.byte_store(im.data + o + 2, sys.byte_load(b + so + 2));
-                sys.byte_store(im.data + o + 3, 255);
+                sys.byteStore(im.data + o, sys.byteLoad(b + so));
+                sys.byteStore(im.data + o + 1, sys.byteLoad(b + so + 1));
+                sys.byteStore(im.data + o + 2, sys.byteLoad(b + so + 2));
+                sys.byteStore(im.data + o + 3, 255);
                 col = col + 1;
             }
             row = row - 1;
@@ -773,21 +773,21 @@ class Image {
     int je_bitcnt;    // bits in je_bitbuf (0-7)
     // 8-byte int-slot access for the scratch buffers.
     static int slot(string b, int i) {
-        return sys.byte_load(b + i * 8) | (sys.byte_load(b + i * 8 + 1) << 8) | (sys.byte_load(b + i * 8 + 2) << 16) | (sys.byte_load(b + i * 8 + 3) << 24);
+        return sys.byteLoad(b + i * 8) | (sys.byteLoad(b + i * 8 + 1) << 8) | (sys.byteLoad(b + i * 8 + 2) << 16) | (sys.byteLoad(b + i * 8 + 3) << 24);
     }
     static void sset(string b, int i, int v) {
         int hi = v < 0 ? -1 : 0;   // sign-extend into the high 4 bytes
-        sys.byte_store(b + i * 8, v & 255);
-        sys.byte_store(b + i * 8 + 1, (v >> 8) & 255);
-        sys.byte_store(b + i * 8 + 2, (v >> 16) & 255);
-        sys.byte_store(b + i * 8 + 3, (v >> 24) & 255);
-        sys.byte_store(b + i * 8 + 4, hi & 255);
-        sys.byte_store(b + i * 8 + 5, (hi >> 8) & 255);
-        sys.byte_store(b + i * 8 + 6, (hi >> 16) & 255);
-        sys.byte_store(b + i * 8 + 7, (hi >> 24) & 255);
+        sys.byteStore(b + i * 8, v & 255);
+        sys.byteStore(b + i * 8 + 1, (v >> 8) & 255);
+        sys.byteStore(b + i * 8 + 2, (v >> 16) & 255);
+        sys.byteStore(b + i * 8 + 3, (v >> 24) & 255);
+        sys.byteStore(b + i * 8 + 4, hi & 255);
+        sys.byteStore(b + i * 8 + 5, (hi >> 8) & 255);
+        sys.byteStore(b + i * 8 + 6, (hi >> 16) & 255);
+        sys.byteStore(b + i * 8 + 7, (hi >> 24) & 255);
     }
     // Allocate the scratch buffers and constant tables once (idempotent).
-    void d_init() {
+    void dInit() {
         if (this.a_sym == null) {
             this.a_sym = alloc(300 * 8);
             this.b_sym = alloc(64 * 8);
@@ -806,7 +806,7 @@ class Image {
         }
     }
     // Allocate JPEG scratch buffers and constant tables once (idempotent).
-    void j_init() {
+    void jInit() {
         if (this.j_sym == null) {
             this.j_sym = alloc(32 * 256 * 8);
             this.j_count = alloc(32 * 16 * 8);
@@ -838,8 +838,8 @@ class Image {
         }
     }
     // Point the decoder at a fresh source region and reset the output.
-    void d_reset(string src, int len) {
-        this.d_init();
+    void dReset(string src, int len) {
+        this.dInit();
         this.db = src;
         this.dl = len;
         this.dp = 0;
@@ -852,12 +852,12 @@ class Image {
         this.dout = alloc(this.dcap);
         this.dlen = 0;
     }
-    int d_bit() {
+    int dBit() {
         if (this.dbcnt == 0) {
             if (this.dp >= this.dl) {
                 return 0;
             }
-            this.dbit = sys.byte_load(this.db + this.dp);
+            this.dbit = sys.byteLoad(this.db + this.dp);
             this.dp = this.dp + 1;
             this.dbcnt = 8;
         }
@@ -866,28 +866,28 @@ class Image {
         this.dbcnt = this.dbcnt - 1;
         return b;
     }
-    int d_bits(int n) {
+    int dBits(int n) {
         int v = 0;
         int i = 0;
         while (i < n) {
-            v = v | (this.d_bit() << i);
+            v = v | (this.dBit() << i);
             i = i + 1;
         }
         return v;
     }
-    void d_outb(int b) {
+    void dOutb(int b) {
         if (this.dlen >= this.dcap) {
             int nc = this.dcap * 2;
             string nb = alloc(nc);
             int k = 0;
             while (k < this.dlen) {
-                sys.byte_store(nb + k, sys.byte_load(this.dout + k));
+                sys.byteStore(nb + k, sys.byteLoad(this.dout + k));
                 k = k + 1;
             }
             this.dcap = nc;
             this.dout = nb;
         }
-        sys.byte_store(this.dout + this.dlen, b);
+        sys.byteStore(this.dout + this.dlen, b);
         this.dlen = this.dlen + 1;
     }
     // Build a canonical Huffman tree into (count, first, pos, sym).
@@ -939,7 +939,7 @@ class Image {
         int code = 0;
         int L = 1;
         while (L < 16) {
-            code = (code << 1) | this.d_bit();
+            code = (code << 1) | this.dBit();
             int idx = code - first[L];
             if (idx >= 0 && idx < count[L]) {
                 return Image.slot(sym, pos[L] + idx);
@@ -948,7 +948,7 @@ class Image {
         }
         return -1;
     }
-    void fixed_trees() {
+    void fixedTrees() {
         int i = 0;
         while (i < 144) {
             Image.sset(this.lens, i, 8);
@@ -974,10 +974,10 @@ class Image {
         }
         this.b_total = this.build(32, this.b_count, this.b_first, this.b_pos, this.b_sym);
     }
-    void dyn_trees() {
-        int hlit = this.d_bits(5) + 257;
-        int hdist = this.d_bits(5) + 1;
-        int hclen = this.d_bits(4) + 4;
+    void dynTrees() {
+        int hlit = this.dBits(5) + 257;
+        int hdist = this.dBits(5) + 1;
+        int hclen = this.dBits(4) + 4;
         int order[] = [16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15];
         int i = 0;
         while (i < 19) {
@@ -986,7 +986,7 @@ class Image {
         }
         i = 0;
         while (i < hclen) {
-            Image.sset(this.lens, order[i], this.d_bits(3));
+            Image.sset(this.lens, order[i], this.dBits(3));
             i = i + 1;
         }
         this.b_total = this.build(19, this.b_count, this.b_first, this.b_pos, this.b_sym);
@@ -1000,7 +1000,7 @@ class Image {
                 prev = c;
                 i = i + 1;
             } else if (c == 16) {
-                int r = this.d_bits(2) + 3;
+                int r = this.dBits(2) + 3;
                 int k = 0;
                 while (k < r) {
                     Image.sset(this.lens, i, prev);
@@ -1008,7 +1008,7 @@ class Image {
                     k = k + 1;
                 }
             } else if (c == 17) {
-                int r2 = this.d_bits(3) + 3;
+                int r2 = this.dBits(3) + 3;
                 int k2 = 0;
                 while (k2 < r2) {
                     Image.sset(this.lens, i, 0);
@@ -1016,7 +1016,7 @@ class Image {
                     k2 = k2 + 1;
                 }
             } else {
-                int r3 = this.d_bits(7) + 11;
+                int r3 = this.dBits(7) + 11;
                 int k3 = 0;
                 while (k3 < r3) {
                     Image.sset(this.lens, i, 0);
@@ -1034,29 +1034,29 @@ class Image {
         this.b_total = this.build(hdist, this.b_count, this.b_first, this.b_pos, this.b_sym);
     }
     // Decode the symbol stream of one fixed/dynamic block.
-    void decode_block() {
+    void decodeBlock() {
         while (1) {
             int sym = this.huff(this.a_count, this.a_first, this.a_pos, this.a_sym);
             if (sym < 0) {
                 return;
             }
             if (sym < 256) {
-                this.d_outb(sym);
+                this.dOutb(sym);
             } else if (sym == 256) {
                 break;
             } else {
                 int li = sym - 257;
-                int len = this.lnbase[li] + this.d_bits(this.lnextra[li]);
+                int len = this.lnbase[li] + this.dBits(this.lnextra[li]);
                 int dc = this.huff(this.b_count, this.b_first, this.b_pos, this.b_sym);
                 if (dc < 0) {
                     return;
                 }
-                int dist = this.distbase[dc] + this.d_bits(this.distextra[dc]);
+                int dist = this.distbase[dc] + this.dBits(this.distextra[dc]);
                 int start = this.dlen - dist;
                 int k = 0;
                 while (k < len) {
-                    int v = sys.byte_load(this.dout + start + k);
-                    this.d_outb(v);
+                    int v = sys.byteLoad(this.dout + start + k);
+                    this.dOutb(v);
                     k = k + 1;
                 }
             }
@@ -1066,24 +1066,24 @@ class Image {
     void inflate() {
         int guard = 0;
         while (guard < 1000000) {
-            int bfinal = this.d_bit();
-            int btype = this.d_bits(2);
+            int bfinal = this.dBit();
+            int btype = this.dBits(2);
             if (btype == 0) {
                 this.dbcnt = 0;
-                int len = this.d_bits(16);
-                this.d_bits(16);
+                int len = this.dBits(16);
+                this.dBits(16);
                 int i = 0;
                 while (i < len) {
-                    this.d_outb(sys.byte_load(this.db + this.dp));
+                    this.dOutb(sys.byteLoad(this.db + this.dp));
                     this.dp = this.dp + 1;
                     i = i + 1;
                 }
             } else if (btype == 1) {
-                this.fixed_trees();
-                this.decode_block();
+                this.fixedTrees();
+                this.decodeBlock();
             } else {
-                this.dyn_trees();
-                this.decode_block();
+                this.dynTrees();
+                this.decodeBlock();
             }
             guard = guard + 1;
             if (bfinal == 1) {
@@ -1092,17 +1092,17 @@ class Image {
         }
     }
     // Compress raw[n] into a zlib stream (stored blocks) at zb; returns length.
-    static int zlib_store(string raw, int n, string zb) {
-        sys.byte_store(zb + 0, 120);
-        sys.byte_store(zb + 1, 1);
+    static int zlibStore(string raw, int n, string zb) {
+        sys.byteStore(zb + 0, 120);
+        sys.byteStore(zb + 1, 1);
         int pos = 2;
         if (n == 0) {
-            sys.byte_store(zb + pos, 1);
+            sys.byteStore(zb + pos, 1);
             pos = pos + 1;
-            sys.byte_store(zb + pos, 0);
-            sys.byte_store(zb + pos + 1, 0);
-            sys.byte_store(zb + pos + 2, 255);
-            sys.byte_store(zb + pos + 3, 255);
+            sys.byteStore(zb + pos, 0);
+            sys.byteStore(zb + pos + 1, 0);
+            sys.byteStore(zb + pos + 2, 255);
+            sys.byteStore(zb + pos + 3, 255);
             pos = pos + 4;
         } else {
             int i = 0;
@@ -1112,17 +1112,17 @@ class Image {
                     blk = 65535;
                 }
                 int islast = (i + blk >= n) ? 1 : 0;
-                sys.byte_store(zb + pos, islast);
+                sys.byteStore(zb + pos, islast);
                 pos = pos + 1;
-                sys.byte_store(zb + pos, blk & 255);
-                sys.byte_store(zb + pos + 1, (blk >> 8) & 255);
+                sys.byteStore(zb + pos, blk & 255);
+                sys.byteStore(zb + pos + 1, (blk >> 8) & 255);
                 int nlen = blk ^ 65535;
-                sys.byte_store(zb + pos + 2, nlen & 255);
-                sys.byte_store(zb + pos + 3, (nlen >> 8) & 255);
+                sys.byteStore(zb + pos + 2, nlen & 255);
+                sys.byteStore(zb + pos + 3, (nlen >> 8) & 255);
                 pos = pos + 4;
                 int k = 0;
                 while (k < blk) {
-                    sys.byte_store(zb + pos, sys.byte_load(raw + i + k));
+                    sys.byteStore(zb + pos, sys.byteLoad(raw + i + k));
                     pos = pos + 1;
                     k = k + 1;
                 }
@@ -1130,10 +1130,10 @@ class Image {
             }
         }
         int a = Image.adler32_len(raw, n);
-        sys.byte_store(zb + pos, (a >> 24) & 255);
-        sys.byte_store(zb + pos + 1, (a >> 16) & 255);
-        sys.byte_store(zb + pos + 2, (a >> 8) & 255);
-        sys.byte_store(zb + pos + 3, a & 255);
+        sys.byteStore(zb + pos, (a >> 24) & 255);
+        sys.byteStore(zb + pos + 1, (a >> 16) & 255);
+        sys.byteStore(zb + pos + 2, (a >> 8) & 255);
+        sys.byteStore(zb + pos + 3, a & 255);
         pos = pos + 4;
         return pos;
     }
@@ -1144,7 +1144,7 @@ class Image {
         int b = 0;
         int i = 0;
         while (i < n) {
-            a = (a + sys.byte_load(s + i)) % 65521;
+            a = (a + sys.byteLoad(s + i)) % 65521;
             b = (b + a) % 65521;
             i = i + 1;
         }
@@ -1152,54 +1152,54 @@ class Image {
     }
     static int crc32_len(string s, int n) {
         if (Checksum.crc_table == null) {
-            Checksum.crc_init();
+            Checksum.crcInit();
         }
         int crc = 0xFFFFFFFF;
         int i = 0;
         while (i < n) {
-            int b = sys.byte_load(s + i);
-            crc = Checksum.read_u32(Checksum.crc_table, (crc ^ b) & 255) ^ (crc >> 8);
+            int b = sys.byteLoad(s + i);
+            crc = Checksum.readU32(Checksum.crc_table, (crc ^ b) & 255) ^ (crc >> 8);
             i = i + 1;
         }
         return crc ^ 0xFFFFFFFF;
     }
     // ============================ PNG (IHDR / IDAT / IEND)
     static int u32be(string buf, int off) {
-        return (sys.byte_load(buf + off) << 24) | (sys.byte_load(buf + off + 1) << 16) | (sys.byte_load(buf + off + 2) << 8) | sys.byte_load(buf + off + 3);
+        return (sys.byteLoad(buf + off) << 24) | (sys.byteLoad(buf + off + 1) << 16) | (sys.byteLoad(buf + off + 2) << 8) | sys.byteLoad(buf + off + 3);
     }
     static void store_u32be(string buf, int off, int v) {
-        sys.byte_store(buf + off, (v >> 24) & 255);
-        sys.byte_store(buf + off + 1, (v >> 16) & 255);
-        sys.byte_store(buf + off + 2, (v >> 8) & 255);
-        sys.byte_store(buf + off + 3, v & 255);
+        sys.byteStore(buf + off, (v >> 24) & 255);
+        sys.byteStore(buf + off + 1, (v >> 16) & 255);
+        sys.byteStore(buf + off + 2, (v >> 8) & 255);
+        sys.byteStore(buf + off + 3, v & 255);
     }
     // True if s[start..] equals the 4-char string c (byte codes).
     static int eq4(string s, int start, int c0, int c1, int c2, int c3) {
-        return sys.byte_load(s + start) == c0 && sys.byte_load(s + start + 1) == c1 && sys.byte_load(s + start + 2) == c2 && sys.byte_load(s + start + 3) == c3;
+        return sys.byteLoad(s + start) == c0 && sys.byteLoad(s + start + 1) == c1 && sys.byteLoad(s + start + 2) == c2 && sys.byteLoad(s + start + 3) == c3;
     }
     // Write one PNG chunk (length + type + data + crc) to fd.
-    static void png_chunk(int fd, string type, string data, int dlen) {
+    static void pngChunk(int fd, string type, string data, int dlen) {
         string buf = alloc(8 + dlen + 4);
         Image.store_u32be(buf, 0, dlen);
         int t = 0;
         while (t < 4) {
-            sys.byte_store(buf + 4 + t, sys.byte_load(type + t));
+            sys.byteStore(buf + 4 + t, sys.byteLoad(type + t));
             t = t + 1;
         }
         t = 0;
         while (t < dlen) {
-            sys.byte_store(buf + 8 + t, sys.byte_load(data + t));
+            sys.byteStore(buf + 8 + t, sys.byteLoad(data + t));
             t = t + 1;
         }
         string td = alloc(4 + dlen);
         t = 0;
         while (t < 4) {
-            sys.byte_store(td + t, sys.byte_load(type + t));
+            sys.byteStore(td + t, sys.byteLoad(type + t));
             t = t + 1;
         }
         t = 0;
         while (t < dlen) {
-            sys.byte_store(td + 4 + t, sys.byte_load(data + t));
+            sys.byteStore(td + 4 + t, sys.byteLoad(data + t));
             t = t + 1;
         }
         int crc = Image.crc32_len(td, 4 + dlen);
@@ -1207,7 +1207,7 @@ class Image {
         sys.write(fd, buf, 8 + dlen + 4);
     }
     // Write a Truecolor+Alpha (color type 6, 8-bit) PNG.
-    public int to_png(string path) {
+    public int toPng(string path) {
         int fd = sys.open(path, 0x241, 0x1a4);
         if (fd < 0) {
             return fd;
@@ -1220,43 +1220,43 @@ class Image {
         int y = 0;
         while (y < h) {
             int base = y * (rb + 1);
-            sys.byte_store(raw + base, 0);   // filter: None
+            sys.byteStore(raw + base, 0);   // filter: None
             int px = 0;
             while (px < w) {
                 int o = (y * w + px) * 4;
                 // memory [B,G,R,A] -> PNG [R,G,B,A]
-                sys.byte_store(raw + base + 1 + px * 4, sys.byte_load(this.data + o + 2));
-                sys.byte_store(raw + base + 1 + px * 4 + 1, sys.byte_load(this.data + o + 1));
-                sys.byte_store(raw + base + 1 + px * 4 + 2, sys.byte_load(this.data + o));
-                sys.byte_store(raw + base + 1 + px * 4 + 3, sys.byte_load(this.data + o + 3));
+                sys.byteStore(raw + base + 1 + px * 4, sys.byteLoad(this.data + o + 2));
+                sys.byteStore(raw + base + 1 + px * 4 + 1, sys.byteLoad(this.data + o + 1));
+                sys.byteStore(raw + base + 1 + px * 4 + 2, sys.byteLoad(this.data + o));
+                sys.byteStore(raw + base + 1 + px * 4 + 3, sys.byteLoad(this.data + o + 3));
                 px = px + 1;
             }
             y = y + 1;
         }
         string zb = alloc(rawlen + (rawlen / 65535 + 1) * 9 + 16);
-        int zblen = Image.zlib_store(raw, rawlen, zb);
+        int zblen = Image.zlibStore(raw, rawlen, zb);
         string sig = alloc(8);
-        sys.byte_store(sig + 0, 137);
-        sys.byte_store(sig + 1, 80);
-        sys.byte_store(sig + 2, 78);
-        sys.byte_store(sig + 3, 71);
-        sys.byte_store(sig + 4, 13);
-        sys.byte_store(sig + 5, 10);
-        sys.byte_store(sig + 6, 26);
-        sys.byte_store(sig + 7, 10);
+        sys.byteStore(sig + 0, 137);
+        sys.byteStore(sig + 1, 80);
+        sys.byteStore(sig + 2, 78);
+        sys.byteStore(sig + 3, 71);
+        sys.byteStore(sig + 4, 13);
+        sys.byteStore(sig + 5, 10);
+        sys.byteStore(sig + 6, 26);
+        sys.byteStore(sig + 7, 10);
         sys.write(fd, sig, 8);
         string ihdr = alloc(13);
         Image.store_u32be(ihdr, 0, w);
         Image.store_u32be(ihdr, 4, h);
-        sys.byte_store(ihdr + 8, 8);
-        sys.byte_store(ihdr + 9, 6);
-        sys.byte_store(ihdr + 10, 0);
-        sys.byte_store(ihdr + 11, 0);
-        sys.byte_store(ihdr + 12, 0);
-        Image.png_chunk(fd, "IHDR", ihdr, 13);
-        Image.png_chunk(fd, "IDAT", zb, zblen);
+        sys.byteStore(ihdr + 8, 8);
+        sys.byteStore(ihdr + 9, 6);
+        sys.byteStore(ihdr + 10, 0);
+        sys.byteStore(ihdr + 11, 0);
+        sys.byteStore(ihdr + 12, 0);
+        Image.pngChunk(fd, "IHDR", ihdr, 13);
+        Image.pngChunk(fd, "IDAT", zb, zblen);
         string empty = alloc(1);
-        Image.png_chunk(fd, "IEND", empty, 0);
+        Image.pngChunk(fd, "IEND", empty, 0);
         sys.close(fd);
         return 0;
     }
@@ -1283,7 +1283,7 @@ class Image {
         }
         return d;
     }
-    static int paeth_apply(int f, int v, int a, int c, int d) {
+    static int paethApply(int f, int v, int a, int c, int d) {
         if (f == 0) {
             return v;
         }
@@ -1299,13 +1299,13 @@ class Image {
         return (v + Image.paeth(a, c, d)) & 255;
     }
     // Parse a non-interlaced PNG (color types 0, 2, 6).
-    Image from_png() {
+    Image fromPng() {
         string b = this.rbuf;
         int n = this.rlen;
         if (b == null || n < 8) {
             return null;
         }
-        if (sys.byte_load(b) != 137 || sys.byte_load(b + 1) != 80 || sys.byte_load(b + 2) != 78 || sys.byte_load(b + 3) != 71) {
+        if (sys.byteLoad(b) != 137 || sys.byteLoad(b + 1) != 80 || sys.byteLoad(b + 2) != 78 || sys.byteLoad(b + 3) != 71) {
             return null;
         }
         int w = 0;
@@ -1322,8 +1322,8 @@ class Image {
             if (Image.eq4(b, p + 4, 73, 72, 68, 82)) {   // "IHDR"
                 w = Image.u32be(b, data);
                 h = Image.u32be(b, data + 4);
-                ctype = sys.byte_load(b + data + 9);
-                interlace = sys.byte_load(b + data + 12);
+                ctype = sys.byteLoad(b + data + 9);
+                interlace = sys.byteLoad(b + data + 12);
             } else if (Image.eq4(b, p + 4, 73, 68, 65, 84)) {   // "IDAT"
                 if (idatlen + len > idatcap) {
                     while (idatlen + len > idatcap) {
@@ -1332,14 +1332,14 @@ class Image {
                     string nb = alloc(idatcap);
                     int k = 0;
                     while (k < idatlen) {
-                        sys.byte_store(nb + k, sys.byte_load(idat + k));
+                        sys.byteStore(nb + k, sys.byteLoad(idat + k));
                         k = k + 1;
                     }
                     idat = nb;
                 }
                 int k2 = 0;
                 while (k2 < len) {
-                    sys.byte_store(idat + idatlen + k2, sys.byte_load(b + data + k2));
+                    sys.byteStore(idat + idatlen + k2, sys.byteLoad(b + data + k2));
                     k2 = k2 + 1;
                 }
                 idatlen = idatlen + len;
@@ -1362,7 +1362,7 @@ class Image {
         if (idatlen < 2) {
             return null;
         }
-        this.d_reset(idat + 2, idatlen - 2);
+        this.dReset(idat + 2, idatlen - 2);
         this.inflate();
         int rowbytes = w * bpp;
         Image im = new Image(w, h);
@@ -1371,14 +1371,14 @@ class Image {
         int row = 0;
         while (row < h) {
             int baseoff = row * (rowbytes + 1);
-            int f = sys.byte_load(this.dout + baseoff);
+            int f = sys.byteLoad(this.dout + baseoff);
             int x = 0;
             while (x < rowbytes) {
-                int v = sys.byte_load(this.dout + baseoff + 1 + x);
-                int a = (x >= bpp) ? sys.byte_load(cur + x - bpp) : 0;
-                int c = (row > 0) ? sys.byte_load(prev + x) : 0;
-                int d = (x >= bpp && row > 0) ? sys.byte_load(prev + x - bpp) : 0;
-                sys.byte_store(cur + x, Image.paeth_apply(f, v, a, c, d));
+                int v = sys.byteLoad(this.dout + baseoff + 1 + x);
+                int a = (x >= bpp) ? sys.byteLoad(cur + x - bpp) : 0;
+                int c = (row > 0) ? sys.byteLoad(prev + x) : 0;
+                int d = (x >= bpp && row > 0) ? sys.byteLoad(prev + x - bpp) : 0;
+                sys.byteStore(cur + x, Image.paethApply(f, v, a, c, d));
                 x = x + 1;
             }
             int px = 0;
@@ -1386,28 +1386,28 @@ class Image {
                 int o = (row * w + px) * 4;
                 if (ctype == 6) {
                     // PNG [R,G,B,A] -> memory [B,G,R,A]
-                    sys.byte_store(im.data + o, sys.byte_load(cur + px * 4 + 2));
-                    sys.byte_store(im.data + o + 1, sys.byte_load(cur + px * 4 + 1));
-                    sys.byte_store(im.data + o + 2, sys.byte_load(cur + px * 4));
-                    sys.byte_store(im.data + o + 3, sys.byte_load(cur + px * 4 + 3));
+                    sys.byteStore(im.data + o, sys.byteLoad(cur + px * 4 + 2));
+                    sys.byteStore(im.data + o + 1, sys.byteLoad(cur + px * 4 + 1));
+                    sys.byteStore(im.data + o + 2, sys.byteLoad(cur + px * 4));
+                    sys.byteStore(im.data + o + 3, sys.byteLoad(cur + px * 4 + 3));
                 } else if (ctype == 2) {
                     // PNG [R,G,B] -> memory [B,G,R,A]
-                    sys.byte_store(im.data + o, sys.byte_load(cur + px * 3 + 2));
-                    sys.byte_store(im.data + o + 1, sys.byte_load(cur + px * 3 + 1));
-                    sys.byte_store(im.data + o + 2, sys.byte_load(cur + px * 3));
-                    sys.byte_store(im.data + o + 3, 255);
+                    sys.byteStore(im.data + o, sys.byteLoad(cur + px * 3 + 2));
+                    sys.byteStore(im.data + o + 1, sys.byteLoad(cur + px * 3 + 1));
+                    sys.byteStore(im.data + o + 2, sys.byteLoad(cur + px * 3));
+                    sys.byteStore(im.data + o + 3, 255);
                 } else {
-                    int g = sys.byte_load(cur + px);
-                    sys.byte_store(im.data + o, g);
-                    sys.byte_store(im.data + o + 1, g);
-                    sys.byte_store(im.data + o + 2, g);
-                    sys.byte_store(im.data + o + 3, 255);
+                    int g = sys.byteLoad(cur + px);
+                    sys.byteStore(im.data + o, g);
+                    sys.byteStore(im.data + o + 1, g);
+                    sys.byteStore(im.data + o + 2, g);
+                    sys.byteStore(im.data + o + 3, 255);
                 }
                 px = px + 1;
             }
             int k = 0;
             while (k < rowbytes) {
-                sys.byte_store(prev + k, sys.byte_load(cur + k));
+                sys.byteStore(prev + k, sys.byteLoad(cur + k));
                 k = k + 1;
             }
             row = row + 1;
@@ -1416,17 +1416,17 @@ class Image {
     }
     // ============================== JPEG (baseline)
     // Read the next data byte from the scan, handling 0xFF byte-stuffing.
-    int j_nextbyte() {
+    int jNextbyte() {
         if (this.j_pos >= this.j_len) {
             return -1;
         }
-        int b = sys.byte_load(this.j_buf + this.j_pos);
+        int b = sys.byteLoad(this.j_buf + this.j_pos);
         this.j_pos = this.j_pos + 1;
         if (b == 255) {
             if (this.j_pos >= this.j_len) {
                 return -1;
             }
-            int nb = sys.byte_load(this.j_buf + this.j_pos);
+            int nb = sys.byteLoad(this.j_buf + this.j_pos);
             if (nb == 0) {
                 this.j_pos = this.j_pos + 1;
                 return 255;
@@ -1436,9 +1436,9 @@ class Image {
         return b;
     }
     // Read one bit, MSB-first.
-    int j_bit() {
+    int jBit() {
         if (this.j_left == 0) {
-            this.j_cur = this.j_nextbyte();
+            this.j_cur = this.jNextbyte();
             this.j_left = 8;
         }
         int v = (this.j_cur >> (this.j_left - 1)) & 1;
@@ -1446,17 +1446,17 @@ class Image {
         return v;
     }
     // Read n bits, MSB-first.
-    int j_bits(int n) {
+    int jBits(int n) {
         int v = 0;
         int i = 0;
         while (i < n) {
-            v = (v << 1) | this.j_bit();
+            v = (v << 1) | this.jBit();
             i = i + 1;
         }
         return v;
     }
     // Build the canonical decode table for Huffman table t (from j_count/j_sym).
-    void j_huff_build(int t) {
+    void jHuffBuild(int t) {
         int code = 0;
         int cp = 0;
         int L = 1;
@@ -1469,11 +1469,11 @@ class Image {
         }
     }
     // Decode one symbol from Huffman table t.
-    int j_huff(int t) {
+    int jHuff(int t) {
         int code = 0;
         int L = 1;
         while (L <= 16) {
-            code = (code << 1) | this.j_bit();
+            code = (code << 1) | this.jBit();
             int c = this.j_count[t * 16 + L - 1];
             if (c > 0) {
                 int idx = code - this.j_first[t * 16 + L - 1];
@@ -1486,20 +1486,20 @@ class Image {
         return -1;
     }
     // Decode one 8x8 block into j_f (dequantized), updating the DC predictor.
-    void j_block(int tdc, int tac, int q, int predslot) {
+    void jBlock(int tdc, int tac, int q, int predslot) {
         this.j_nblk = this.j_nblk + 1;
         int i = 0;
         while (i < 64) {
             this.j_f[i] = 0;
             i = i + 1;
         }
-        int T = this.j_huff(tdc);
+        int T = this.jHuff(tdc);
         if (T < 0) {
             return;   // misaligned stream: bail
         }
         int diff = 0;
         if (T > 0) {
-            int v = this.j_bits(T);
+            int v = this.jBits(T);
             if ((v >> (T - 1)) == 0) {
                 v = v - (1 << T) + 1;
             }
@@ -1510,7 +1510,7 @@ class Image {
         this.j_f[0] = pred * this.j_quant[q * 64];
         int pos = 1;
         while (pos <= 63) {
-            int S = this.j_huff(2 + tac);
+            int S = this.jHuff(2 + tac);
             if (S < 0) {
                 break;
             }
@@ -1520,7 +1520,7 @@ class Image {
                 break;
             }
             if (T2 >= 1 && T2 <= 8) {
-                int v2 = this.j_bits(T2);
+                int v2 = this.jBits(T2);
                 if ((v2 >> (T2 - 1)) == 0) {
                     v2 = v2 - (1 << T2) + 1;
                 }
@@ -1537,7 +1537,7 @@ class Image {
 
     }
     // Inverse DCT: j_f (64 dequantized) -> j_blk (64 spatial).
-    void j_idct() {
+    void jIdct() {
         int y = 0;
         while (y < 8) {
             int x = 0;
@@ -1569,13 +1569,13 @@ class Image {
             px = px + 1;
         }
     }
-    int j_setdbg(int v) {
+    int jSetdbg(int v) {
         this.j_dbg = v;
         return 0;
     }
-    // Probe: set j_f to a single coefficient and run the real j_idct.
+    // Probe: set j_f to a single coefficient and run the real jIdct.
     // mode 0: DC at (col0,row0). mode 1: (col1,row0) [horizontal]. mode 2: (col0,row1) [vertical].
-    int j_probe(int mode, int val) {
+    int jProbe(int mode, int val) {
         if (this.j_dct == null) {
             this.j_dct = alloc(64 * 8);
             int dt[] = [181, 181, 181, 181, 181, 181, 181, 181, 251, 213, 142, 50, -50, -142, -213, -251, 237, 98, -98, -237, -237, -98, 98, 237, 213, -50, -251, -142, 142, 251, 50, -213, 181, -181, -181, 181, 181, -181, -181, 181, 142, -251, 50, 213, -213, -50, 251, -142, 98, -237, 237, -98, -98, 237, -237, 98, 50, -142, 213, -251, 251, -213, 142, -50];
@@ -1606,7 +1606,7 @@ class Image {
         } else {
             this.j_f[8] = val;
         }
-        this.j_idct();
+        this.jIdct();
         int r = 0;
         while (r < 8) {
             int c = 0;
@@ -1621,8 +1621,8 @@ class Image {
         return 0;
     }
     // Forward DCT: je_in (64 0-centered spatial) -> je_ff (64 frequency).
-    // Computes je_ff = round((M * in * M) / 262144) so that j_idct(je_ff) ~ in.
-    void je_dct() {
+    // Computes je_ff = round((M * in * M) / 262144) so that jIdct(je_ff) ~ in.
+    void jeDct() {
         int y = 0;
         while (y < 8) {
             int x = 0;
@@ -1661,65 +1661,65 @@ class Image {
         }
     }
     // Write one raw byte to je_out (no 0xFF stuffing); grows the buffer.
-    void je_wraw(int b) {
+    void jeWraw(int b) {
         if (this.je_ol >= this.je_oc) {
             int nc = this.je_oc * 2;
             string nb = alloc(nc);
             int k = 0;
             while (k < this.je_ol) {
-                sys.byte_store(nb + k, sys.byte_load(this.je_out + k));
+                sys.byteStore(nb + k, sys.byteLoad(this.je_out + k));
                 k = k + 1;
             }
             this.je_oc = nc;
             this.je_out = nb;
         }
-        sys.byte_store(this.je_out + this.je_ol, b);
+        sys.byteStore(this.je_out + this.je_ol, b);
         this.je_ol = this.je_ol + 1;
     }
     // Write one bitstream byte, 0xFF-stuffed.
-    void je_wbs(int b) {
-        this.je_wraw(b);
+    void jeWbs(int b) {
+        this.jeWraw(b);
         if (b == 255) {
-            this.je_wraw(0);
+            this.jeWraw(0);
         }
     }
-    void je_wbit(int b) {
+    void jeWbit(int b) {
         this.je_bitbuf = (this.je_bitbuf << 1) | (b & 1);
         this.je_bitcnt = this.je_bitcnt + 1;
         if (this.je_bitcnt == 8) {
-            this.je_wbs(this.je_bitbuf);
+            this.jeWbs(this.je_bitbuf);
             this.je_bitbuf = 0;
             this.je_bitcnt = 0;
         }
     }
     // Append the low n bits of v, MSB-first.
-    void je_wbits(int v, int n) {
+    void jeWbits(int v, int n) {
         int i = n - 1;
         while (i >= 0) {
-            this.je_wbit((v >> i) & 1);
+            this.jeWbit((v >> i) & 1);
             i = i - 1;
         }
     }
-    void je_flush() {
+    void jeFlush() {
         if (this.je_bitcnt > 0) {
             int i = this.je_bitcnt;
             while (i < 8) {
                 this.je_bitbuf = (this.je_bitbuf << 1) | 1;
                 i = i + 1;
             }
-            this.je_wbs(this.je_bitbuf);
+            this.jeWbs(this.je_bitbuf);
             this.je_bitbuf = 0;
             this.je_bitcnt = 0;
         }
     }
-    void je_marker(int m, int total) {
-        this.je_wraw(255);
-        this.je_wraw(m);
-        this.je_wraw((total >> 8) & 255);
-        this.je_wraw(total & 255);
+    void jeMarker(int m, int total) {
+        this.jeWraw(255);
+        this.jeWraw(m);
+        this.jeWraw((total >> 8) & 255);
+        this.jeWraw(total & 255);
     }
     // bit_length(|x|); 0 when x == 0.
-    int je_bitlen(int x) {
+    int jeBitlen(int x) {
         int mag = x < 0 ? -x : x;
         int t = 0;
         int m = mag;
@@ -1730,7 +1730,7 @@ class Image {
         return t;
     }
     // round(a / b), halves away from zero (b > 0).
-    int je_round(int a, int b) {
+    int jeRound(int a, int b) {
         int q = a / b;
         if (a >= 0) {
             if ((a - q * b) * 2 >= b) {
@@ -1744,16 +1744,16 @@ class Image {
         return q;
     }
     // Encode a signed value using T bits (JPEG sign extension).
-    void je_wval(int val, int T) {
+    void jeWval(int val, int T) {
         int v = val;
         if (val < 0) {
             v = val + (1 << T) - 1;
         }
-        this.je_wbits(v, T);
+        this.jeWbits(v, T);
     }
     // Fill je_in with (component pixel - 128) for the 8x8 block at (bx, by),
     // edge-padded; comp 0=Y, 1=Cb, 2=Cr.
-    void je_fill_block(int bx, int by, int comp, int w, int h) {
+    void jeFillBlock(int bx, int by, int comp, int w, int h) {
         int idx = 0;
         int py = 0;
         while (py < 8) {
@@ -1767,9 +1767,9 @@ class Image {
                 if (gy >= h) {
                     gy = h - 1;
                 }
-                int r = sys.byte_load(this.data + (gy * w + gx) * 4 + 2);
-                int g = sys.byte_load(this.data + (gy * w + gx) * 4 + 1);
-                int b = sys.byte_load(this.data + (gy * w + gx) * 4);
+                int r = sys.byteLoad(this.data + (gy * w + gx) * 4 + 2);
+                int g = sys.byteLoad(this.data + (gy * w + gx) * 4 + 1);
+                int b = sys.byteLoad(this.data + (gy * w + gx) * 4);
                 int Y = (299 * r + 587 * g + 114 * b) / 1000;
                 int val = Y;
                 if (comp == 1) {
@@ -1786,42 +1786,42 @@ class Image {
     }
     // Quantize je_ff and emit one block (DC diff + AC runs + EOB); returns the
     // new DC predictor value.
-    int je_encblock(int qn[], int prevdc) {
+    int jeEncblock(int qn[], int prevdc) {
         int zz0 = this.j_zig[0];
-        int q0 = this.je_round(this.je_ff[zz0], qn[zz0]);
+        int q0 = this.jeRound(this.je_ff[zz0], qn[zz0]);
         int diff = q0 - prevdc;
-        int T = this.je_bitlen(diff);
-        this.je_wbits(T, 4);
-        this.je_wval(diff, T);
+        int T = this.jeBitlen(diff);
+        this.jeWbits(T, 4);
+        this.jeWval(diff, T);
         int run = 0;
         int p = 1;
         while (p <= 63) {
             int zz = this.j_zig[p];
-            int qv = this.je_round(this.je_ff[zz], qn[zz]);
+            int qv = this.jeRound(this.je_ff[zz], qn[zz]);
             if (qv != 0) {
                 while (run > 15) {
-                    this.je_wbits(135, 8);   // filler (R=15, T=0)
+                    this.jeWbits(135, 8);   // filler (R=15, T=0)
                     run = run - 15;
                 }
-                int T2 = this.je_bitlen(qv);
+                int T2 = this.jeBitlen(qv);
                 if (T2 > 8) {
                     T2 = 8;
                 }
                 int S = run * 9 + T2;
-                this.je_wbits(S, 8);
-                this.je_wval(qv, T2);
+                this.jeWbits(S, 8);
+                this.jeWval(qv, T2);
                 run = 0;
             } else {
                 run = run + 1;
             }
             p = p + 1;
         }
-        this.je_wbits(0, 8);
+        this.jeWbits(0, 8);
         return q0;
     }
     // Encode this image as a baseline JPEG (4:4:4, JFIF tables) to path.
-    public int to_jpeg(string path) {
-        this.j_init();
+    public int toJpeg(string path) {
+        this.jInit();
         int fd = sys.open(path, 0x241, 0x1a4);
         if (fd < 0) {
             return fd;
@@ -1835,43 +1835,43 @@ class Image {
         int h = this.h;
         int qn[] = [16, 11, 10, 16, 24, 40, 51, 61, 12, 12, 14, 19, 26, 58, 60, 55, 14, 13, 16, 24, 40, 57, 69, 56, 14, 17, 22, 29, 51, 87, 80, 62, 18, 22, 27, 50, 88, 103, 77, 99, 24, 35, 55, 90, 103, 121, 112, 100, 44, 48, 66, 106, 114, 126, 115, 104, 44, 52, 65, 112, 101, 126, 104, 91];
         int qc[] = [17, 18, 24, 47, 99, 99, 99, 99, 18, 21, 27, 66, 99, 99, 99, 99, 24, 27, 57, 99, 99, 99, 99, 99, 47, 66, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99, 99];
-        this.je_wraw(255);
-        this.je_wraw(216);
+        this.jeWraw(255);
+        this.jeWraw(216);
         // DQT: luminance (id 0), written in zigzag order.
-        this.je_marker(219, 67);
-        this.je_wraw(0);
+        this.jeMarker(219, 67);
+        this.jeWraw(0);
         int p = 0;
         while (p < 64) {
-            this.je_wraw(qn[this.j_zig[p]]);
+            this.jeWraw(qn[this.j_zig[p]]);
             p = p + 1;
         }
         // DQT: chrominance (id 1).
-        this.je_marker(219, 67);
-        this.je_wraw(1);
+        this.jeMarker(219, 67);
+        this.jeWraw(1);
         p = 0;
         while (p < 64) {
-            this.je_wraw(qc[this.j_zig[p]]);
+            this.jeWraw(qc[this.j_zig[p]]);
             p = p + 1;
         }
         // DHT: DC table 0 (12 symbols, 4-bit codes).
-        this.je_marker(196, 31);
-        this.je_wraw(0);
+        this.jeMarker(196, 31);
+        this.jeWraw(0);
         int L = 1;
         while (L <= 16) {
-            this.je_wraw(L == 4 ? 12 : 0);
+            this.jeWraw(L == 4 ? 12 : 0);
             L = L + 1;
         }
         int s = 0;
         while (s < 12) {
-            this.je_wraw(s);
+            this.jeWraw(s);
             s = s + 1;
         }
         // DHT: AC table 0 (144 symbols = R 0-15 x T 0-8, 8-bit codes).
-        this.je_marker(196, 163);
-        this.je_wraw(16);
+        this.jeMarker(196, 163);
+        this.jeWraw(16);
         L = 1;
         while (L <= 16) {
-            this.je_wraw(L == 8 ? 144 : 0);
+            this.jeWraw(L == 8 ? 144 : 0);
             L = L + 1;
         }
         // Symbol values in canonical (sorted) order: (R<<4)|T for R 0-15, T 0-8.
@@ -1879,40 +1879,40 @@ class Image {
         while (RR <= 15) {
             int TT = 0;
             while (TT <= 8) {
-                this.je_wraw((RR << 4) | TT);
+                this.jeWraw((RR << 4) | TT);
                 TT = TT + 1;
             }
             RR = RR + 1;
         }
         // SOF0: 8-bit, 3 components, 4:4:4.
-        this.je_marker(192, 17);
-        this.je_wraw(8);
-        this.je_wraw((h >> 8) & 255);
-        this.je_wraw(h & 255);
-        this.je_wraw((w >> 8) & 255);
-        this.je_wraw(w & 255);
-        this.je_wraw(3);
-        this.je_wraw(1);
-        this.je_wraw(17);
-        this.je_wraw(0);
-        this.je_wraw(2);
-        this.je_wraw(17);
-        this.je_wraw(1);
-        this.je_wraw(3);
-        this.je_wraw(17);
-        this.je_wraw(1);
+        this.jeMarker(192, 17);
+        this.jeWraw(8);
+        this.jeWraw((h >> 8) & 255);
+        this.jeWraw(h & 255);
+        this.jeWraw((w >> 8) & 255);
+        this.jeWraw(w & 255);
+        this.jeWraw(3);
+        this.jeWraw(1);
+        this.jeWraw(17);
+        this.jeWraw(0);
+        this.jeWraw(2);
+        this.jeWraw(17);
+        this.jeWraw(1);
+        this.jeWraw(3);
+        this.jeWraw(17);
+        this.jeWraw(1);
         // SOS: 3 components, all on DC/AC table 0.
-        this.je_marker(218, 12);
-        this.je_wraw(3);
-        this.je_wraw(1);
-        this.je_wraw(0);
-        this.je_wraw(2);
-        this.je_wraw(0);
-        this.je_wraw(3);
-        this.je_wraw(0);
-        this.je_wraw(0);
-        this.je_wraw(63);
-        this.je_wraw(0);
+        this.jeMarker(218, 12);
+        this.jeWraw(3);
+        this.jeWraw(1);
+        this.jeWraw(0);
+        this.jeWraw(2);
+        this.jeWraw(0);
+        this.jeWraw(3);
+        this.jeWraw(0);
+        this.jeWraw(0);
+        this.jeWraw(63);
+        this.jeWraw(0);
         // Encode the scan: one 8x8 block per component per MCU, raster order.
         int dc0 = 0;
         int dc1 = 0;
@@ -1921,42 +1921,42 @@ class Image {
         while (by < h) {
             int bx = 0;
             while (bx < w) {
-                this.je_fill_block(bx, by, 0, w, h);
-                this.je_dct();
-                dc0 = this.je_encblock(qn, dc0);
-                this.je_fill_block(bx, by, 1, w, h);
-                this.je_dct();
-                dc1 = this.je_encblock(qc, dc1);
-                this.je_fill_block(bx, by, 2, w, h);
-                this.je_dct();
-                dc2 = this.je_encblock(qc, dc2);
+                this.jeFillBlock(bx, by, 0, w, h);
+                this.jeDct();
+                dc0 = this.jeEncblock(qn, dc0);
+                this.jeFillBlock(bx, by, 1, w, h);
+                this.jeDct();
+                dc1 = this.jeEncblock(qc, dc1);
+                this.jeFillBlock(bx, by, 2, w, h);
+                this.jeDct();
+                dc2 = this.jeEncblock(qc, dc2);
                 bx = bx + 8;
             }
             by = by + 8;
         }
-        this.je_flush();
-        this.je_wraw(255);
-        this.je_wraw(217);
+        this.jeFlush();
+        this.jeWraw(255);
+        this.jeWraw(217);
         sys.write(fd, this.je_out, this.je_ol);
         sys.close(fd);
         return 0;
     }
     // Round-trip probe: build a constant block, forward-DCT, IDCT, print result.
-    int je_probe(int v) {
-        this.j_init();
+    int jeProbe(int v) {
+        this.jInit();
         int k = 0;
         while (k < 64) {
             this.je_in[k] = v - 128;
             k = k + 1;
         }
-        this.je_dct();
+        this.jeDct();
         // copy je_ff into j_f and run the existing idct
         int i = 0;
         while (i < 64) {
             this.j_f[i] = this.je_ff[i];
             i = i + 1;
         }
-        this.j_idct();
+        this.jIdct();
         printi(this.j_blk[0]);
         print(" ");
         printi(this.j_blk[1]);
@@ -1965,7 +1965,7 @@ class Image {
         print("\n");
         return 0;
     }
-    int j_clamp(int v) {
+    int jClamp(int v) {
         if (v < 0) {
             return 0;
         }
@@ -1975,26 +1975,26 @@ class Image {
         return v;
     }
     // Base region of a component inside j_mcu.
-    int j_compbase(int comp) {
+    int jCompbase(int comp) {
         return this.j_cbase[comp];
     }
     // Sample a component at MCU-local pixel (pxx, py).
-    int j_sample(int comp, int pxx, int py, int H, int V) {
+    int jSample(int comp, int pxx, int py, int H, int V) {
         int npxx = pxx * H / this.j_maxH;
         int npy = py * V / this.j_maxV;
         int i = npxx / 8;
         int j = npy / 8;
         int sx = npxx - i * 8;
         int sy = npy - j * 8;
-        return this.j_mcu[this.j_compbase(comp) + (j * H + i) * 64 + sy * 8 + sx] + 128;
+        return this.j_mcu[this.jCompbase(comp) + (j * H + i) * 64 + sy * 8 + sx] + 128;
     }
     // Decode a baseline JPEG (grayscale, 4:4:4, 4:2:0).
-    Image from_jpeg() {
-        this.j_init();
+    Image fromJpeg() {
+        this.jInit();
         this.j_nblk = 0;
         string b = this.rbuf;
         int n = this.rlen;
-        if (b == null || n < 4 || sys.byte_load(b) != 255 || sys.byte_load(b + 1) != 216) {
+        if (b == null || n < 4 || sys.byteLoad(b) != 255 || sys.byteLoad(b + 1) != 216) {
             return null;
         }
         int t = 0;
@@ -2023,13 +2023,13 @@ class Image {
         int maxV = 1;
         int p = 2;
         while (p + 3 <= n) {
-            while (p < n && sys.byte_load(b + p) != 255) {
+            while (p < n && sys.byteLoad(b + p) != 255) {
                 p = p + 1;
             }
             if (p + 1 >= n) {
                 break;
             }
-            int m = sys.byte_load(b + p + 1);
+            int m = sys.byteLoad(b + p + 1);
             if (m == 255) {
                 p = p + 1;
                 continue;
@@ -2041,22 +2041,22 @@ class Image {
             if (p + 3 >= n) {
                 break;
             }
-            int seglen = (sys.byte_load(b + p + 2) << 8) | sys.byte_load(b + p + 3);
+            int seglen = (sys.byteLoad(b + p + 2) << 8) | sys.byteLoad(b + p + 3);
             int seg = p + 4;
             if (m >= 192 && m <= 207 && m != 196 && m != 200 && m != 204) {   // SOFn (excl DHT/JPG/DAC)
                 if (seg + 6 > n) {
                     break;
                 }
-                h = (sys.byte_load(b + seg + 1) << 8) | sys.byte_load(b + seg + 2);
-                w = (sys.byte_load(b + seg + 3) << 8) | sys.byte_load(b + seg + 4);
-                nc = sys.byte_load(b + seg + 5);
+                h = (sys.byteLoad(b + seg + 1) << 8) | sys.byteLoad(b + seg + 2);
+                w = (sys.byteLoad(b + seg + 3) << 8) | sys.byteLoad(b + seg + 4);
+                nc = sys.byteLoad(b + seg + 5);
                 int c = 0;
                 while (c < nc && c < 3) {
                     int off = seg + 6 + c * 3;
-                    int sf = sys.byte_load(b + off + 1);
+                    int sf = sys.byteLoad(b + off + 1);
                     cH[c] = (sf >> 4) & 15;
                     cV[c] = sf & 15;
-                    cq[c] = sys.byte_load(b + off + 2);
+                    cq[c] = sys.byteLoad(b + off + 2);
                     c = c + 1;
                 }
             } else if (m == 219) {   // DQT
@@ -2065,7 +2065,7 @@ class Image {
                 }
                 int o = 0;
                 while (o < seglen - 2) {
-                    int pq = sys.byte_load(b + seg + o);
+                    int pq = sys.byteLoad(b + seg + o);
                     int t8 = (pq >> 4) & 1;
                     int tab = pq & 15;
                     int nn = 64;
@@ -2075,9 +2075,9 @@ class Image {
                     int k2 = 0;
                     while (k2 < nn) {
                         if (t8 == 1) {
-                            this.j_quant[tab * 64 + k2] = (sys.byte_load(b + seg + o + 1 + k2) << 8) | sys.byte_load(b + seg + o + 2 + k2);
+                            this.j_quant[tab * 64 + k2] = (sys.byteLoad(b + seg + o + 1 + k2) << 8) | sys.byteLoad(b + seg + o + 2 + k2);
                         } else {
-                            this.j_quant[tab * 64 + k2] = sys.byte_load(b + seg + o + 1 + k2);
+                            this.j_quant[tab * 64 + k2] = sys.byteLoad(b + seg + o + 1 + k2);
                         }
                         k2 = k2 + 1;
                     }
@@ -2089,35 +2089,35 @@ class Image {
                 }
                 int o = 0;
                 while (o < seglen - 2) {
-                    int tag = sys.byte_load(b + seg + o);
+                    int tag = sys.byteLoad(b + seg + o);
                     int cls = (tag >> 4) & 1;
                     int tid = tag & 15;
                     int tab = cls * 2 + tid;
                     int ntot = 0;
                     int L = 1;
                     while (L <= 16) {
-                        int cnt = sys.byte_load(b + seg + o + L);
+                        int cnt = sys.byteLoad(b + seg + o + L);
                         this.j_count[tab * 16 + L - 1] = cnt;
                         ntot = ntot + cnt;
                         L = L + 1;
                     }
                     int s = 0;
                     while (s < ntot) {
-                        this.j_sym[tab * 256 + s] = sys.byte_load(b + seg + o + 17 + s);
+                        this.j_sym[tab * 256 + s] = sys.byteLoad(b + seg + o + 17 + s);
                         s = s + 1;
                     }
-                    this.j_huff_build(tab);
+                    this.jHuffBuild(tab);
                     o = o + 17 + ntot;
                 }
             } else if (m == 218) {   // SOS
                 if (seg + seglen - 2 > n) {
                     break;
                 }
-                int nsc = sys.byte_load(b + seg);
+                int nsc = sys.byteLoad(b + seg);
                 int c2 = 0;
                 while (c2 < nsc) {
                     int off = seg + 1 + c2 * 2;
-                    int tab = sys.byte_load(b + off + 1);
+                    int tab = sys.byteLoad(b + off + 1);
                     cdc[c2] = (tab >> 4) & 15;
                     cac[c2] = tab & 15;
                     c2 = c2 + 1;
@@ -2177,9 +2177,9 @@ class Image {
                             while (by < gy) {
                                 int bx = 0;
                                 while (bx < gx) {
-                                    this.j_block(cdc[cc], cac[cc], cq[cc], cc);
-                                    this.j_idct();
-                                    int dest = this.j_compbase(cc) + (by * gx + bx) * 64;
+                                    this.jBlock(cdc[cc], cac[cc], cq[cc], cc);
+                                    this.jIdct();
+                                    int dest = this.jCompbase(cc) + (by * gx + bx) * 64;
                                     int kk = 0;
                                     while (kk < 64) {
                                         this.j_mcu[dest + kk] = this.j_blk[kk];
@@ -2198,14 +2198,14 @@ class Image {
                                 int px = bx0 + pxx;
                                 int pyy = by0 + py;
                                 if (px < w && pyy < h) {
-                                    int c0v = this.j_sample(0, pxx, py, cH[0], cV[0]);
+                                    int c0v = this.jSample(0, pxx, py, cH[0], cV[0]);
                                     int c1v = 128;
                                     int c2v = 128;
                                     if (nc >= 2) {
-                                        c1v = this.j_sample(1, pxx, py, cH[1], cV[1]);
+                                        c1v = this.jSample(1, pxx, py, cH[1], cV[1]);
                                     }
                                     if (nc >= 3) {
-                                        c2v = this.j_sample(2, pxx, py, cH[2], cV[2]);
+                                        c2v = this.jSample(2, pxx, py, cH[2], cV[2]);
                                     }
                                     int R = 0;
                                     int G = 0;
@@ -2224,10 +2224,10 @@ class Image {
                                         B = Yv + (1815 * Cbv) / 1024;
                                     }
                                     int o = (pyy * w + px) * 4;
-                                    sys.byte_store(im.data + o, this.j_clamp(B));
-                                    sys.byte_store(im.data + o + 1, this.j_clamp(G));
-                                    sys.byte_store(im.data + o + 2, this.j_clamp(R));
-                                    sys.byte_store(im.data + o + 3, 255);
+                                    sys.byteStore(im.data + o, this.jClamp(B));
+                                    sys.byteStore(im.data + o + 1, this.jClamp(G));
+                                    sys.byteStore(im.data + o + 2, this.jClamp(R));
+                                    sys.byteStore(im.data + o + 3, 255);
                                 }
                                 pxx = pxx + 1;
                             }
@@ -2245,19 +2245,19 @@ class Image {
     }
     // ---------------------------------------------------------------- helpers
     static void store_u16(string buf, int off, int v) {
-        sys.byte_store(buf + off, v & 255);
-        sys.byte_store(buf + off + 1, (v >> 8) & 255);
+        sys.byteStore(buf + off, v & 255);
+        sys.byteStore(buf + off + 1, (v >> 8) & 255);
     }
     static void store_u32(string buf, int off, int v) {
-        sys.byte_store(buf + off, v & 255);
-        sys.byte_store(buf + off + 1, (v >> 8) & 255);
-        sys.byte_store(buf + off + 2, (v >> 16) & 255);
-        sys.byte_store(buf + off + 3, (v >> 24) & 255);
+        sys.byteStore(buf + off, v & 255);
+        sys.byteStore(buf + off + 1, (v >> 8) & 255);
+        sys.byteStore(buf + off + 2, (v >> 16) & 255);
+        sys.byteStore(buf + off + 3, (v >> 24) & 255);
     }
     static int u16(string buf, int off) {
-        return sys.byte_load(buf + off) | (sys.byte_load(buf + off + 1) << 8);
+        return sys.byteLoad(buf + off) | (sys.byteLoad(buf + off + 1) << 8);
     }
     static int u32(string buf, int off) {
-        return sys.byte_load(buf + off) | (sys.byte_load(buf + off + 1) << 8) | (sys.byte_load(buf + off + 2) << 16) | (sys.byte_load(buf + off + 3) << 24);
+        return sys.byteLoad(buf + off) | (sys.byteLoad(buf + off + 1) << 8) | (sys.byteLoad(buf + off + 2) << 16) | (sys.byteLoad(buf + off + 3) << 24);
     }
 }

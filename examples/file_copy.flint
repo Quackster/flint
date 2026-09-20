@@ -8,13 +8,13 @@ int main() {
     string to = "/tmp/flintc_copy_dst.txt";
 
     // write a known payload to the source file first
-    File.write_all(from, "the quick brown fox");
+    File.writeAll(from, "the quick brown fox");
 
     // copy src -> dst
     File.copy(from, to);
 
     // verify by reading dst back and printing it
-    string data = File.read_all(to);
+    string data = File.readAll(to);
     if (data != null) {
         print(data);
     }

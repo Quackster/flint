@@ -27,7 +27,7 @@ int main() {
     c.line(0, 0, 9, 9, Image.rgb(255, 0, 255));
     printi(c.r(4, 4)); print(" ");
     printi(c.b(4, 4)); print("\n");
-    c.fill_circle(5, 5, 3, Image.rgb(0, 0, 255));
+    c.fillCircle(5, 5, 3, Image.rgb(0, 0, 255));
     printi(c.b(5, 5)); print(" ");
     printi(c.b(2, 5)); print("\n");
 
@@ -35,10 +35,10 @@ int main() {
     Image t = new Image(4, 2);
     t.set(0, 0, 100);
     t.set(3, 1, 200);
-    t.flip_h();
+    t.flipH();
     printi(t.get(3, 0)); print(" ");
     printi(t.get(0, 1)); print(" ");
-    t.flip_v();
+    t.flipV();
     printi(t.get(3, 1)); print(" ");
     t.invert();
     printi(t.get(3, 1)); print(" ");
@@ -62,32 +62,32 @@ int main() {
     rt.set(0, 0, Image.rgb(9, 8, 7));
     rt.set(7, 3, Image.rgb(5, 6, 5));
 
-    printi(rt.to_ppm("/tmp/img_t.ppm") > 0 ? 1 : 0); print(" ");
+    printi(rt.toPpm("/tmp/img_t.ppm") > 0 ? 1 : 0); print(" ");
     Image l1 = Image.load("/tmp/img_t.ppm");
     printi(l1 == null ? 0 : 1); print(" ");
     printi(l1.get(0, 0) == Image.rgb(9, 8, 7) ? 1 : 0); print(" ");
     printi(l1.get(7, 3) == Image.rgb(5, 6, 5) ? 1 : 0); print("\n");
 
-    printi(rt.to_pgm("/tmp/img_t.pgm") > 0 ? 1 : 0); print(" ");
+    printi(rt.toPgm("/tmp/img_t.pgm") > 0 ? 1 : 0); print(" ");
     Image l2 = Image.load("/tmp/img_t.pgm");
     printi(l2 == null ? 0 : 1); print(" ");
     printi(l2.r(0, 0) == l2.g(0, 0) ? 1 : 0); print(" ");
     printi(l2.r(7, 3) == l2.g(7, 3) ? 1 : 0); print("\n");
 
-    printi(rt.to_bmp("/tmp/img_t.bmp") > 0 ? 1 : 0); print(" ");
+    printi(rt.toBmp("/tmp/img_t.bmp") > 0 ? 1 : 0); print(" ");
     Image l3 = Image.load("/tmp/img_t.bmp");
     printi(l3 == null ? 0 : 1); print(" ");
     printi(l3.get(0, 0) == Image.rgb(9, 8, 7) ? 1 : 0); print(" ");
     printi(l3.get(7, 3) == Image.rgb(5, 6, 5) ? 1 : 0); print(" ");
     printi(l3.w == 8 && l3.h == 4 ? 1 : 0); print("\n");
 
-    // ---- save() dispatcher + set_alpha ----
+    // ---- save() dispatcher + setAlpha ----
     int ws = rt.save("/tmp/img_t2.bmp");
     Image ls = Image.load("/tmp/img_t2.bmp");
     printi(ws > 0 && ls.get(0, 0) == Image.rgb(9, 8, 7) ? 1 : 0); print(" ");
     Image sa = new Image(2, 2);
     sa.fill(Image.rgb(10, 20, 30));
-    sa.set_alpha(1, 1, 5);
+    sa.setAlpha(1, 1, 5);
     printi(sa.a(1, 1)); print(" ");
     printi(sa.r(1, 1)); print("\n");
     return 0;

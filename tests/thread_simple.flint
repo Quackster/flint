@@ -6,8 +6,8 @@ void thread_fn(int arg) {
 }
 
 int main() {
-    int tid = sys.thread_create(@thread_fn, 0);
-    sys.thread_join(tid);
+    int tid = sys.threadCreate(@thread_fn, 0);
+    sys.threadJoin(tid);
     sys.write(1, "done", 4);
     return 0;
 }

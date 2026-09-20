@@ -37,7 +37,7 @@ class Math {
         return r;
     }
     // Returns 1 when n is a prime, 0 otherwise.
-    static int is_prime(int n) {
+    static int isPrime(int n) {
         if (n < 2) {
             return 0;
         }
@@ -162,9 +162,9 @@ class Math {
         return lo - 1;
     }
     // 1 when x is divisible by 2.
-    static int is_even(int x) { return x % 2 == 0 ? 1 : 0; }
+    static int isEven(int x) { return x % 2 == 0 ? 1 : 0; }
     // 1 when x is not divisible by 2.
-    static int is_odd(int x) { return x % 2 != 0 ? 1 : 0; }
+    static int isOdd(int x) { return x % 2 != 0 ? 1 : 0; }
     // a mod b in [0, b) (negative-safe).
     static int mod(int a, int b) {
         if (b == 0) {
@@ -177,7 +177,7 @@ class Math {
         return r;
     }
     // Sum of the integers lo..hi inclusive.
-    static int sum_range(int lo, int hi) {
+    static int sumRange(int lo, int hi) {
         int s = 0;
         int i = lo;
         while (i <= hi) {

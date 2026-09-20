@@ -332,8 +332,8 @@ int main() {
 - Escape analysis: class locals that do not escape are stack-allocated.
 - `alloc(n)` / `free(p)` / `memcpy(d, s, n)`: raw heap, used through
   `string` variables.
-- Sized loads/stores: `sys.byte_load/store`, `sys.short_load/store`,
-  `sys.int_load/store`.
+- Sized loads/stores: `sys.byteLoad/store`, `sys.shortLoad/store`,
+  `sys.intLoad/store`.
 - Raw pointers (`&x`, `*T`, `*p`) are a low-level escape hatch; standard
   code addresses memory through `string` (`buf[i]` = 8-byte slot,
   `sys.byte_*` = sub-word cells).
@@ -398,7 +398,7 @@ int main() {
 <details>
 <summary>Concurrency</summary>
 
-- `Thread.spawn(@fn, arg)` starts a worker thread (returns the id, 0, 1, 2, ... in creation order); `Thread.join(id)` blocks until it finishes and returns the worker's return value. `Thread.n_cpu()` reports the number of online CPUs. (import std.Thread)
+- `Thread.spawn(@fn, arg)` starts a worker thread (returns the id, 0, 1, 2, ... in creation order); `Thread.join(id)` blocks until it finishes and returns the worker's return value. `Thread.nCpu()` reports the number of online CPUs. (import std.Thread)
 - The `@` operator yields a function's address.
 - Synchronization: `Sync.lock/unlock(&m)`, `Sync.cas(&v, old, new)`, `Sync.nanosleep(sec, nsec)` (import std.Sync). Lower-level: `sys.clone`, `sys.futex`.
 - Spawn workers up front (one per CPU), then join them: they run concurrently.
@@ -413,7 +413,7 @@ int main() {
     int val = 5;
     Sync.cas(&val, 5, 10);
     printi(val);             // 10  (CAS succeeded)
-    int n = Thread.n_cpu();
+    int n = Thread.nCpu();
     for (int k = 0; k < n; k = k + 1) {
         Thread.spawn(@worker, k);   // @ = fn address
     }
@@ -428,19 +428,19 @@ int main() {
 <details>
 <summary>Networking (TCP)</summary>
 
-- `Socket.stream()` creates an AF_INET / SOCK_STREAM socket; `Socket.bind_port(fd, port)` binds it to 0.0.0.0:port; `Socket.listen(fd, backlog)` marks it passive; `Socket.accept(fd)` takes a connection; `Socket.connect_host(a, b, c, d, port)` opens a client socket; `Socket.send_all(fd, s)` / `Socket.recv(fd)` send/receive; `Socket.close(fd)` releases. (import std.Socket)
-- I/O multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
+- `Socket.stream()` creates an AF_INET / SOCK_STREAM socket; `Socket.bindPort(fd, port)` binds it to 0.0.0.0:port; `Socket.listen(fd, backlog)` marks it passive; `Socket.accept(fd)` takes a connection; `Socket.connectHost(a, b, c, d, port)` opens a client socket; `Socket.sendAll(fd, s)` / `Socket.recv(fd)` send/receive; `Socket.close(fd)` releases. (import std.Socket)
+- I/O multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epollCreate1/ctl/wait`.
 
 ```java
 import std.Socket;
 int main() {
     int s = Socket.stream();
-    Socket.bind_port(s, 7777);
+    Socket.bindPort(s, 7777);
     Socket.listen(s, 5);
     int c = Socket.accept(s);
     string m = Socket.recv(c);
     if (m != null) {
-        Socket.send_all(c, m);            // echo back
+        Socket.sendAll(c, m);            // echo back
     }
     Socket.close(c);
     Socket.close(s);
@@ -452,7 +452,7 @@ int main() {
 <details>
 <summary>I/O & system</summary>
 
-- File I/O: `File.read_all(path)` / `File.write_all(path, data)` / `File.copy(src, dst)` / `File.size` / `File.exists` / `File.delete` / `File.append` / `File.rename` (import std.File).
+- File I/O: `File.readAll(path)` / `File.writeAll(path, data)` / `File.copy(src, dst)` / `File.size` / `File.exists` / `File.delete` / `File.append` / `File.rename` (import std.File).
 - Standard streams: `print(s)`, `printi(n)`, stdin via `sys.read(0, buf, n)`.
 - `env.get("NAME")`, `time.millis()` / `Time.seconds()`, `rand.next()` / `rand.range(min, max)`.
 - `log.info/warn/error/debug(s)`.
@@ -462,7 +462,7 @@ int main() {
 ```java
 import std.File;
 int main() {
-    File.write_all("/tmp/flintc_demo.txt", "hi");
+    File.writeAll("/tmp/flintc_demo.txt", "hi");
     printi(File.size("/tmp/flintc_demo.txt"));   // 2
     string p = env.get("PATH");
     printi(p != null ? 1 : 0);             // 1
@@ -578,7 +578,7 @@ int main() {
     int a[] = [5, 2, 9, 1, 5];
     Sort.sort(a);                     // [1, 2, 5, 5, 9]
     printi(Sort.max(a));            // 9
-    print(Num.to_hex(255));         // ff
+    print(Num.toHex(255));         // ff
     print("\n");
     return 0;
 }
@@ -586,21 +586,22 @@ int main() {
 
 | class | methods |
 |-------|---------|
-| `std.Math`   | `abs`, `min`, `max`, `clamp`, `gcd`, `lcm`, `factorial`, `is_prime`, `sqrt`, `pow`, `pow10`, `fib`, `cbrt`, `is_even`, `is_odd`, `mod`, `sum_range`, plus fixed-point `fround`, `fceil`, `ffloor`, `fabs`, `fsqrt` |
-| `std.Sort`   | `sort`, `sort_desc` (stable, in place), `reverse`, `min`, `max`, `sum`, `contains`, `index_of`, `count`, `fill`, `binary_search`, `argmin`, `argmax`, `swap`, `avg`, `rotate` |
-| `std.Bit`    | `popcount`, `nlz`, `ntz`, `set_bit`, `clr_bit`, `test_bit`, `toggle_bit`, `bit_rev`, `is_power_of_two`, `next_power_of_two`, `byte_swap`, `parity`, `get_byte`, `set_byte` |
-| `std.Num`    | `to_string`, `to_hex`/`from_hex`, `to_bin`/`from_bin`, `to_oct`/`from_oct`, `to_upper_hex`, `sum_digits`, `digit_count`, `digit_at`, `reverse_digits`, `is_palindrome` |
-| `std.File`   | `open`, `open_for_write`, `close`, `size`, `read_all`, `write_all`, `exists`, `delete`, `append`, `copy`, `rename`, `read_line` |
-| `std.Path`   | `base`, `dir`, `parent`, `ext`, `join`, `last_slash`, `last_dot`, `is_absolute`, `split`, `normalize` |
+| `std.Math`   | `abs`, `min`, `max`, `clamp`, `gcd`, `lcm`, `factorial`, `isPrime`, `sqrt`, `pow`, `pow10`, `fib`, `cbrt`, `isEven`, `isOdd`, `mod`, `sumRange`, plus fixed-point `fround`, `fceil`, `ffloor`, `fabs`, `fsqrt` |
+| `std.Sort`   | `sort`, `sortDesc` (stable, in place), `reverse`, `min`, `max`, `sum`, `contains`, `indexOf`, `count`, `fill`, `binarySearch`, `argmin`, `argmax`, `swap`, `avg`, `rotate` |
+| `std.Bit`    | `popcount`, `nlz`, `ntz`, `setBit`, `clrBit`, `testBit`, `toggleBit`, `bitRev`, `isPowerOfTwo`, `nextPowerOfTwo`, `byteSwap`, `parity`, `getByte`, `setByte` |
+| `std.Num`    | `toString`, `toHex`/`fromHex`, `toBin`/`fromBin`, `toOct`/`fromOct`, `toUpperHex`, `sumDigits`, `digitCount`, `digitAt`, `reverseDigits`, `isPalindrome` |
+| `std.File`   | `open`, `openForWrite`, `close`, `size`, `readAll`, `writeAll`, `exists`, `delete`, `append`, `copy`, `rename`, `readLine` |
+| `std.Path`   | `base`, `dir`, `parent`, `ext`, `join`, `lastSlash`, `lastDot`, `isAbsolute`, `split`, `normalize` |
 | `std.Checksum` | `crc32` (zlib/IEEE `0xEDB88320`), `sum32`, `djb2`, `fnv1a` (64-bit), `fnv1a32`, `adler32` |
-| `std.Rand`   | `init(seed)` (xorshift64), `next`, `range(lo, hi)`, `coin`, `shuffle`, `pick`, `bytes`, `hex_id`, `rand_string` |
-| `std.Str`    | `upper`, `lower`, `reverse`, `trim`, `ltrim`, `rtrim`, `count`, `contains`, `last_index_of`, `starts_with`, `ends_with`, `replace_all`, `repeat`, `split`, `join`, `ljust`, `rjust` |
+| `std.Rand`   | `init(seed)` (xorshift64), `next`, `range(lo, hi)`, `coin`, `shuffle`, `pick`, `bytes`, `hexId`, `randString` |
+| `std.Str`    | `upper`, `lower`, `reverse`, `trim`, `ltrim`, `rtrim`, `count`, `contains`, `lastIndexOf`, `startsWith`, `endsWith`, `replaceAll`, `repeat`, `split`, `join`, `ljust`, `rjust` |
 | `std.Time`   | `millis`, `seconds`, `nanos`, `date` (`YYYY-MM-DD HH:MM:SS`) |
-| `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flip_h`/`flip_v`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fill_rect`/`line`/`circle`/`fill_circle`), multi-format I/O (`save`/`load`, `to_ppm`/`from_ppm`, `to_pgm`/`from_pgm`, `to_bmp`/`from_bmp`) |
-| `std.Thread` | `n_cpu` (online CPU count), `spawn(@fn, arg)` (returns the id), `join(id)` (blocks; returns the worker's return value) |
+| `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flipH`/`flipV`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fillRect`/`line`/`circle`/`fillCircle`), multi-format I/O (`save`/`load`, `toPpm`/`fromPpm`, `toPgm`/`fromPgm`, `toBmp`/`fromBmp`) |
+| `std.Thread` | `nCpu` (online CPU count), `spawn(@fn, arg)` (returns the id), `join(id)` (blocks; returns the worker's return value) |
 | `std.Sync`   | `lock(&m)` / `unlock(&m)` (mutex: 0 unlocked, 1 locked), `cas(&v, old, new)` (1 on success), `nanosleep(sec, nsec)` |
-| `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bind_port(fd, port)`, `listen(fd, backlog)`, `accept(fd)`, `connect_host(a, b, c, d, port)`, `send_all(fd, s)`, `recv(fd)` (string or `null`), `close(fd)` |
-| `std.Mem`    | `int_array(n)` (`*int`), `bytes(n)` (`*byte`), `copy(dst, src, n)`, `free_int(*int)`, `free_byte(*byte)` — the high-level replacement for raw `alloc`/`free`/`memcpy` |
+| `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bindPort(fd, port)`, `listen(fd, backlog)`, `accept(fd)`, `connectHost(a, b, c, d, port)`, `sendAll(fd, s)`, `recv(fd)` (string or `null`), `close(fd)` |
+| `std.Mem`    | `intArray(n)` (`*int`), `bytes(n)` (`*byte`), `copy(dst, src, n)`, `freeInt(*int)`, `freeByte(*byte)` — the high-level replacement for raw `alloc`/`free`/`memcpy` |
+| `std.Window` | Wayland desktop window (instance): `open(w, h, title)` (`null` without a compositor), `close()`, `running()`, `width()`, `height()`, `present(Image)`, `nextEvent()`, `peekEvent()`, `evX()`/`evY()`/`evButton()`/`evKey()`/`evState()`, static event codes `FRAME`/`KEY`/`BUTTON`/`MOTION`/`CLOSE`, helpers `fixed(v)` (24.8), `keyChar(code)`, `parseDisplay(name)` |
 
 </details>
 
@@ -1143,7 +1144,7 @@ int main() {
 <summary>Pointers & raw memory (escape hatch)</summary>
 
 Low-level access. **Application code should prefer `std.Mem`**
-(`Mem.int_array` / `Mem.bytes` / `Mem.copy` / `Mem.free_*`) for buffers and
+(`Mem.intArray` / `Mem.bytes` / `Mem.copy` / `Mem.freeInt` / `Mem.freeByte`) for buffers and
 dynamic arrays; reach for raw pointers and raw `alloc`/`free`/`memcpy` only
 when you need the `*T`/`&`/`*p` mechanics directly (see `examples/rawmem.flint`,
 the one low-level memory reference).
@@ -1153,8 +1154,8 @@ the one low-level memory reference).
   `string` variable too).
 - `free(p)` releases a buffer (no-op in v1, reclaimed at exit).
 - `buf[i]` reads or writes the 8-byte element at `i` (works on `string` and `*T`).
-- Sized access: `sys.byte_load/store`, `sys.short_load/store`,
-  `sys.int_load/store` (little-endian) for sub-word cells.
+- Sized access: `sys.byteLoad/store`, `sys.shortLoad/store`,
+  `sys.intLoad/store` (little-endian) for sub-word cells.
 
 ```java
 int main() {
@@ -1165,8 +1166,8 @@ int main() {
     *byte buf = alloc(32);
     buf[0] = 7;
     printi(buf[0]);             // 7
-    sys.byte_store(buf + 8, 42);
-    printi(sys.byte_load(buf + 8));  // 42  (sized access)
+    sys.byteStore(buf + 8, 42);
+    printi(sys.byteLoad(buf + 8));  // 42  (sized access)
     free(buf);
     return 0;
 }
@@ -1384,7 +1385,7 @@ int main() {
 }
 ```
 
-- `Thread.spawn(@fn, arg)` starts a worker thread (returns the id); `Thread.join(id)` blocks until it finishes and returns the worker's return value. `Thread.n_cpu()` reports the online CPU count. (import std.Thread)
+- `Thread.spawn(@fn, arg)` starts a worker thread (returns the id); `Thread.join(id)` blocks until it finishes and returns the worker's return value. `Thread.nCpu()` reports the online CPU count. (import std.Thread)
 - The `@` operator yields a function's address (required to launch a thread).
 - `Sync.lock(&m)` / `Sync.unlock(&m)`: a simple mutex (futex-based); `Sync.cas(&v, old, new)`: compare-and-swap, 1 on success; `Sync.nanosleep(sec, nsec)`. (import std.Sync)
 - Lower-level: `sys.clone`, `sys.futex`.
@@ -1398,12 +1399,12 @@ int main() {
 import std.Socket;
 int main() {
     int s = Socket.stream();               // AF_INET, SOCK_STREAM
-    Socket.bind_port(s, 7777);
+    Socket.bindPort(s, 7777);
     Socket.listen(s, 5);
-    int c = Socket.accept(s);              // or: int c = Socket.connect_host(127, 0, 0, 1, 7777);
+    int c = Socket.accept(s);              // or: int c = Socket.connectHost(127, 0, 0, 1, 7777);
     string m = Socket.recv(c);
     if (m != null) {
-        Socket.send_all(c, m);            // echo
+        Socket.sendAll(c, m);            // echo
     }
     Socket.close(c);
     return 0;
@@ -1411,15 +1412,15 @@ int main() {
 ```
 
 - `Socket.stream()`: create an AF_INET / SOCK_STREAM socket.
-- `Socket.bind_port(fd, port)` / `Socket.listen(fd, backlog)` (server); `Socket.connect_host(a, b, c, d, port)` (client).
-- `Socket.accept(fd)`: take a connection; `Socket.send_all(fd, s)` / `Socket.recv(fd)`; `Socket.close(fd)` to release. (import std.Socket)
-- Multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epoll_create1/ctl/wait`.
+- `Socket.bindPort(fd, port)` / `Socket.listen(fd, backlog)` (server); `Socket.connectHost(a, b, c, d, port)` (client).
+- `Socket.accept(fd)`: take a connection; `Socket.sendAll(fd, s)` / `Socket.recv(fd)`; `Socket.close(fd)` to release. (import std.Socket)
+- Multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epollCreate1/ctl/wait`.
 </details>
 
 <details>
 <summary>I/O & system</summary>
 
-- File I/O (import std.File): `File.read_all(path)`, `File.write_all(path, data)`,
+- File I/O (import std.File): `File.readAll(path)`, `File.writeAll(path, data)`,
   `File.copy(src, dst)`, `File.size(path)`, `File.exists`, `File.delete`,
   `File.append`, `File.rename`.
 - Standard streams: `print(s)`, `printi(n)`; stdin via `sys.read(0, buf, n)`.
@@ -1436,7 +1437,7 @@ int main() {
 ```java
 import std.File;
 int main() {
-    File.write_all("/tmp/flint_io.txt", "hi");  // O_WRONLY|O_CREAT|O_TRUNC
+    File.writeAll("/tmp/flint_io.txt", "hi");  // O_WRONLY|O_CREAT|O_TRUNC
     printi(File.size("/tmp/flint_io.txt"));    // 2
     string p = env.get("PATH");
     printi(p != null ? 1 : 0);           // 1
@@ -1515,7 +1516,7 @@ Two layers:
    (`package std`, in `src/stdlib/`): `std.Math`, `std.Sort`, `std.Bit`,
    `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
    `std.Str`, `std.Time`, `std.Image`, `std.Thread`, `std.Socket`,
-   `std.Sync`, `std.Mem`. **Prefer these over the
+   `std.Sync`, `std.Mem`, `std.Window`. **Prefer these over the
    raw builtins in application code.** Compile `src/stdlib/*.flint` alongside
    your sources and use `import std.X;` + `X.method(...)` (see the `std.*`
    feature section for the per-class method lists).
@@ -1524,7 +1525,7 @@ Builtins, grouped by module:
 
 | module | functions |
 |--------|-----------|
-| `sys`  | files: `open` `read` `write` `close` `brk`; process: `exit` `syscall`; sockets: `socket` `bind` `listen` `accept` `connect` `sockaddr`; multiplexing: `select` `poll` `epoll_create1` `epoll_ctl` `epoll_wait`; threads: `clone` `futex` `thread_create` `thread_join` `nanosleep`; locks: `mutex_lock` `mutex_unlock` `atomic_cas`; memory: `byte_load` `byte_store` `short_load` `short_store` `int_load` `int_store` |
+| `sys`  | files: `open` `read` `write` `close` `brk`; process: `exit` `syscall`; sockets: `socket` `bind` `listen` `accept` `connect` `sockaddr`; multiplexing: `select` `poll` `epollCreate1` `epollCtl` `epollWait`; threads: `clone` `futex` `threadCreate` `threadJoin` `nanosleep`; locks: `mutexLock` `mutexUnlock` `atomicCas`; memory: `byteLoad` `byteStore` `shortLoad` `shortStore` `intLoad` `intStore` |
 | `io`   | `print` `printi` (stdin via `sys.read(0, buf, n)`) |
 | `mem`  | `alloc` `free` `memcpy` `strlen` |
 | `str`  | `strlen` `concat` `concati` `itoa` `cmp` `copy` `substring` `indexOf` `replace` `format` |
@@ -1580,10 +1581,10 @@ int main() {
     sys.write(fd, "hi", 2);
     sys.close(fd);
     string buf = alloc(16);
-    sys.byte_store(buf + 8, 65);
-    printi(sys.byte_load(buf + 8));                   // 65
-    sys.short_store(buf, 1000);
-    printi(sys.short_load(buf));                     // 1000
+    sys.byteStore(buf + 8, 65);
+    printi(sys.byteLoad(buf + 8));                   // 65
+    sys.shortStore(buf, 1000);
+    printi(sys.shortLoad(buf));                     // 1000
     free(buf);
     return 0;
 }
@@ -1614,11 +1615,11 @@ src/
   middle/   mod.rs  mono/  ensure.rs  expand.rs  infer.rs  mod.rs
                 resolve.rs  resolve_expr.rs
   prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
-   stdlib/   bit.flint  checksum.flint  file.flint  image.flint
-             math.flint  num.flint  path.flint  rand.flint
-             sort.flint  str.flint  time.flint
+   stdlib/   bit.flint  checksum.flint  file.flint  gui.flint
+             image.flint  math.flint  num.flint  path.flint
+             rand.flint  sort.flint  str.flint  time.flint
   intrinsics.s  collections.s
 tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
 examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint
-            tcp_client.flint  tcp_server.flint
+            tcp_client.flint  tcp_server.flint  gui.flint
 ```
