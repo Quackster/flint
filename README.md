@@ -428,7 +428,7 @@ int main() {
 <details>
 <summary>Networking (TCP)</summary>
 
-- `Socket.stream()` creates an AF_INET / SOCK_STREAM socket; `Socket.bindPort(fd, port)` binds it to 0.0.0.0:port; `Socket.listen(fd, backlog)` marks it passive; `Socket.accept(fd)` takes a connection; `Socket.connectHost(a, b, c, d, port)` opens a client socket; `Socket.sendAll(fd, s)` / `Socket.recv(fd)` send/receive; `Socket.close(fd)` releases. (import std.Socket)
+- `Socket.stream()` creates an AF_INET / SOCK_STREAM socket; `Socket.bindPort(fd, port)` binds it to 0.0.0.0:port; `Socket.bindHost(fd, ip, port)` binds it to a specific "a.b.c.d":port (e.g. "127.0.0.1"); `Socket.listen(fd, backlog)` marks it passive; `Socket.accept(fd)` takes a connection; `Socket.connectHost(a, b, c, d, port)` opens a client socket; `Socket.sendAll(fd, s)` / `Socket.recv(fd)` send/receive; `Socket.close(fd)` releases. (import std.Socket)
 - I/O multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epollCreate1/ctl/wait`.
 
 ```java
@@ -599,7 +599,7 @@ int main() {
 | `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flipH`/`flipV`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fillRect`/`line`/`circle`/`fillCircle`), multi-format I/O (`save`/`load`, `toPpm`/`fromPpm`, `toPgm`/`fromPgm`, `toBmp`/`fromBmp`) |
 | `std.Thread` | `nCpu` (online CPU count), `spawn(@fn, arg)` (returns the id), `join(id)` (blocks; returns the worker's return value) |
 | `std.Sync`   | `lock(&m)` / `unlock(&m)` (mutex: 0 unlocked, 1 locked), `cas(&v, old, new)` (1 on success), `nanosleep(sec, nsec)` |
-| `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bindPort(fd, port)`, `listen(fd, backlog)`, `accept(fd)`, `connectHost(a, b, c, d, port)`, `sendAll(fd, s)`, `recv(fd)` (string or `null`), `close(fd)` |
+| `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bindPort(fd, port)` (0.0.0.0), `bindHost(fd, ip, port)` (a specific "a.b.c.d"), `listen(fd, backlog)`, `accept(fd)`, `connectHost(a, b, c, d, port)`, `sendAll(fd, s)`, `recv(fd)` (string or `null`), `close(fd)`, `nthDot(s, n)` (index of the n-th `.`) |
 | `std.Mem`    | `intArray(n)` (`*int`), `bytes(n)` (`*byte`), `copy(dst, src, n)`, `freeInt(*int)`, `freeByte(*byte)` — the high-level replacement for raw `alloc`/`free`/`memcpy` |
 | `std.Window` | Wayland desktop window (instance): `open(w, h, title)` (`null` without a compositor), `close()`, `running()`, `width()`, `height()`, `present(Image)`, `nextEvent()`, `peekEvent()`, `evX()`/`evY()`/`evButton()`/`evKey()`/`evState()`, static event codes `FRAME`/`KEY`/`BUTTON`/`MOTION`/`CLOSE`, helpers `fixed(v)` (24.8), `keyChar(code)`, `parseDisplay(name)` |
 
@@ -1399,7 +1399,7 @@ int main() {
 import std.Socket;
 int main() {
     int s = Socket.stream();               // AF_INET, SOCK_STREAM
-    Socket.bindPort(s, 7777);
+    Socket.bindPort(s, 7777);             // or: Socket.bindHost(s, "127.0.0.1", 7777)
     Socket.listen(s, 5);
     int c = Socket.accept(s);              // or: int c = Socket.connectHost(127, 0, 0, 1, 7777);
     string m = Socket.recv(c);
@@ -1412,7 +1412,7 @@ int main() {
 ```
 
 - `Socket.stream()`: create an AF_INET / SOCK_STREAM socket.
-- `Socket.bindPort(fd, port)` / `Socket.listen(fd, backlog)` (server); `Socket.connectHost(a, b, c, d, port)` (client).
+- `Socket.bindPort(fd, port)` / `Socket.bindHost(fd, ip, port)` / `Socket.listen(fd, backlog)` (server); `Socket.connectHost(a, b, c, d, port)` (client).
 - `Socket.accept(fd)`: take a connection; `Socket.sendAll(fd, s)` / `Socket.recv(fd)`; `Socket.close(fd)` to release. (import std.Socket)
 - Multiplexing (lower-level): `sys.select`, `sys.poll`, `sys.epollCreate1/ctl/wait`.
 </details>

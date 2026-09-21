@@ -54,8 +54,9 @@ like ordinary application code, **not** like a systems-programming demo:
   wrapper for it** (in `package std;`, e.g. `class Thread`) and have the example
   call that wrapper. Keep the raw `sys.*` / `alloc` calls *inside* the stdlib
   module, where they belong. Models: `thread.flint` (Thread: nCpu/spawn/join),
-  `net.flint` (Socket: stream/bindPort/listen/accept/connectHost/sendAll/
-  recv/close), `sync.flint` (Sync: lock/unlock/cas/nanosleep), `mem.flint`
+  `net.flint` (Socket: stream/bindPort/bindHost/listen/accept/connectHost/
+  sendAll/recv/close/nthDot), `sync.flint` (Sync: lock/unlock/cas/nanosleep),
+  `mem.flint`
   (Mem: intArray/bytes/copy/freeInt/freeByte), `file.flint` (File: readAll/writeAll/
   copy/size/...).
 - Show the build line in the header comment, including the stdlib files it

@@ -1,14 +1,15 @@
 // std/net — TCP (AF_INET / SOCK_STREAM) sockets (import std.Socket).
 //
 // `connectHost` opens a socket and connects to a.b.c.d:port in one step;
-// `bindPort` binds a listening socket to 0.0.0.0:port. `recv` reads one
-// message and returns it as a NUL-terminated string (null when the peer has
-// closed); `sendAll` writes a whole string.
+// `bindPort` binds a listening socket to 0.0.0.0:port and `bindHost` binds
+// it to a specific "a.b.c.d":port. `recv` reads one message and returns it as
+// a NUL-terminated string (null when the peer has closed); `sendAll` writes a
+// whole string.
 //
 // Usage:
 //   import std.Socket;
 //   int s = Socket.stream();
-//   Socket.bindPort(s, 7777);
+//   Socket.bindPort(s, 7777);        // or Socket.bindHost(s, "127.0.0.1", 7777)
 //   Socket.listen(s, 5);
 //   int c = Socket.accept(s);
 //   string m = Socket.recv(c);
@@ -22,6 +23,41 @@ class Socket {
     static int bindPort(int fd, int port) {
         *int addr = sys.sockaddr(port, 0, 0, 0, 0);
         return sys.bind(fd, addr, 16);
+    }
+    // Bind fd to ip:port, where ip is a dotted "a.b.c.d" string (e.g.
+    // "127.0.0.1"); -1 when ip is not a valid IPv4 address.
+    static int bindHost(int fd, string ip, int port) {
+        int i1 = Socket.nthDot(ip, 1);
+        int i2 = Socket.nthDot(ip, 2);
+        int i3 = Socket.nthDot(ip, 3);
+        if (i1 < 0 || i2 <= i1 || i3 <= i2 || Socket.nthDot(ip, 4) >= 0) {
+            return -1;
+        }
+        int a = atoi(str.substring(ip, 0, i1));
+        int b = atoi(str.substring(ip, i1 + 1, i2 - i1 - 1));
+        int c = atoi(str.substring(ip, i2 + 1, i3 - i2 - 1));
+        int d = atoi(str.substring(ip, i3 + 1, strlen(ip) - i3 - 1));
+        if (a < 0 || a > 255 || b < 0 || b > 255 || c < 0 || c > 255 || d < 0 || d > 255) {
+            return -1;
+        }
+        *int addr = sys.sockaddr(port, a, b, c, d);
+        return sys.bind(fd, addr, 16);
+    }
+    // Index of the n-th '.' in s (1-based), or -1 when there is not one.
+    static int nthDot(string s, int n) {
+        int i = 0;
+        int seen = 0;
+        int l = strlen(s);
+        while (i < l) {
+            if (sys.byteLoad(s + i) == 46) {
+                seen = seen + 1;
+                if (seen == n) {
+                    return i;
+                }
+            }
+            i = i + 1;
+        }
+        return -1;
     }
     // Mark fd as a passive (listening) socket.
     static int listen(int fd, int backlog) { return sys.listen(fd, backlog); }

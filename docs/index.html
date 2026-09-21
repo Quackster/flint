@@ -2454,10 +2454,10 @@ primitives</td></tr>
 <section id="networking" class="doc-section" data-label="Networking">
 <div class="page-head"><h1>Networking</h1>
 <p class="lede">TCP sockets through <code>std.Socket</code>
-(<code>stream</code> / <code>bindPort</code> / <code>listen</code> /
-<code>accept</code> / <code>connectHost</code> / <code>sendAll</code> /
-<code>recv</code> / <code>close</code>), which wraps the raw
-<code>sys.*</code> socket builtins. <code>select</code> /
+(<code>stream</code> / <code>bindPort</code> / <code>bindHost</code> /
+<code>listen</code> / <code>accept</code> / <code>connectHost</code> /
+<code>sendAll</code> / <code>recv</code> / <code>close</code>), which wraps the
+raw <code>sys.*</code> socket builtins. <code>select</code> /
 <code>poll</code> / <code>epoll_*</code> remain for multiplexing.</p></div>
 
 <h2>Methods</h2>
@@ -2467,6 +2467,9 @@ primitives</td></tr>
 <code>SOCK_STREAM</code> socket</td></tr>
 <tr><td><code>Socket.bindPort(fd, port)</code></td><td>bind to
 <code>0.0.0.0:port</code></td></tr>
+<tr><td><code>Socket.bindHost(fd, ip, port)</code></td><td>bind to a specific
+<code>a.b.c.d</code> address (e.g. <code>"127.0.0.1"</code>); <code>-1</code>
+when <code>ip</code> is not a valid IPv4 address</td></tr>
 <tr><td><code>Socket.listen(fd, backlog)</code></td><td>listen</td></tr>
 <tr><td><code>Socket.accept(fd)</code></td><td>take a connection
 (<code>&gt;= 0</code> on success, negative on error)</td></tr>
@@ -3156,9 +3159,10 @@ int main() {
 <code>net.flint</code>.)</p></div>
 
 <h2>Methods</h2>
-<p><code>stream</code> <code>bindPort</code> <code>listen</code>
-<code>accept</code> <code>connectHost</code> <code>sendAll</code>
-<code>recv</code> <code>close</code></p>
+<p><code>stream</code> <code>bindPort</code> <code>bindHost</code>
+<code>listen</code> <code>accept</code> <code>connectHost</code>
+<code>sendAll</code> <code>recv</code> <code>close</code>
+<code>nthDot</code></p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/tcp_client.flint</span></div>
