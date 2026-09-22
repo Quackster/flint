@@ -3281,7 +3281,14 @@ a proper <code>xdg_toplevel</code> so the compositor maps it. Key events
 carry Linux evdev key codes (<code>keyChar</code> maps them, with
 8/9/13/27 for Backspace/Tab/Return/Escape), and <code>evMods</code>
 reports the keyboard modifier mask (bit 1 Shift_L, bit 2 Caps_L,
-bit 4 Shift_R). Without a compositor (e.g. headless),
+bit 4 Shift_R). It answers the compositor's ping so the window never
+shows as unresponsive, and the close button (or Alt+F4) surfaces as
+<code>CLOSE</code>. It requests server-side decorations via
+<code>xdg-decoration</code> when offered, so KWin draws the usual
+title bar with min/max/close. It follows resizes (e.g. maximize):
+the buffers are rebuilt at the configured size, so
+<code>width()</code>/<code>height()</code> report the new size.
+Without a compositor (e.g. headless),
 <code>Window.open</code> returns <code>null</code>. (File:
 <code>gui.flint</code>.)</p></div>
 
@@ -3398,6 +3405,9 @@ int main() {
     Image c = new Image(480, 200);
     while (w.running() && gui.running() == 1) {
         gui.step();
+        if (w.width() != c.w || w.height() != c.h) {
+            c = new Image(w.width(), w.height());
+        }
         if (w.evType() == Window.KEY() && w.evState() == 1
                 && Window.keyChar(w.evKey()) == 27) {
             return 0;   // Escape quits

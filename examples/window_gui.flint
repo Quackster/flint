@@ -29,6 +29,9 @@ int main() {
     Image c = new Image(480, 200);
     while (w.running() && gui.running() == 1) {
         gui.step();
+        if (w.width() != c.w || w.height() != c.h) {
+            c = new Image(w.width(), w.height());
+        }
         if (w.evType() == Window.KEY() && w.evState() == 1
                 && Window.keyChar(w.evKey()) == 27) {
             return 0;   // Escape quits
