@@ -53,6 +53,18 @@ flint_brk:
     ret
     .size flint_brk, .-flint_brk
 
+    .globl flint_ignore_sigpipe
+    .type flint_ignore_sigpipe, @function
+# signal(SIGPIPE, SIG_IGN): a closed peer (e.g. the compositor disconnecting)
+# then yields EPIPE on write instead of killing the process.
+flint_ignore_sigpipe:
+    mov $13, %rax             # SYS_signal
+    mov $13, %edi             # SIGPIPE
+    mov $1, %esi              # SIG_IGN
+    syscall
+    ret
+    .size flint_ignore_sigpipe, .-flint_ignore_sigpipe
+
     .globl flint_socket
     .type flint_socket, @function
 flint_socket:

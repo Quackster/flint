@@ -362,6 +362,199 @@ class Image {
             y = y + 1;
         }
     }
+    // ------------------------------------------------------------- text
+    // 5x7 built-in font: 95 glyphs (space .. '~'), 7 rows of 5-bit rows
+    // each, lazily initialised into Image.font.
+    static string font;   // 95*7 bytes
+    // Draw a string with the 5x7 font (1 px spacing); returns the width
+    // in pixels. Lower-case letters render as their upper-case glyph.
+    public int text(int x, int y, string s, int c) {
+        if (Image.font == null) {
+            Image.fontInit();
+        }
+        int n = strlen(s);
+        int i = 0;
+        while (i < n) {
+            int ch = sys.byteLoad(s + i);
+            if (ch >= 97 && ch <= 122) {
+                ch = ch - 32;     // a-z -> A-Z
+            }
+            if (ch >= 32 && ch < 127) {
+                this.drawGlyph(x + i * 6, y, ch - 32, c);
+            }
+            i = i + 1;
+        }
+        return n * 6;
+    }
+    // Width in pixels of s in the 5x7 font.
+    public int textWidth(string s) {
+        return strlen(s) * 6;
+    }
+    // One glyph: idx is ch - 32 (0 = space .. 94 = '~').
+    void drawGlyph(int x, int y, int idx, int c) {
+        int row = 0;
+        while (row < 7) {
+            int bits = sys.byteLoad(Image.font + idx * 7 + row);
+            int col = 0;
+            while (col < 5) {
+                if ((bits >> (4 - col)) & 1) {
+                    this.set(x + col, y + row, c);
+                }
+                col = col + 1;
+            }
+            row = row + 1;
+        }
+    }
+    // Store rows 0-3 (each 0..31) for glyph index `c` (0 = space, 1 = '!', ...).
+    static void g0(int c, int r0, int r1, int r2, int r3) {
+        int o = c * 7;
+        sys.byteStore(Image.font + o, r0);
+        sys.byteStore(Image.font + o + 1, r1);
+        sys.byteStore(Image.font + o + 2, r2);
+        sys.byteStore(Image.font + o + 3, r3);
+    }
+    // Store rows 4-6 (each 0..31) for glyph index `c`.
+    static void g4(int c, int r4, int r5, int r6) {
+        int o = c * 7;
+        sys.byteStore(Image.font + o + 4, r4);
+        sys.byteStore(Image.font + o + 5, r5);
+        sys.byteStore(Image.font + o + 6, r6);
+    }
+    static void fontInit() {
+        Image.font = alloc(95 * 7);
+        int i = 0;
+        while (i < 95 * 7) {
+            sys.byteStore(Image.font + i, 0);
+            i = i + 1;
+        }
+        // digits
+        Image.g0(16, 14, 17, 19, 21);
+        Image.g4(16, 25, 17, 14);   // 0
+        Image.g0(17, 4, 12, 4, 4);
+        Image.g4(17, 4, 4, 14);       // 1
+        Image.g0(18, 14, 17, 1, 6);
+        Image.g4(18, 8, 16, 31);     // 2
+        Image.g0(19, 30, 1, 1, 14);
+        Image.g4(19, 1, 1, 30);      // 3
+        Image.g0(20, 2, 6, 10, 18);
+        Image.g4(20, 31, 2, 2);      // 4
+        Image.g0(21, 31, 16, 30, 1);
+        Image.g4(21, 1, 16, 30);    // 5
+        Image.g0(22, 6, 8, 16, 30);
+        Image.g4(22, 17, 17, 14);    // 6
+        Image.g0(23, 31, 1, 2, 4);
+        Image.g4(23, 8, 8, 8);        // 7
+        Image.g0(24, 14, 17, 17, 14);
+        Image.g4(24, 17, 17, 14); // 8
+        Image.g0(25, 14, 17, 17, 15);
+        Image.g4(25, 1, 6, 4);    // 9
+        // upper-case
+        Image.g0(33, 14, 17, 17, 31);
+        Image.g4(33, 17, 17, 17); // A
+        Image.g0(34, 30, 17, 17, 30);
+        Image.g4(34, 17, 17, 30); // B
+        Image.g0(35, 14, 17, 16, 16);
+        Image.g4(35, 16, 17, 14); // C
+        Image.g0(36, 28, 18, 17, 17);
+        Image.g4(36, 17, 18, 28); // D
+        Image.g0(37, 31, 16, 16, 30);
+        Image.g4(37, 16, 16, 31); // E
+        Image.g0(38, 31, 16, 16, 30);
+        Image.g4(38, 16, 16, 16); // F
+        Image.g0(39, 14, 17, 16, 23);
+        Image.g4(39, 17, 17, 15); // G
+        Image.g0(40, 17, 17, 17, 31);
+        Image.g4(40, 17, 17, 17); // H
+        Image.g0(41, 14, 4, 4, 4);
+        Image.g4(41, 4, 4, 14);      // I
+        Image.g0(42, 7, 2, 2, 2);
+        Image.g4(42, 2, 18, 12);      // J
+        Image.g0(43, 17, 18, 20, 24);
+        Image.g4(43, 20, 18, 17); // K
+        Image.g0(44, 16, 16, 16, 16);
+        Image.g4(44, 16, 16, 31); // L
+        Image.g0(45, 17, 27, 21, 21);
+        Image.g4(45, 17, 17, 17); // M
+        Image.g0(46, 17, 25, 21, 19);
+        Image.g4(46, 17, 17, 17); // N
+        Image.g0(47, 14, 17, 17, 17);
+        Image.g4(47, 17, 17, 14); // O
+        Image.g0(48, 30, 17, 17, 30);
+        Image.g4(48, 16, 16, 16); // P
+        Image.g0(49, 14, 17, 17, 17);
+        Image.g4(49, 21, 18, 13); // Q
+        Image.g0(50, 30, 17, 17, 30);
+        Image.g4(50, 20, 18, 17); // R
+        Image.g0(51, 15, 16, 16, 14);
+        Image.g4(51, 1, 1, 30);   // S
+        Image.g0(52, 31, 4, 4, 4);
+        Image.g4(52, 4, 4, 4);       // T
+        Image.g0(53, 17, 17, 17, 17);
+        Image.g4(53, 17, 17, 14); // U
+        Image.g0(54, 17, 17, 17, 17);
+        Image.g4(54, 10, 10, 4);  // V
+        Image.g0(55, 17, 17, 17, 21);
+        Image.g4(55, 21, 27, 17); // W
+        Image.g0(56, 17, 17, 10, 4);
+        Image.g4(56, 10, 17, 17);  // X
+        Image.g0(57, 17, 17, 10, 4);
+        Image.g4(57, 4, 4, 4);     // Y
+        Image.g0(58, 31, 1, 2, 4);
+        Image.g4(58, 8, 16, 31);     // Z
+        // symbols
+        Image.g0(1, 4, 4, 4, 4);
+        Image.g4(1, 4, 0, 4);         // !
+        Image.g0(2, 10, 10, 0, 0);
+        Image.g4(2, 0, 0, 0);       // "
+        Image.g0(3, 10, 10, 31, 10);
+        Image.g4(3, 31, 10, 0);   // #
+        Image.g0(4, 4, 15, 20, 14);
+        Image.g4(4, 5, 30, 4);     // $
+        Image.g0(5, 25, 25, 2, 4);
+        Image.g4(5, 8, 17, 17);     // %
+        Image.g0(6, 8, 20, 18, 8);
+        Image.g4(6, 21, 10, 20);    // &
+        Image.g0(7, 4, 4, 0, 0);
+        Image.g4(7, 0, 0, 0);         // '
+        Image.g0(8, 2, 4, 8, 8);
+        Image.g4(8, 8, 4, 2);         // (
+        Image.g0(9, 8, 4, 2, 2);
+        Image.g4(9, 2, 4, 8);         // )
+        Image.g0(10, 0, 21, 14, 31);
+        Image.g4(10, 14, 21, 0);  // *
+        Image.g0(11, 0, 4, 4, 31);
+        Image.g4(11, 4, 4, 0);      // +
+        Image.g0(12, 0, 0, 0, 0);
+        Image.g4(12, 0, 4, 6);       // ,
+        Image.g0(13, 0, 0, 0, 31);
+        Image.g4(13, 0, 0, 0);      // -
+        Image.g0(14, 0, 0, 0, 0);
+        Image.g4(14, 0, 12, 12);     // .
+        Image.g0(15, 1, 1, 2, 4);
+        Image.g4(15, 8, 8, 16);      // /
+        Image.g0(26, 0, 12, 12, 0);
+        Image.g4(26, 12, 12, 0);   // :
+        Image.g0(27, 0, 12, 12, 0);
+        Image.g4(27, 12, 4, 6);    // ;
+        Image.g0(28, 2, 4, 8, 16);
+        Image.g4(28, 8, 4, 2);      // <
+        Image.g0(29, 0, 0, 31, 0);
+        Image.g4(29, 31, 0, 0);     // =
+        Image.g0(30, 8, 4, 2, 1);
+        Image.g4(30, 2, 4, 8);       // >
+        Image.g0(31, 14, 17, 1, 6);
+        Image.g4(31, 4, 0, 4);     // ?
+        Image.g0(59, 14, 8, 8, 8);
+        Image.g4(59, 8, 8, 14);      // [
+        Image.g0(60, 16, 8, 8, 4);
+        Image.g4(60, 2, 1, 1);      // \
+        Image.g0(61, 14, 2, 2, 2);
+        Image.g4(61, 2, 2, 14);     // ]
+        Image.g0(62, 4, 10, 17, 0);
+        Image.g4(62, 0, 0, 0);     // ^
+        Image.g0(63, 0, 0, 0, 0);
+        Image.g4(63, 0, 0, 31);      // _
+    }
     // ------------------------------------------------------------- I/O
     // Write a P6 (binary) PPM; returns bytes written or a negative errno.
     public int toPpm(string path) {

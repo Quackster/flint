@@ -239,6 +239,7 @@ pub fn generate(prog: &Program) -> CompileResult<String> {
     // entry point
     ctx.emit(".globl _start");
     ctx.emit("_start:");
+    ctx.emit("\tcall flint_ignore_sigpipe");
     ctx.emit("\tcall main");
     ctx.emit("\tmov %eax, %edi");
     ctx.emit("\tcall flint_exit");

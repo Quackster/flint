@@ -1,0 +1,847 @@
+// std/gui — a Wayland window with drawing and basic input events
+// (import std.Window).
+//
+// `Window.open` connects to the compositor at
+// $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY (default wayland-0), creates a
+// w x h surface backed by a shared-memory buffer, and maps it. Drawing
+// is done through std.Image: draw into an Image, then `w.present(im)`
+// blits it and commits (paced by the compositor's frame callbacks).
+// `nextEvent` blocks on the next input event; `peekEvent` does not.
+//
+// Usage:
+//   import std.Window;
+//   Window w = Window.open(320, 200, "title");
+//   if (w == null) { print("no display\n"); return; }
+//   Image c = new Image(320, 200);
+//   while (w.running()) {
+//       int e = w.nextEvent();
+//       if (e == Window.CLOSE()) { break; }
+//       w.present(c);
+//   }
+//
+// Note: only the core Wayland protocol is used — no xdg-shell, so the
+// compositor does not decorate the window; `title` is accepted but not
+// conveyed. Quit with a key (e.g. 'q') or let the compositor close the
+// app (surfaced as Window.CLOSE()).
+package std;
+class Window {
+    // Event codes returned by nextEvent / peekEvent.
+    static int FRAME() { return 1; }
+    static int KEY() { return 2; }
+    static int BUTTON() { return 3; }
+    static int MOTION() { return 4; }
+    static int CLOSE() { return 5; }
+    static int CONFIGURE() { return 6; }
+
+    int fd;        // the compositor socket
+    int closed;    // 1 once the connection is gone
+    int ok;        // 1 once the handshake succeeded
+    int w; int h; int stride;
+    string shm_buf; // h*stride bytes, ARGB8888 (bytes B,G,R,A per pixel)
+    int shm_fd;    // memfd backing the buffer
+    int frame_id;  // current frame callback object id
+    int frame_pending;
+    int next_id;   // next free client object id (13+)
+    // read buffer for the socket stream
+    string rb; int rb_n; int rb_i;
+    int last_fd;   // fd captured from the most recent recvmsg
+    // global table (filled during the handshake)
+    string gname; int gn; string gver; string giface;
+    // last decoded input event
+    int ev_type; int ev_x; int ev_y; int ev_button; int ev_key; int ev_state;
+    int mods;    // keyboard modifier mask (Shift_L=1, Caps_L=2, Shift_R=4, ...)
+    int err_seen; // 1 once wl_display.error has been reported
+    int xdg_serial; // serial of the last xdg_surface.configure event
+    int xdg_acked;  // 1 once the initial configure has been acked
+    int buf2;       // second buffer id (double buffering)
+    int buf_toggle; // which buffer (0 = buffer 9, 1 = buf2) was last attached
+
+    public Window() {
+        this.fd = -1;
+        this.closed = 0;
+        this.ok = 0;
+        this.w = 0; this.h = 0; this.stride = 0;
+        this.shm_buf = null;
+        this.shm_fd = -1;
+        this.frame_id = 0;
+        this.frame_pending = 0;
+        this.next_id = 16;
+        this.rb = alloc(4096);
+        this.rb_n = 0; this.rb_i = 0;
+        this.last_fd = -1;
+        this.gname = alloc(64 * 4);
+        this.gn = 0;
+        this.gver = alloc(64 * 4);
+        this.giface = alloc(64 * 48);
+        this.ev_type = 0;
+        this.ev_x = 0; this.ev_y = 0;
+        this.ev_button = 0; this.ev_key = 0; this.ev_state = 0;
+        this.mods = 0;
+        this.err_seen = 0;
+        this.xdg_serial = 0;
+        this.xdg_acked = 0;
+        this.buf2 = 0;
+        this.buf_toggle = 0;
+    }
+
+    // ------------------------------------------------------------- setup
+    // Connect to the compositor, create the surface and map it. Returns
+    // null when no compositor is reachable.
+    static Window open(int ww, int hh, string title) {
+        string disp = env.get("WAYLAND_DISPLAY");
+        if (disp == null || disp == "") {
+            disp = "wayland-0";
+        }
+        int fd = sys.socket(1, 1, 0);   // AF_UNIX, SOCK_STREAM
+        if (fd < 0) {
+            return null;
+        }
+        string path = "";
+        if (Window.isAbs(disp)) {
+            path = disp;
+        } else {
+            string dir = env.get("XDG_RUNTIME_DIR");
+            if (dir == null || dir == "") {
+                int uid = sys.syscall(102, 0, 0, 0, 0, 0);   // getuid
+                dir = "/run/user/" + str.itoa(uid);
+            }
+            path = dir + "/" + disp;
+        }
+        // sockaddr_un: 16-bit family = 1, then the NUL-terminated path.
+        string addr = alloc(110);
+        sys.byteStore(addr, 1);
+        sys.byteStore(addr + 1, 0);
+        int n = strlen(path);
+        int i = 0;
+        while (i < n) {
+            sys.byteStore(addr + 2 + i, sys.byteLoad(path + i));
+            i = i + 1;
+        }
+        sys.byteStore(addr + 2 + n, 0);
+        if (sys.connect(fd, addr, 2 + n + 1) < 0) {
+            return null;
+        }
+        Window self = new Window();
+        self.fd = fd;
+        if (self.connect() == 0) {
+            return null;
+        }
+        self.w = ww;
+        self.h = hh;
+        self.stride = ww * 4;
+        int bsize = self.h * self.stride;
+        self.shm_fd = sys.syscall(319, "flint", 0, 0, 0, 0);   // memfd_create
+        if (self.shm_fd < 0) {
+            return null;
+        }
+        sys.syscall(77, self.shm_fd, bsize, 0, 0, 0);          // ftruncate
+        self.shm_buf = sys.mmap(0, bsize, 3, 1, self.shm_fd, 0);
+        if (self.shm_buf == null) {
+            return null;
+        }
+        // Object ids must be strictly sequential in the order the requests
+        // are sent (the compositor's object map is a dense array). The
+        // binds created ids 4-7 (compositor, shm, seat, xdg_wm_base).
+        // wl_shm.create_pool: (pool id 8, size) — the fd is passed ONLY via
+        // SCM_RIGHTS (no in-band fd slot, matching libwayland's serialize
+        // which skips WL_ARG_FD). 4 words = 16 bytes.
+        string m = alloc(16);
+        Window.put32(m, 0, 5);                       // wl_shm
+        Window.put32(m, 4, (16 << 16) | 0);         // create_pool, size = 16
+        Window.put32(m, 8, 8);                      // pool id
+        Window.put32(m, 12, bsize);                // size
+        if (self.sendMsg(m, 16, 2, self.shm_fd) < 0) {
+            return null;
+        }
+        // wl_shm_pool.create_buffer: (buffer id 9, offset 0, w, h,
+        // stride, format 0 = ARGB8888). 6 args -> 8 + 6*4 = 32 bytes.
+        m = alloc(32);
+        Window.put32(m, 0, 8);
+        Window.put32(m, 4, (32 << 16) | 0);
+        Window.put32(m, 8, 9);
+        Window.put32(m, 12, 0);
+        Window.put32(m, 16, self.w);
+        Window.put32(m, 20, self.h);
+        Window.put32(m, 24, self.stride);
+        Window.put32(m, 28, 0);
+        self.sendPlain(m, 32);
+        // wl_compositor.create_surface: (surface id 10).
+        m = alloc(12);
+        Window.put32(m, 0, 4);
+        Window.put32(m, 4, (12 << 16) | 0);
+        Window.put32(m, 8, 10);
+        self.sendPlain(m, 12);
+        // wl_seat.get_pointer (id 11) and get_keyboard (id 12).
+        m = alloc(12);
+        Window.put32(m, 0, 6);
+        Window.put32(m, 4, (12 << 16) | 0);
+        Window.put32(m, 8, 11);
+        self.sendPlain(m, 12);
+        Window.put32(m, 4, (12 << 16) | 1);
+        Window.put32(m, 8, 12);
+        self.sendPlain(m, 12);
+        // xdg_wm_base.get_xdg_surface: (id 13, surface 10). 2 args -> 16.
+        m = alloc(16);
+        Window.put32(m, 0, 7);
+        Window.put32(m, 4, (16 << 16) | 2);         // get_xdg_surface
+        Window.put32(m, 8, 13);
+        Window.put32(m, 12, 10);
+        self.sendPlain(m, 16);
+        // xdg_surface.get_toplevel: (id 14, parent 0). 2 args -> 16.
+        m = alloc(16);
+        Window.put32(m, 0, 13);
+        Window.put32(m, 4, (16 << 16) | 1);         // get_toplevel
+        Window.put32(m, 8, 14);
+        Window.put32(m, 12, 0);
+        self.sendPlain(m, 16);
+        // xdg_toplevel.set_title / set_app_id (string args).
+        if (self.sendStrReq(14, 2, title) < 0) {
+            return null;
+        }
+        if (self.sendStrReq(14, 3, "flint") < 0) {
+            return null;
+        }
+        // The xdg protocol forbids attaching a buffer before the first
+        // configure event. Commit (empty) to trigger it, wait for
+        // configure, then ack_configure.
+        m = alloc(8);
+        Window.put32(m, 0, 10);                     // wl_surface
+        Window.put32(m, 4, (8 << 16) | 6);          // commit
+        self.sendPlain(m, 8);
+        int g = 0;
+        while (g < 100) {
+            int c = self.readMsg(0);
+            if (c == -2) {
+                return null;
+            }
+            if (c == Window.CONFIGURE()) {
+                break;
+            }
+            g = g + 1;
+        }
+        // ack_configure: (serial) on xdg_surface (13).
+        m = alloc(12);
+        Window.put32(m, 0, 13);
+        Window.put32(m, 4, (12 << 16) | 4);         // ack_configure
+        Window.put32(m, 8, self.xdg_serial);
+        self.sendPlain(m, 12);
+        self.xdg_acked = 1;
+        // Attach the buffer and commit the first frame. attach takes
+        // (buffer, x, y) since wayland 1.25 (x = y = 0) -> 20 bytes.
+        m = alloc(20);
+        Window.put32(m, 0, 10);
+        Window.put32(m, 4, (20 << 16) | 1);         // attach, size = 20
+        Window.put32(m, 8, 9);
+        Window.put32(m, 12, 0);
+        Window.put32(m, 16, 0);
+        self.sendPlain(m, 20);
+        m = alloc(12);
+        Window.put32(m, 0, 10);
+        Window.put32(m, 4, (12 << 16) | 3);         // frame
+        Window.put32(m, 8, 15);
+        self.sendPlain(m, 12);
+        m = alloc(8);
+        Window.put32(m, 0, 10);
+        Window.put32(m, 4, (8 << 16) | 6);          // commit
+        self.sendPlain(m, 8);
+        self.frame_id = 15;
+        self.frame_pending = 1;
+        // Create a second buffer (id 16) from the same pool at offset 0 for
+        // double buffering; both read the same pool memory.
+        m = alloc(32);
+        Window.put32(m, 0, 8);
+        Window.put32(m, 4, (32 << 16) | 0);
+        Window.put32(m, 8, 16);
+        Window.put32(m, 12, 0);
+        Window.put32(m, 16, self.w);
+        Window.put32(m, 20, self.h);
+        Window.put32(m, 24, self.stride);
+        Window.put32(m, 28, 0);
+        self.sendPlain(m, 32);
+        self.buf2 = 16;
+        self.buf_toggle = 0;
+        self.next_id = 17;
+        self.ok = 1;
+        return self;
+    }
+
+    // 1 if the display is usable.
+    int ok() { return this.ok; }
+    // 1 until the connection is closed.
+    int running() { return this.closed == 0 ? 1 : 0; }
+    int width() { return this.w; }
+    int height() { return this.h; }
+    // Mark the window closed (the process exit tears the connection
+    // down).
+    void close() { this.closed = 1; }
+
+    // ---------------------------------------------------------- events
+    // Block until the next input event; returns its code (KEY, BUTTON,
+    // MOTION, FRAME, CLOSE).
+    int nextEvent() {
+        while (1) {
+            int c = this.readMsg(0);
+            if (c == -2) {
+                return Window.CLOSE();
+            }
+            if (c > 0) {
+                return c;
+            }
+        }
+    }
+    // Non-blocking: the next input event, or 0 when none is pending.
+    int peekEvent() {
+        int c = this.readMsg(1);
+        if (c == -2) {
+            return Window.CLOSE();
+        }
+        return c > 0 ? c : 0;
+    }
+    int evType() { return this.ev_type; }
+    int evX() { return this.ev_x; }
+    int evY() { return this.ev_y; }
+    int evButton() { return this.ev_button; }
+    int evKey() { return this.ev_key; }
+    int evState() { return this.ev_state; }
+    // The keyboard modifier mask from the latest wl_keyboard modifiers
+    // event (bits: 1 = Shift_L, 2 = Caps_L, 4 = Shift_R, 32 = Lock).
+    int evMods() { return this.mods; }
+
+    // -------------------------------------------------------- drawing
+    // Blit im into the shared buffer and commit; waits for the
+    // compositor's frame callback first so the single buffer is safe to
+    // overwrite. im must be w x h.
+    void present(Image im) {
+        if (this.frame_pending) {
+            int g = 0;
+            while (g < 2000) {
+                int c = this.readMsg(0);
+                if (c == -2) {
+                    return;
+                }
+                if (c == Window.FRAME()) {
+                    this.frame_pending = 0;
+                    break;
+                }
+                g = g + 1;
+            }
+            if (this.frame_pending) {
+                return;   // no frame in sight; skip pacing rather than hang
+            }
+        }
+        int ww = im.w;
+        int words = ww * 4 / 4;
+        int y = 0;
+        while (y < im.h && y < this.h) {
+            int rs = y * ww * 4;
+            int rd = y * this.stride;
+            int x = 0;
+            while (x < words) {
+                sys.intStore(this.shm_buf + rd + x * 4, sys.intLoad(im.data + rs + x * 4));
+                x = x + 1;
+            }
+            y = y + 1;
+        }
+        // Double buffering: attach the OTHER buffer (both read the same pool
+        // memory, so the blit above is what the compositor sees). Alternating
+        // the buffer identity forces the compositor to re-present.
+        int buf_id = this.buf_toggle == 0 ? this.buf2 : 9;
+        int fr_id = this.next_id;
+        string m = alloc(20);
+        Window.put32(m, 0, 10);                     // wl_surface
+        Window.put32(m, 4, (20 << 16) | 1);         // attach
+        Window.put32(m, 8, buf_id);
+        Window.put32(m, 12, 0);
+        Window.put32(m, 16, 0);
+        this.sendPlain(m, 20);
+        // Request the frame callback BEFORE the commit so it is part of the
+        // committed state (the compositor sends it when this frame is shown).
+        m = alloc(12);
+        Window.put32(m, 0, 10);
+        Window.put32(m, 4, (12 << 16) | 3);         // frame
+        Window.put32(m, 8, fr_id);
+        this.sendPlain(m, 12);
+        m = alloc(8);
+        Window.put32(m, 0, 10);
+        Window.put32(m, 4, (8 << 16) | 6);          // commit
+        this.sendPlain(m, 8);
+        this.frame_id = fr_id;
+        this.next_id = this.next_id + 1;
+        this.buf_toggle = 1 - this.buf_toggle;
+        this.frame_pending = 1;
+    }
+
+    // ------------------------------------------------- pure statics
+    // Convert a 24.8 fixed-point value to an int.
+    static int fixed(int v) { return v / 256; }
+    // The character for a key code (Linux evdev keycodes, US layout),
+    // or 0 when the code is not mapped. Special keys return their ASCII
+    // control code: 8 = Backspace, 9 = Tab, 13 = Return, 27 = Escape.
+    static int keyChar(int code) {
+        if (code == 1) {
+            return 27;          // Escape
+        }
+        if (code >= 2 && code <= 10) {
+            return 49 + (code - 2);        // '1'..'9'
+        }
+        if (code == 11) {
+            return 48;           // '0'
+        }
+        if (code == 12) {
+            return 45;           // '-'
+        }
+        if (code == 13) {
+            return 61;           // '='
+        }
+        if (code == 14) {
+            return 8;           // Backspace
+        }
+        if (code == 15) {
+            return 9;           // Tab
+        }
+        if (code == 16) { return 113; }      // q
+        if (code == 17) { return 119; }      // w
+        if (code == 18) { return 101; }      // e
+        if (code == 19) { return 114; }      // r
+        if (code == 20) { return 116; }      // t
+        if (code == 21) { return 121; }      // y
+        if (code == 22) { return 117; }      // u
+        if (code == 23) { return 105; }      // i
+        if (code == 24) { return 111; }      // o
+        if (code == 25) { return 112; }      // p
+        if (code == 26) {
+            return 91;           // '['
+        }
+        if (code == 27) {
+            return 93;           // ']'
+        }
+        if (code == 28) {
+            return 13;           // Return
+        }
+        if (code == 29) {
+            return 3;            // Control
+        }
+        if (code == 30) { return 97; }       // a
+        if (code == 31) { return 115; }      // s
+        if (code == 32) { return 100; }      // d
+        if (code == 33) { return 102; }      // f
+        if (code == 34) { return 103; }      // g
+        if (code == 35) { return 104; }      // h
+        if (code == 36) { return 106; }      // j
+        if (code == 37) { return 107; }      // k
+        if (code == 38) { return 108; }      // l
+        if (code == 39) {
+            return 59;           // ';'
+        }
+        if (code == 40) {
+            return 39;           // apostrophe
+        }
+        if (code == 41) {
+            return 92;           // backslash
+        }
+        if (code == 42) {
+            return 16;           // Shift
+        }
+        if (code == 43) { return 122; }      // z
+        if (code == 44) { return 123; }      // x
+        if (code == 45) { return 124; }      // c
+        if (code == 46) { return 125; }      // v
+        if (code == 47) { return 126; }      // b
+        if (code == 48) { return 110; }      // n
+        if (code == 49) { return 109; }      // m
+        if (code == 50) {
+            return 44;           // ','
+        }
+        if (code == 51) {
+            return 46;           // '.'
+        }
+        if (code == 52) {
+            return 47;           // '/'
+        }
+        if (code == 54) {
+            return 16;           // Right Shift
+        }
+        if (code == 56) {
+            return 18;           // Alt
+        }
+        if (code == 57) {
+            return 32;           // Space
+        }
+        return 0;
+    }
+    // The number after the last '-' in a display name (0 when absent).
+    static int parseDisplay(string s) {
+        int n = strlen(s);
+        int i = n - 1;
+        int dash = -1;
+        while (i >= 0) {
+            if (sys.byteLoad(s + i) == 45) {
+                dash = i;
+                break;
+            }
+            i = i - 1;
+        }
+        int v = 0;
+        int d = 0;
+        i = dash + 1;
+        while (i < n) {
+            int c = sys.byteLoad(s + i);
+            if (c < 48 || c > 57) {
+                break;
+            }
+            v = v * 10 + (c - 48);
+            d = 1;
+            i = i + 1;
+        }
+        return d == 1 ? v : 0;
+    }
+    // dir + "/" + name.
+    static string xdgPath(string dir, string name) {
+        return dir + "/" + name;
+    }
+    // True when two strings are equal (content, not pointer).
+    static int strEq(string a, string b) {
+        return str.cmp(a, b) == 0;
+    }
+
+    // ------------------------------------------------- private plumbing
+    static int isAbs(string s) {
+        return strlen(s) > 0 && sys.byteLoad(s) == 47;
+    }
+    // Store a 64-bit value (two little-endian 32-bit halves).
+    static void put64(string b, int off, int v) {
+        sys.intStore(b + off, v & 0xFFFFFFFF);
+        sys.intStore(b + off + 4, (v >> 32) & 0xFFFFFFFF);
+    }
+    static void put32(string b, int off, int v) {
+        sys.intStore(b + off, v & 0xFFFFFFFF);
+    }
+    static int get32(string b, int off) {
+        return sys.intLoad(b + off);
+    }
+    // Write n bytes via send(MSG_NOSIGNAL) so a closed peer yields
+    // EPIPE (r<0) instead of a SIGPIPE that would kill the process.
+    void sendPlain(string m, int n) {
+        int off = 0;
+        while (off < n) {
+            int r = sys.syscall(44, this.fd, m + off, n - off, 16384, 0);
+            if (r <= 0) {
+                print("sendPlain failed r=");
+                printi(r);
+                print("\n");
+                this.closed = 1;
+                return;
+            }
+            off = off + r;
+        }
+    }
+    // Send a request with an ancillary message: kind 2 = SCM_RIGHTS
+    // carrying f (cmsg_len = 16 + 4 for the single fd).
+    int sendMsg(string m, int n, int kind, int f) {
+        string iov = alloc(16);
+        string mh = alloc(56);
+        string ctrl = alloc(32);
+        Window.put64(iov, 0, m);
+        Window.put64(iov, 8, n);
+        Window.put64(mh, 0, 0);
+        Window.put64(mh, 8, 0);
+        Window.put64(mh, 16, iov);
+        Window.put64(mh, 24, 1);
+        if (kind == 2) {
+            Window.put64(ctrl, 0, 20);          // cmsg_len = 16 + 4
+            Window.put64(ctrl, 8, 1);
+            Window.put64(ctrl, 12, 1);          // SCM_RIGHTS
+            Window.put64(ctrl, 16, f);
+            Window.put64(mh, 32, ctrl);
+            Window.put64(mh, 40, 20);
+        }
+        Window.put64(mh, 48, 0);
+        int r = sys.syscall(46, this.fd, mh, 0, 0, 0);   // sendmsg
+        return r < 0 ? r : 0;
+    }
+    // Ensure at least n bytes in the read buffer. 0 ok, -1 no data
+    // (non-blocking), -2 connection closed.
+    int take(int n, int nonblock) {
+        if (this.rb_i > 0) {
+            int c = this.rb_n - this.rb_i;
+            int k = 0;
+            while (k < c) {
+                sys.byteStore(this.rb + k, sys.byteLoad(this.rb + this.rb_i + k));
+                k = k + 1;
+            }
+            this.rb_n = c;
+            this.rb_i = 0;
+        }
+        while (this.rb_n < n) {
+            this.last_fd = -1;
+            // The compositor never sends fds back to the client, so the
+            // receive path is a plain byte stream. recvmsg is unreliable
+            // in the freestanding runtime (the kernel EINVALs it here), so
+            // poll for readability and read() the bytes instead.
+            string pf = alloc(12);   // struct pollfd { int fd; short ev; short rev; }
+            Window.put32(pf, 0, this.fd);
+            sys.shortStore(pf + 4, 1);   // POLLIN
+            int pr = sys.syscall(7, pf, 1, nonblock == 1 ? 0 : -1, 0, 0);
+            if (pr < 0) {
+                if (pr == -4) {
+                    continue;   // EINTR: retry
+                }
+                this.closed = 1;
+                return -2;
+            }
+            if (pr == 0) {
+                if (nonblock == 1) {
+                    return -1;   // nothing pending
+                }
+                continue;        // blocking: poll(0) shouldn't fire; retry
+            }
+            int n2 = sys.read(this.fd, this.rb + this.rb_n, 4096 - this.rb_n);
+            if (n2 < 0) {
+                if (n2 == -4) {
+                    continue;   // EINTR: retry
+                }
+                this.closed = 1;
+                return -2;
+            }
+            if (n2 == 0) {
+                this.closed = 1;
+                return -2;
+            }
+            this.rb_n = this.rb_n + n2;
+        }
+        return 0;
+    }
+    // Read one full message; 0 internal, >0 user-visible code, -1 no
+    // data (non-blocking), -2 connection closed.
+    int readMsg(int nonblock) {
+        this.last_fd = -1;
+        int r = this.take(8, nonblock);
+        if (r != 0) {
+            return r;
+        }
+        int w0 = Window.get32(this.rb, 0);
+        int w1 = Window.get32(this.rb, 4);
+        int size = (w1 >> 16) & 0xFFFF;
+        int opcode = w1 & 0xFFFF;
+        if (size < 8 || size > 4088) {
+            print("readMsg BAD size=");
+            printi(size);
+            print(" w0=");
+            printi(w0);
+            print(" w1=");
+            printi(w1);
+            print("\n");
+            this.closed = 1;
+            return -2;
+        }
+        if (size > 8) {
+            r = this.take(size, nonblock);
+            if (r != 0) {
+                return r;
+            }
+        }
+        int code = 0;
+        // wl_display.error: (id, code, message) — the compositor is
+        // tearing the connection down; report it once.
+        if (w0 == 1 && opcode == 0 && size == 64 && this.err_seen == 0) {
+            this.err_seen = 1;
+            print("window error: code ");
+            printi(Window.get32(this.rb, 12));
+            print(" ");
+            int ml = Window.get32(this.rb, 16);
+            if (ml > 100) {
+                ml = 100;
+            }
+            string mb = alloc(ml + 1);
+            int mk = 0;
+            while (mk < ml) {
+                int c = sys.byteLoad(this.rb + 20 + mk);
+                if (c >= 32 && c < 127) {
+                    sys.byteStore(mb + mk, c);
+                } else {
+                    sys.byteStore(mb + mk, 63);
+                }
+                mk = mk + 1;
+            }
+            sys.byteStore(mb + ml, 0);
+            print(mb);
+            print("\n");
+        }
+        if (w0 == 2) {
+            // wl_registry.global: (name, interface string, version)
+            if (opcode == 0 && this.gn < 64) {
+                int name = Window.get32(this.rb, 8);
+                int slen = Window.get32(this.rb, 12);
+                if (slen > 47) {
+                    slen = 47;
+                }
+                int k = 0;
+                while (k < slen) {
+                    sys.byteStore(this.giface + this.gn * 48 + k, sys.byteLoad(this.rb + 16 + k));
+                    k = k + 1;
+                }
+                sys.byteStore(this.giface + this.gn * 48 + slen, 0);
+                Window.put32(this.gname, this.gn * 4, name);
+                Window.put32(this.gver, this.gn * 4, Window.get32(this.rb, 16 + ((slen + 3) / 4) * 4));
+                this.gn = this.gn + 1;
+            }
+        } else if (w0 == 3) {
+            // wl_display.sync callback done
+            if (opcode == 0) {
+                code = 100;
+            }
+        } else if (w0 == 11) {
+            // wl_pointer
+            if (opcode == 0) {
+                this.ev_x = Window.fixed(Window.get32(this.rb, 16));
+                this.ev_y = Window.fixed(Window.get32(this.rb, 20));
+            } else if (opcode == 2) {
+                this.ev_x = Window.fixed(Window.get32(this.rb, 16));
+                this.ev_y = Window.fixed(Window.get32(this.rb, 20));
+                code = Window.MOTION();
+            } else if (opcode == 3) {
+                this.ev_button = Window.get32(this.rb, 16);
+                this.ev_state = Window.get32(this.rb, 20);
+                code = Window.BUTTON();
+            }
+        } else if (w0 == 12) {
+            // wl_keyboard: enter(0), leave(1), key(2), modifiers(3),
+            // keymap(4).
+            if (opcode == 2) {
+                this.ev_key = Window.get32(this.rb, 16);
+                this.ev_state = Window.get32(this.rb, 20);
+                code = Window.KEY();
+            } else if (opcode == 3) {
+                this.mods = Window.get32(this.rb, 12);
+            } else if (opcode == 4) {
+                if (this.last_fd >= 0) {
+                    sys.close(this.last_fd);   // keymap fd: not needed
+                }
+            }
+        } else if (w0 == 13 && opcode == 0) {
+            // xdg_surface.configure: (serial uint, states array). The
+            // client must not attach a buffer before receiving this.
+            // serial is the first arg (offset 8); ack_configure requires
+            // a non-zero serial.
+            this.xdg_serial = Window.get32(this.rb, 8);
+            code = Window.CONFIGURE();
+        } else if (w0 == this.frame_id && opcode == 0) {
+            code = Window.FRAME();
+        }
+        this.ev_type = code;
+        this.rb_i = size;
+        return code;
+    }
+    // The handshake: get_registry (+credentials), sync, then bind the
+    // needed globals and create the input objects.
+    int connect() {
+        // get_registry: (registry id 2). Sent as a plain write — the
+        // compositor learns client credentials via SO_PEERCRED.
+        string m = alloc(12);
+        Window.put32(m, 0, 1);                       // wl_display
+        Window.put32(m, 4, (12 << 16) | 1);
+        Window.put32(m, 8, 2);
+        this.sendPlain(m, 12);
+        // sync: (callback id 3) — marks the end of the global burst.
+        m = alloc(12);
+        Window.put32(m, 0, 1);
+        Window.put32(m, 4, (12 << 16) | 0);
+        Window.put32(m, 8, 3);
+        this.sendPlain(m, 12);
+        int g = 0;
+        while (g < 200) {
+            int c = this.readMsg(0);
+            if (c == -2) {
+                return 0;
+            }
+            if (c == 100) {
+                break;
+            }
+            g = g + 1;
+        }
+        if (g >= 200) {
+            return 0;
+        }
+        int i = 0;
+        while (i < this.gn) {
+            if (this.ifaceEq(i, "wl_compositor")) {
+                this.doBind(4, i, 6);
+            } else if (this.ifaceEq(i, "wl_shm")) {
+                this.doBind(5, i, 2);
+            } else if (this.ifaceEq(i, "wl_seat")) {
+                this.doBind(6, i, 3);
+            } else if (this.ifaceEq(i, "xdg_wm_base")) {
+                this.doBind(7, i, 6);
+            }
+            i = i + 1;
+        }
+        return 1;
+    }
+    // True when the stored global i has interface name lit.
+    int ifaceEq(int slot, string lit) {
+        int ln = strlen(lit);
+        int k = 0;
+        while (k < ln) {
+            if (sys.byteLoad(this.giface + slot * 48 + k) != sys.byteLoad(lit + k)) {
+                return 0;
+            }
+            k = k + 1;
+        }
+        return sys.byteLoad(this.giface + slot * 48 + ln) == 0 ? 1 : 0;
+    }
+    // wl_registry.bind: (name, interface string, version, new_id).
+    // Signature usun — the string is [len][padded bytes], then version,
+    // then new_id (matching libwayland's serialize_closure order).
+    void doBind(int new_id, int slot, int cap) {
+        int name = Window.get32(this.gname, slot * 4);
+        int ver = Window.get32(this.gver, slot * 4);
+        if (ver > cap) {
+            ver = cap;
+        }
+        // find the interface name length
+        int ilen = 0;
+        while (ilen < 47 && sys.byteLoad(this.giface + slot * 48 + ilen) != 0) {
+            ilen = ilen + 1;
+        }
+        int sl = ilen + 1;
+        int pad = (sl + 3) / 4 * 4;
+        int total = 24 + pad;
+        string m = alloc(total);
+        Window.put32(m, 0, 2);                           // target = registry
+        Window.put32(m, 4, (total << 16) | 0);          // opcode 0 = bind
+        Window.put32(m, 8, name);                       // name (uint)
+        Window.put32(m, 12, sl);                        // interface len
+        int k = 0;
+        while (k < ilen) {
+            sys.byteStore(m + 16 + k, sys.byteLoad(this.giface + slot * 48 + k));
+            k = k + 1;
+        }
+        sys.byteStore(m + 16 + ilen, 0);
+        Window.put32(m, 16 + pad, ver);                // version (uint)
+        Window.put32(m, 16 + pad + 4, new_id);         // new_id
+        this.sendPlain(m, total);
+    }
+    // Send a request carrying one string argument (signature "s"):
+    // [length u32][bytes + NUL, padded to a 4-byte boundary].
+    int sendStrReq(int target, int opcode, string s) {
+        int n = strlen(s);
+        int sl = n + 1;
+        int pad = (sl + 3) / 4 * 4;
+        int total = 12 + pad;                         // hdr + len + padded string
+        string m = alloc(total);
+        Window.put32(m, 0, target);
+        Window.put32(m, 4, (total << 16) | opcode);
+        Window.put32(m, 8, sl);                     // length (incl. NUL)
+        int k = 0;
+        while (k < n) {
+            sys.byteStore(m + 12 + k, sys.byteLoad(s + k));
+            k = k + 1;
+        }
+        sys.byteStore(m + 12 + n, 0);                // NUL terminator
+        return this.sendPlain(m, total);
+    }
+    // A 64-bit read (two little-endian 32-bit halves).
+    static int get64(string b, int off) {
+        return sys.intLoad(b + off) | (sys.intLoad(b + off + 4) << 32);
+    }
+}

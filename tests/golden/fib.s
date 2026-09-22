@@ -93,6 +93,7 @@ main:
 .size main, .-main
 .globl _start
 _start:
+	call flint_ignore_sigpipe
 	call main
 	mov %eax, %edi
 	call flint_exit

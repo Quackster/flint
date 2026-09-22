@@ -1,0 +1,107 @@
+// std.Gui test: Image 5x7 font text, widget hit-testing, label and
+// textbox behaviour, textbox key mapping, and Gui dispatch + draw.
+// No window is opened, so every check is deterministic and safe
+// headless.
+import std.Gui;
+import std.Image;
+
+int main() {
+    // ---- Image: 5x7 font text ----
+    Image im = new Image(32, 16);
+    printi(im.text(0, 0, "Hi", 0xFFFFFFFF)); print(" ");     // 12
+    printi(im.textWidth("abc")); print(" ");                // 18
+    printi(im.get(0, 0) != 0 ? 1 : 0); print(" ");          // 1 (H col 0)
+    printi(im.get(5, 0) == 0 ? 1 : 0); print(" ");          // 1 (1px gap)
+    printi(im.get(8, 1) != 0 ? 1 : 0); print("\n");         // 1 (i stem)
+    // out-of-range drawing must be a no-op
+    Image im2 = new Image(32, 16);
+    im2.text(30, 0, "abc", 0xFF000000);
+    printi(im2.get(31, 0) != 0 ? 1 : 0); print("\n");       // 1 (a col 1)
+
+    // ---- Label ----
+    Label l = new Label(0, 0, 16, 8, "Hi");
+    printi(str.cmp(l.text(), "Hi") == 0 ? 1 : 0); print(" ");
+    Image lim = new Image(32, 16);
+    l.draw(lim);
+    printi(lim.get(0, 0) != 0 ? 1 : 0); print(" ");         // 1 (H top-left)
+    l.setText("Hi");
+    printi(str.cmp(l.text(), "Hi") == 0 ? 1 : 0); print("\n");
+
+    // ---- Widget: hit (right/bottom edges exclusive) ----
+    Label w = new Label(10, 10, 20, 10, "x");
+    printi(w.hit(15, 15)); print(" ");                     // 1
+    printi(w.hit(5, 15)); print(" ");                     // 0
+    printi(w.hit(30, 15)); print(" ");                    // 0
+    printi(w.hit(29, 19)); print(" ");                    // 1
+    printi(w.hit(15, 20)); print("\n");                   // 0
+
+    // ---- TextBox: focus, type, backspace, return, capacity ----
+    TextBox tb = new TextBox(0, 0, 40, 16, 8);
+    printi(tb.claimFocus(5, 8)); print(" ");              // 1
+    tb.onKey(16, 0);                                     // 'q'
+    tb.onKey(17, 0);                                     // 'w'
+    printi(tb.length()); print(" ");                     // 2
+    print(tb.text()); print(" ");                        // qw
+    tb.onKey(14, 0);                                     // backspace -> "q"
+    printi(tb.length()); print(" ");                     // 1
+    tb.onKey(28, 0);                                     // return
+    printi(tb.entered()); print(" ");                    // 1
+    tb.clearEntered();
+    printi(tb.entered()); print("\n");                   // 0
+    int i = 0;
+    while (i < 10) {
+        tb.append(97);                                   // 'a' x10
+        i = i + 1;
+    }
+    printi(tb.length()); print(" ");                     // 8 (capped at max)
+    tb.backspace();
+    printi(tb.length()); print(" ");                     // 7
+    tb.clear();
+    printi(tb.length()); print(" ");                     // 0
+    printi(tb.entered()); print("\n");                   // 0
+    // an unfocused box ignores keys
+    TextBox tb2 = new TextBox(100, 0, 40, 16, 8);
+    tb2.onKey(30, 0);
+    printi(tb2.length()); print("\n");                   // 0
+
+    // ---- TextBox: key mapping (US layout, shift/caps) ----
+    printi(TextBox.keyChar(30, 0) == 97 ? 1 : 0); print(" ");   // a
+    printi(TextBox.keyChar(30, 1) == 65 ? 1 : 0); print(" ");   // A (Shift_L)
+    printi(TextBox.keyChar(30, 2) == 65 ? 1 : 0); print(" ");   // A (Caps_L)
+    printi(TextBox.keyChar(2, 1) == 33 ? 1 : 0); print(" ");    // ! (shifted 1)
+    printi(TextBox.keyChar(14, 0) == 0 ? 1 : 0); print(" ");    // Backspace
+    printi(TextBox.keyChar(28, 0) == 0 ? 1 : 0); print(" ");    // Return
+    printi(TextBox.keyChar(42, 0) == 0 ? 1 : 0); print("\n");   // Shift key
+
+    // ---- TextBox: draw (fill + border) ----
+    Image im3 = new Image(48, 24);
+    tb.draw(im3);
+    printi(im3.get(5, 8) != 0 ? 1 : 0); print(" ");     // 1 (fill)
+    printi(im3.get(0, 0) != 0 ? 1 : 0); print("\n");    // 1 (border corner)
+
+    // ---- Gui: capacity, draw, focus flow ----
+    Gui gui = new Gui(null);
+    gui.step();                                        // no-op without a window
+    printi(gui.running()); print(" ");                 // 1
+    gui.addLabel(l);
+    gui.addBox(tb);
+    printi(gui.nLabels()); print(" ");                // 1
+    printi(gui.nBoxes()); print(" ");                 // 1
+    Image im4 = new Image(64, 32);
+    gui.draw(im4);
+    printi(im4.get(5, 8) != 0 ? 1 : 0); print(" ");   // 1 (box fill drawn)
+    printi(im4.get(0, 0) != 0 ? 1 : 0); print("\n");  // 1 (box border)
+    i = 0;
+    while (i < 10) {
+        gui.addLabel(new Label(0, 0, 8, 8, "x"));
+        i = i + 1;
+    }
+    printi(gui.nLabels()); print(" ");                // 8 (capacity)
+    gui.dispatchPress(5, 8);                         // focuses tb
+    gui.dispatchKey(30, 0);                          // 'a'
+    print(tb.text()); print(" ");                    // a
+    printi(tb.length()); print(" ");                 // 1
+    gui.setRunning(0);
+    printi(gui.running()); print("\n");              // 0
+    return 0;
+}

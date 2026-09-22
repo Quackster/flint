@@ -596,12 +596,13 @@ int main() {
 | `std.Rand`   | `init(seed)` (xorshift64), `next`, `range(lo, hi)`, `coin`, `shuffle`, `pick`, `bytes`, `hexId`, `randString` |
 | `std.Str`    | `upper`, `lower`, `reverse`, `trim`, `ltrim`, `rtrim`, `count`, `contains`, `lastIndexOf`, `startsWith`, `endsWith`, `replaceAll`, `repeat`, `split`, `join`, `ljust`, `rjust` |
 | `std.Time`   | `millis`, `seconds`, `nanos`, `date` (`YYYY-MM-DD HH:MM:SS`) |
-| `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flipH`/`flipV`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fillRect`/`line`/`circle`/`fillCircle`), multi-format I/O (`save`/`load`, `toPpm`/`fromPpm`, `toPgm`/`fromPgm`, `toBmp`/`fromBmp`) |
+| `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flipH`/`flipV`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fillRect`/`line`/`circle`/`fillCircle`), text (`text(x, y, s, c)` (built-in 5×7 font, returns the pixel width), `textWidth(s)`), multi-format I/O (`save`/`load`, `toPpm`/`fromPpm`, `toPgm`/`fromPgm`, `toBmp`/`fromBmp`) |
 | `std.Thread` | `nCpu` (online CPU count), `spawn(@fn, arg)` (returns the id), `join(id)` (blocks; returns the worker's return value) |
 | `std.Sync`   | `lock(&m)` / `unlock(&m)` (mutex: 0 unlocked, 1 locked), `cas(&v, old, new)` (1 on success), `nanosleep(sec, nsec)` |
 | `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bindPort(fd, port)` (0.0.0.0), `bindHost(fd, ip, port)` (a specific "a.b.c.d"), `listen(fd, backlog)`, `accept(fd)`, `connectHost(a, b, c, d, port)`, `sendAll(fd, s)`, `recv(fd)` (string or `null`), `close(fd)`, `nthDot(s, n)` (index of the n-th `.`) |
 | `std.Mem`    | `intArray(n)` (`*int`), `bytes(n)` (`*byte`), `copy(dst, src, n)`, `freeInt(*int)`, `freeByte(*byte)` — the high-level replacement for raw `alloc`/`free`/`memcpy` |
-| `std.Window` | Wayland desktop window (instance): `open(w, h, title)` (`null` without a compositor), `close()`, `running()`, `width()`, `height()`, `present(Image)`, `nextEvent()`, `peekEvent()`, `evX()`/`evY()`/`evButton()`/`evKey()`/`evState()`, static event codes `FRAME`/`KEY`/`BUTTON`/`MOTION`/`CLOSE`, helpers `fixed(v)` (24.8), `keyChar(code)`, `parseDisplay(name)` |
+| `std.Window` | Wayland desktop window (instance): `open(w, h, title)` (`null` without a compositor; creates an `xdg_toplevel` so the compositor maps it), `close()`, `running()`, `width()`, `height()`, `present(Image)`, `nextEvent()`, `peekEvent()`, `evType()`/`evX()`/`evY()`/`evButton()`/`evKey()`/`evState()`/`evMods()`, static event codes `FRAME`/`KEY`/`BUTTON`/`MOTION`/`CLOSE`/`CONFIGURE`, helpers `fixed(v)` (24.8), `keyChar(code)` (Linux evdev keycodes; 8/9/13/27 for Backspace/Tab/Return/Escape), `parseDisplay(name)`, `xdgPath(dir, name)`, `strEq(a, b)` |
+| `std.Widget` | widgets for `std.Window` (file `widget.flint`): `Widget` (`hit(px, py)`), `Label` (`text()`, `setText(t)`, `draw(im)`), `TextBox` (single-line input: `text()`, `length()`, `entered()`, `onKey(code, mods)`, `clear()`, `draw(im)`; focus + shift-aware US key map), `Gui` (`addLabel`/`addBox` (capacity 8 each), `nLabels()`, `nBoxes()`, `running()`, `setRunning(v)`, `step()` (pump + dispatch), `draw(im)`) |
 
 </details>
 
@@ -1516,8 +1517,8 @@ Two layers:
    (`package std`, in `src/stdlib/`): `std.Math`, `std.Sort`, `std.Bit`,
    `std.Num`, `std.File`, `std.Path`, `std.Checksum`, `std.Rand`,
    `std.Str`, `std.Time`, `std.Image`, `std.Thread`, `std.Socket`,
-   `std.Sync`, `std.Mem`, `std.Window`. **Prefer these over the
-   raw builtins in application code.** Compile `src/stdlib/*.flint` alongside
+   `std.Sync`, `std.Mem`, `std.Window`, `std.Widget`. **Prefer
+   these over the raw builtins in application code.** Compile `src/stdlib/*.flint` alongside
    your sources and use `import std.X;` + `X.method(...)` (see the `std.*`
    feature section for the per-class method lists).
 
@@ -1618,8 +1619,9 @@ src/
    stdlib/   bit.flint  checksum.flint  file.flint  gui.flint
              image.flint  math.flint  num.flint  path.flint
              rand.flint  sort.flint  str.flint  time.flint
+             widget.flint
   intrinsics.s  collections.s
 tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
 examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint
-            tcp_client.flint  tcp_server.flint  gui.flint
+            tcp_client.flint  tcp_server.flint  gui.flint  window_gui.flint
 ```

@@ -1,0 +1,354 @@
+// std/widget — small widgets for std.Window: Label and TextBox, held in
+// a Gui container that pumps input events and dispatches them to the
+// widgets (import std.Gui, std.Label, std.TextBox, std.Widget).
+//
+// Widgets draw into a std.Image canvas which the application blits to
+// the window with Window.present. A typical program:
+//
+//   import std.Window;
+//   import std.Gui;
+//   import std.Image;
+//   Window w = Window.open(480, 200, "flint gui");
+//   if (w == null) { print("no display\n"); return 0; }
+//   Gui gui = new Gui(w);
+//   Label label = new Label(16, 12, 200, 16, "Hello");
+//   TextBox box = new TextBox(16, 44, 240, 30, 32);
+//   gui.addLabel(label);
+//   gui.addBox(box);
+//   Image c = new Image(480, 200);
+//   while (w.running() && gui.running() == 1) {
+//       gui.step();                 // pump + dispatch pending events
+//       if (box.entered() == 1) {  // ... use box.text() ...
+//           box.clearEntered();
+//       }
+//       c.fill(Image.rgb(16, 16, 32));
+//       gui.draw(c);
+//       w.present(c);
+//   }
+//
+// Note: the compiler has a refcount bug for object arrays (re-reading
+// an element underflows a refcount and segfaults at exit), so Gui
+// holds fixed-capacity named fields per widget kind (8 of each) rather
+// than an object array.
+package std;
+
+// Shared widget geometry.
+class Widget {
+    int x; int y; int w; int h;
+    public Widget(int x, int y, int w, int h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+    }
+    // 1 when (px, py) is inside the widget (right/bottom edge excluded).
+    public int hit(int px, int py) {
+        return (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) ? 1 : 0;
+    }
+}
+
+// A non-interactive text label.
+class Label extends Widget {
+    string str;
+    int color;
+    public Label(int x, int y, int w, int h, string str) {
+        super(x, y, w, h);
+        this.str = str;
+        this.color = 0xFFFFFFFF;
+    }
+    public string text() { return this.str; }
+    public void setText(string t) { this.str = t; }
+    public void draw(Image im) {
+        im.text(this.x, this.y, this.str, this.color);
+    }
+}
+
+// A single-line text input. Takes keyboard focus; printable keys
+// append, Backspace deletes, Return sets the `entered` flag.
+class TextBox extends Widget {
+    string buf;   // max+1 bytes, always NUL-terminated
+    int max;
+    int len;
+    int focused;
+    int entered;
+    public TextBox(int x, int y, int w, int h, int max) {
+        super(x, y, w, h);
+        this.max = max;
+        this.buf = alloc(max + 1);
+        sys.byteStore(this.buf, 0);
+        this.len = 0;
+        this.focused = 0;
+        this.entered = 0;
+    }
+    public string text() { return this.buf; }
+    public int length() { return this.len; }
+    public int entered() { return this.entered; }
+    public void clear() {
+        this.len = 0;
+        sys.byteStore(this.buf, 0);
+        this.entered = 0;
+    }
+    public void clearEntered() { this.entered = 0; }
+    public void onPress(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+        }
+    }
+    // 1 when (px, py) hits this box; claims keyboard focus.
+    public int claimFocus(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    // Handle a key press (evdev key code, modifier mask from
+    // Window.evMods).
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 14) {
+            this.backspace();
+            return;
+        }
+        if (code == 28) {
+            this.entered = 1;
+            return;
+        }
+        int c = TextBox.keyChar(code, mods);
+        if (c > 0) {
+            this.append(c);
+        }
+    }
+    // Map (evdev key code, modifier mask) to an ASCII character for a
+    // US keyboard, or 0 when the key produces no character. Shift
+    // (bits 1 and 4) upper-cases letters and picks shifted symbols;
+    // Caps Lock (bits 2 and 32) toggles letter case.
+    static int keyChar(int code, int mods) {
+        int shifted = (mods & 1) != 0 || (mods & 4) != 0;
+        int caps = (mods & 2) != 0 || (mods & 32) != 0;
+        int c = Window.keyChar(code);
+        if (c < 32 || c > 126) {
+            return 0;
+        }
+        if (c >= 97 && c <= 122) {
+            if (shifted == 1 || caps == 1) {
+                return c - 32;
+            }
+            return c;
+        }
+        if (shifted == 1) {
+            return TextBox.shifted(c);
+        }
+        return c;
+    }
+    // The shifted symbol for an unshifted US punctuation/digit code.
+    static int shifted(int c) {
+        if (c == 49) { return 33; }    // 1 !
+        if (c == 50) { return 64; }    // 2 @
+        if (c == 51) { return 35; }    // 3 #
+        if (c == 52) { return 36; }    // 4 $
+        if (c == 53) { return 37; }    // 5 %
+        if (c == 54) { return 94; }    // 6 ^
+        if (c == 55) { return 38; }    // 7 &
+        if (c == 56) { return 42; }    // 8 *
+        if (c == 57) { return 40; }    // 9 (
+        if (c == 48) { return 41; }    // 0 )
+        if (c == 45) { return 95; }    // - _
+        if (c == 61) { return 43; }    // = +
+        if (c == 91) { return 123; }   // [ {
+        if (c == 93) { return 125; }   // ] }
+        if (c == 92) { return 124; }   // \ |
+        if (c == 59) { return 58; }    // ; :
+        if (c == 39) { return 34; }    // apostrophe "
+        if (c == 44) { return 60; }    // , <
+        if (c == 46) { return 62; }    // . >
+        if (c == 47) { return 63; }    // / ?
+        return c;
+    }
+    public void append(int c) {
+        if (this.len >= this.max) {
+            return;
+        }
+        sys.byteStore(this.buf + this.len, c);
+        this.len = this.len + 1;
+        sys.byteStore(this.buf + this.len, 0);
+    }
+    public void backspace() {
+        if (this.len <= 0) {
+            return;
+        }
+        this.len = this.len - 1;
+        sys.byteStore(this.buf + this.len, 0);
+    }
+    public void draw(Image im) {
+        int border = this.focused == 1 ? 0xFFFFFF00 : 0xFF666688;
+        im.fillRect(this.x, this.y, this.w, this.h, 0xFF222233);
+        im.rect(this.x, this.y, this.w, this.h, border);
+        im.text(this.x + 4, this.y + (this.h - 7) / 2, this.buf, 0xFFFFFFFF);
+    }
+}
+
+// Container that owns a window and a set of widgets. Fixed-capacity
+// named fields (8 of each kind) keep field access refcount-safe.
+class Gui {
+    Window win;
+    Label label0; Label label1; Label label2; Label label3;
+    Label label4; Label label5; Label label6; Label label7;
+    int nlabels;
+    TextBox box0; TextBox box1; TextBox box2; TextBox box3;
+    TextBox box4; TextBox box5; TextBox box6; TextBox box7;
+    int nboxes;
+    TextBox focused;
+    int running;
+    public Gui(Window win) {
+        this.win = win;
+        this.label0 = null; this.label1 = null; this.label2 = null; this.label3 = null;
+        this.label4 = null; this.label5 = null; this.label6 = null; this.label7 = null;
+        this.nlabels = 0;
+        this.box0 = null; this.box1 = null; this.box2 = null; this.box3 = null;
+        this.box4 = null; this.box5 = null; this.box6 = null; this.box7 = null;
+        this.nboxes = 0;
+        this.focused = null;
+        this.running = 1;
+    }
+    public void addLabel(Label l) {
+        if (this.nlabels == 0) { this.label0 = l; }
+        else if (this.nlabels == 1) { this.label1 = l; }
+        else if (this.nlabels == 2) { this.label2 = l; }
+        else if (this.nlabels == 3) { this.label3 = l; }
+        else if (this.nlabels == 4) { this.label4 = l; }
+        else if (this.nlabels == 5) { this.label5 = l; }
+        else if (this.nlabels == 6) { this.label6 = l; }
+        else if (this.nlabels == 7) { this.label7 = l; }
+        else { return; }
+        this.nlabels = this.nlabels + 1;
+    }
+    public void addBox(TextBox t) {
+        if (this.nboxes == 0) { this.box0 = t; }
+        else if (this.nboxes == 1) { this.box1 = t; }
+        else if (this.nboxes == 2) { this.box2 = t; }
+        else if (this.nboxes == 3) { this.box3 = t; }
+        else if (this.nboxes == 4) { this.box4 = t; }
+        else if (this.nboxes == 5) { this.box5 = t; }
+        else if (this.nboxes == 6) { this.box6 = t; }
+        else if (this.nboxes == 7) { this.box7 = t; }
+        else { return; }
+        this.nboxes = this.nboxes + 1;
+    }
+    public int running() { return this.running; }
+    public void setRunning(int v) { this.running = v; }
+    // Number of labels/boxes added (at most 8 of each).
+    public int nLabels() { return this.nlabels; }
+    public int nBoxes() { return this.nboxes; }
+    // Pump and dispatch all pending events for this frame.
+    public void step() {
+        if (this.win == null) {
+            return;
+        }
+        int e = this.win.peekEvent();
+        while (e != 0) {
+            if (e == Window.CLOSE()) {
+                this.running = 0;
+            } else if (e == Window.BUTTON() && this.win.evButton() == 1) {
+                this.dispatchPress(this.win.evX(), this.win.evY());
+            } else if (e == Window.KEY()) {
+                if (this.win.evState() == 1) {
+                    this.dispatchKey(this.win.evKey(), this.win.evMods());
+                }
+            }
+            e = this.win.peekEvent();
+        }
+    }
+    // Redraw every widget (call after clearing the canvas). Layer
+    // order: labels (bottom), boxes (top).
+    public void draw(Image im) {
+        if (this.label0 != null) { Label l = this.label0; l.draw(im); }
+        if (this.label1 != null) { Label l = this.label1; l.draw(im); }
+        if (this.label2 != null) { Label l = this.label2; l.draw(im); }
+        if (this.label3 != null) { Label l = this.label3; l.draw(im); }
+        if (this.label4 != null) { Label l = this.label4; l.draw(im); }
+        if (this.label5 != null) { Label l = this.label5; l.draw(im); }
+        if (this.label6 != null) { Label l = this.label6; l.draw(im); }
+        if (this.label7 != null) { Label l = this.label7; l.draw(im); }
+        if (this.box0 != null) { TextBox t = this.box0; t.draw(im); }
+        if (this.box1 != null) { TextBox t = this.box1; t.draw(im); }
+        if (this.box2 != null) { TextBox t = this.box2; t.draw(im); }
+        if (this.box3 != null) { TextBox t = this.box3; t.draw(im); }
+        if (this.box4 != null) { TextBox t = this.box4; t.draw(im); }
+        if (this.box5 != null) { TextBox t = this.box5; t.draw(im); }
+        if (this.box6 != null) { TextBox t = this.box6; t.draw(im); }
+        if (this.box7 != null) { TextBox t = this.box7; t.draw(im); }
+    }
+    public void dispatchPress(int x, int y) {
+        if (this.box0 != null) {
+            TextBox t = this.box0;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box1 != null) {
+            TextBox t = this.box1;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box2 != null) {
+            TextBox t = this.box2;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box3 != null) {
+            TextBox t = this.box3;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box4 != null) {
+            TextBox t = this.box4;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box5 != null) {
+            TextBox t = this.box5;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box6 != null) {
+            TextBox t = this.box6;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+        if (this.box7 != null) {
+            TextBox t = this.box7;
+            t.onPress(x, y);
+            if (t.claimFocus(x, y) == 1) {
+                if (this.focused != null) { this.focused.blur(); }
+                this.focused = t;
+            }
+        }
+    }
+    public void dispatchKey(int code, int mods) {
+        if (this.focused != null) {
+            this.focused.onKey(code, mods);
+        }
+    }
+}

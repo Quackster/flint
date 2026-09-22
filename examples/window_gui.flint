@@ -1,0 +1,49 @@
+// window_gui: open a Wayland window showing a Label and a TextBox.
+// Build:
+//   flintc src/stdlib/widget.flint src/stdlib/gui.flint src/stdlib/image.flint src/stdlib/math.flint src/stdlib/checksum.flint examples/window_gui.flint -o window_gui
+// Without a Wayland compositor (e.g. headless) it prints "no display"
+// and exits. On a desktop it shows a 480x200 window: a title label,
+// a prompt label, a text box and an echo label. Click the box, type,
+// and press Enter to echo the text into the label. Press Escape to
+// quit (or close the app from the compositor).
+import std.Window;
+import std.Gui;
+import std.Image;
+
+int main() {
+    Window w = Window.open(480, 200, "flint gui");
+    if (w == null) {
+        print("no display\n");
+        return 0;
+    }
+    print("opened ok\n");
+    Gui gui = new Gui(w);
+    Label title = new Label(16, 12, 240, 16, "Flint widgets");
+    Label prompt = new Label(16, 48, 240, 16, "Type below, press Enter:");
+    Label echo = new Label(16, 136, 360, 16, "");
+    TextBox box = new TextBox(16, 80, 240, 30, 64);
+    gui.addLabel(title);
+    gui.addLabel(prompt);
+    gui.addLabel(echo);
+    gui.addBox(box);
+    Image c = new Image(480, 200);
+    while (w.running() && gui.running() == 1) {
+        gui.step();
+        if (w.evType() == Window.KEY() && w.evState() == 1
+                && Window.keyChar(w.evKey()) == 27) {
+            return 0;   // Escape quits
+        }
+        if (box.entered() == 1) {
+            print("typed [");
+            print(box.text());
+            print("]\n");
+            echo.setText("you typed: " + box.text());
+            box.clearEntered();
+        }
+        c.fill(Image.rgb(16, 16, 32));
+        gui.draw(c);
+        w.present(c);
+    }
+    print("done.\n");
+    return 0;
+}
