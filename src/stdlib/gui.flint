@@ -510,6 +510,19 @@ class Window {
         this.buf1 = b1;
         this.buf2 = b2;
         this.buf_toggle = 0;
+        // Tell the compositor the new content bounds. KWin derives the
+        // maximized window rectangle from this, so a stale geometry
+        // makes it keep the window at the old size (and the title bar
+        // at the old width) after a resize. Qt and GTK re-send it on
+        // every size change.
+        string gm = alloc(24);
+        Window.put32(gm, 0, 13);                     // xdg_surface
+        Window.put32(gm, 4, (24 << 16) | 3);         // set_window_geometry
+        Window.put32(gm, 8, 0);
+        Window.put32(gm, 12, 0);
+        Window.put32(gm, 16, ww);
+        Window.put32(gm, 20, hh);
+        this.sendPlain(gm, 24);
     }
 
     // ------------------------------------------------- pure statics
