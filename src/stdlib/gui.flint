@@ -19,10 +19,14 @@
 //       w.present(c);
 //   }
 //
-// Note: only the core Wayland protocol is used — no xdg-shell, so the
-// compositor does not decorate the window; `title` is accepted but not
-// conveyed. Quit with a key (e.g. 'q') or let the compositor close the
-// app (surfaced as Window.CLOSE()).
+// Note: xdg-shell (xdg_toplevel) is used, so the compositor maps the
+// window and, when it offers xdg-decoration, draws a title bar with
+// min/max/close; `title` is conveyed via set_title. `minimize` hides
+// the window in the taskbar (the user restores it; a client cannot
+// un-minimize itself). Each Window is its own display connection, so
+// several windows can be open at once — pump and present each one.
+// Quit with a key (e.g. 'q') or let the compositor close the app
+// (surfaced as Window.CLOSE()).
 package std;
 class Window {
     // Event codes returned by nextEvent / peekEvent.
@@ -339,9 +343,30 @@ class Window {
     int running() { return this.closed == 0 ? 1 : 0; }
     int width() { return this.w; }
     int height() { return this.h; }
-    // Mark the window closed (the process exit tears the connection
-    // down).
-    void close() { this.closed = 1; }
+    // Close the window for good: mark it closed and tear the display
+    // connection down, so the compositor removes the window. (The
+    // close button is a hint in xdg-shell; the client must do this or
+    // exit, or the window stays mapped and goes "not responding".)
+    // No-op when the connection is already gone.
+    void close() {
+        this.closed = 1;
+        if (this.fd >= 0) {
+            sys.close(this.fd);
+            this.fd = -1;
+        }
+    }
+    // Ask the compositor to minimize (hide) the window. KWin moves it
+    // to the taskbar, where the user restores it; a client cannot
+    // un-minimize itself. No-op when the connection is gone.
+    void minimize() {
+        if (this.fd < 0 || this.closed == 1) {
+            return;
+        }
+        string m = this.msg;
+        Window.put32(m, 0, 14);                     // xdg_toplevel
+        Window.put32(m, 4, (12 << 16) | 4);        // minimize
+        this.sendPlain(m, 12);
+    }
 
     // ---------------------------------------------------------- events
     // Block until the next input event; returns its code (KEY, BUTTON,
@@ -680,9 +705,6 @@ class Window {
         while (off < n) {
             int r = sys.syscall(44, this.fd, m + off, n - off, 16384, 0);
             if (r <= 0) {
-                print("sendPlain failed r=");
-                printi(r);
-                print("\n");
                 this.closed = 1;
                 return;
             }
@@ -905,9 +927,10 @@ class Window {
             }
         } else if (w0 == 14 && opcode == 1) {
             // xdg_toplevel.close (opcode 1): the user (or compositor)
-            // asked us to close — leave the main loop so the process
-            // exits cleanly.
-            this.closed = 1;
+            // asked us to close — destroy this connection so the
+            // compositor removes the window, and surface CLOSE so the
+            // app can clean up and exit.
+            this.close();
             code = Window.CLOSE();
         } else if (this.deco != 0 && w0 == this.deco && opcode == 0) {
             // zxdg_toplevel_decoration.configure: (mode) — record it
