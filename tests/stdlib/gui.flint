@@ -1,7 +1,8 @@
 // std.Gui test: Image 5x7 font text, widget hit-testing, label and
-// textbox behaviour, textbox key mapping, and Gui dispatch + draw.
-// No window is opened, so every check is deterministic and safe
-// headless.
+// textbox behaviour, textbox key mapping, the form inputs (button,
+// checkbox, radio, slider, number, password, textarea, dropdown),
+// Gui dispatch + draw. No window is opened, so every check is
+// deterministic and safe headless.
 import std.Gui;
 import std.Image;
 
@@ -103,5 +104,160 @@ int main() {
     printi(tb.length()); print(" ");                 // 1
     gui.setRunning(0);
     printi(gui.running()); print("\n");              // 0
+
+    // ---- Button: press arms, release-inside fires ----
+    Gui gui2 = new Gui(null);
+    Button btn = new Button(0, 0, 60, 20, "Go");
+    gui2.addButton(btn);
+    printi(gui2.nButtons()); print(" ");             // 1
+    gui2.dispatchPress(30, 10);
+    gui2.dispatchRelease(30, 10);
+    printi(btn.clicked()); print(" ");               // 1
+    btn.clearClicked();
+    gui2.dispatchPress(30, 10);
+    gui2.dispatchRelease(200, 200);
+    printi(btn.clicked()); print(" ");               // 0 (outside)
+    gui2.dispatchKey(28, 0);
+    printi(btn.clicked()); print("\n");              // 1 (Return)
+    btn.clearClicked();
+
+    // ---- Checkbox: click and Space toggle ----
+    Checkbox cb = new Checkbox(0, 30, 120, 20, "Mail");
+    gui2.addCheck(cb);
+    gui2.dispatchPress(5, 40);
+    printi(cb.checked()); print(" ");                // 1
+    gui2.dispatchPress(5, 40);
+    printi(cb.checked()); print(" ");                // 0
+    gui2.dispatchKey(57, 0);
+    printi(cb.checked()); print("\n");               // 1 (Space)
+
+    // ---- RadioButton: groups are exclusive ----
+    RadioButton r1 = new RadioButton(0, 60, 100, 20, "Red");
+    r1.setGroup(1);
+    RadioButton r2 = new RadioButton(0, 90, 100, 20, "Green");
+    r2.setGroup(1);
+    RadioButton r3 = new RadioButton(0, 120, 100, 20, "Blue");
+    r3.setGroup(2);
+    gui2.addRadio(r1);
+    gui2.addRadio(r2);
+    gui2.addRadio(r3);
+    printi(gui2.nRadios()); print(" ");              // 3
+    gui2.dispatchPress(5, 70);
+    printi(r1.selected()); print(" ");
+    printi(r2.selected()); print(" ");
+    printi(r3.selected()); print(" ");               // 1 0 0
+    gui2.dispatchPress(5, 100);
+    printi(r1.selected()); print(" ");
+    printi(r2.selected()); print(" ");
+    printi(r3.selected()); print(" ");               // 0 1 0
+    gui2.dispatchPress(5, 130);
+    printi(r1.selected()); print(" ");
+    printi(r2.selected()); print(" ");
+    printi(r3.selected()); print("\n");              // 0 1 1
+    gui2.dispatchKey(57, 0);
+    printi(r1.selected()); print(" ");
+    printi(r2.selected()); print(" ");
+    printi(r3.selected()); print("\n");              // 0 1 1 (Space)
+
+    // ---- NumberBox: digits only, value, steppers ----
+    NumberBox nb = new NumberBox(0, 180, 80, 20, 8);
+    gui2.addNum(nb);
+    gui2.dispatchPress(5, 190);
+    gui2.dispatchKey(2, 0);                          // '1'
+    gui2.dispatchKey(3, 0);                          // '2'
+    gui2.dispatchKey(30, 0);                         // 'a' ignored
+    gui2.dispatchKey(12, 0);                         // '-' ignored (not first)
+    gui2.dispatchKey(14, 0);                         // backspace
+    print(nb.text()); print(" ");                    // 1
+    printi(nb.value()); print(" ");                  // 1
+    nb.setValue(-5);
+    print(nb.text()); print(" ");                    // -5
+    gui2.dispatchKey(103, 0);                        // Up
+    printi(nb.value()); print(" ");                  // -4
+    gui2.dispatchKey(108, 0);                        // Down
+    printi(nb.value()); print(" ");                  // -5
+    gui2.dispatchKey(28, 0);
+    printi(nb.entered()); print("\n");               // 1
+
+    // ---- PasswordBox: text kept, bullets drawn ----
+    PasswordBox pw = new PasswordBox(0, 210, 80, 20, 8);
+    gui2.addPass(pw);
+    gui2.dispatchPress(5, 220);
+    gui2.dispatchKey(16, 0);                         // q
+    gui2.dispatchKey(17, 1);                         // W (shift)
+    print(pw.text()); print(" ");                    // qW
+    printi(pw.length()); print("\n");                // 2
+
+    // ---- TextArea: Return is a newline, not entered ----
+    TextArea ta = new TextArea(0, 240, 120, 40, 64);
+    gui2.addArea(ta);
+    gui2.dispatchPress(5, 250);
+    gui2.dispatchKey(30, 0);                         // a
+    gui2.dispatchKey(28, 0);                         // newline
+    gui2.dispatchKey(31, 0);                         // s
+    printi(ta.entered()); print(" ");                // 0
+    printi(ta.lines()); print(" ");                  // 2
+    printi(ta.length()); print("\n");                // 3
+
+    // ---- Dropdown: open, pick, keyboard ----
+    Dropdown dd = new Dropdown(0, 290, 120, 24);
+    gui2.addDrop(dd);
+    printi(dd.addOption("red")); print(" ");         // 1
+    printi(dd.addOption("green")); print(" ");       // 1
+    printi(dd.addOption("blue")); print(" ");        // 1
+    printi(dd.nOptions()); print(" ");               // 3
+    print(dd.selectedText()); print("\n");           // red
+    gui2.dispatchPress(5, 300);
+    printi(dd.isOpen()); print(" ");                 // 1
+    gui2.dispatchPress(5, 348);
+    printi(dd.selected()); print(" ");               // 1
+    printi(dd.isOpen()); print(" ");                 // 0
+    print(dd.selectedText()); print("\n");           // green
+    gui2.dispatchKey(57, 0);                         // Space opens
+    printi(dd.isOpen()); print(" ");                 // 1
+    gui2.dispatchKey(108, 0);                        // down
+    gui2.dispatchKey(28, 0);                         // enter picks
+    printi(dd.selected()); print(" ");               // 2
+    print(dd.selectedText()); print("\n");           // blue
+    gui2.dispatchPress(5, 300);
+    gui2.dispatchKey(1, 0);                          // Escape closes
+    printi(dd.isOpen()); print(" ");                 // 0
+    printi(dd.selected()); print("\n");              // 2
+
+    // ---- Slider: click, drag, keys, clamp ----
+    Slider sl = new Slider(0, 150, 100, 20, 100);
+    gui2.addSlider(sl);
+    sl.setMin(10);
+    printi(sl.value()); print(" ");                  // 10 (clamped up)
+    gui2.dispatchPress(0, 155);
+    printi(sl.value()); print(" ");                  // 10 (left edge)
+    gui2.dispatchPress(99, 155);
+    printi(sl.value()); print(" ");                  // 99
+    gui2.dispatchMotion(50, 155);
+    printi(sl.value()); print(" ");                  // 55 (drag)
+    gui2.dispatchRelease(50, 155);
+    gui2.dispatchMotion(90, 155);
+    printi(sl.value()); print(" ");                  // 55 (released)
+    gui2.dispatchKey(106, 0);
+    printi(sl.value()); print(" ");                  // 56
+    gui2.dispatchKey(106, 1);
+    printi(sl.value()); print(" ");                  // 66 (shift x10)
+    gui2.dispatchKey(105, 0);
+    printi(sl.value()); print(" ");                  // 65
+    sl.setValue(1000);
+    printi(sl.value()); print(" ");                  // 100 (clamped)
+    sl.setValue(-5);
+    printi(sl.value()); print(" ");                  // 10 (clamped)
+    gui2.dispatchPress(50, 155);
+    gui2.dispatchRelease(50, 155);
+    printi(sl.value()); print("\n");                 // 55
+
+    // ---- Gui draw covers every kind ----
+    Image im5 = new Image(240, 400);
+    gui2.draw(im5);
+    printi(im5.get(5, 10) != 0 ? 1 : 0); print(" ");    // 1 (button fill)
+    printi(im5.get(2, 35) != 0 ? 1 : 0); print(" ");    // 1 (check fill)
+    printi(im5.get(5, 100) != 0 ? 1 : 0); print(" ");   // 1 (radio dot)
+    printi(im5.get(50, 155) != 0 ? 1 : 0); print("\n"); // 1 (slider knob)
     return 0;
 }

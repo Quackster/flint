@@ -3288,6 +3288,9 @@ shows as unresponsive, and the close button (or Alt+F4) surfaces as
 title bar with min/max/close. It follows resizes (e.g. maximize):
 the buffers are rebuilt at the configured size, so
 <code>width()</code>/<code>height()</code> report the new size.
+<code>present</code> paces on the frame callback when one arrives but
+never blocks: hidden windows (occluded, minimized, other desktop) get
+no callbacks, so it commits anyway and the app stays responsive.
 Without a compositor (e.g. headless),
 <code>Window.open</code> returns <code>null</code>. (File:
 <code>gui.flint</code>.)</p></div>
@@ -3353,14 +3356,17 @@ int main() {
 <section id="std-widget" class="doc-section" data-label="Widget">
 <div class="page-head"><h1>Standard library: <code>Widget</code></h1>
 <p class="lede"><code>import std.Gui;</code> — small widgets for
-<code>std.Window</code>: <code>Label</code> and <code>TextBox</code>,
-held in a <code>Gui</code> container that pumps the window's input
-events and dispatches them to the widgets. Widgets draw into a
-<code>std.Image</code> canvas, which the application blits to the
-window with <code>Window.present</code>. The <code>TextBox</code>
-takes keyboard focus (click it, or <code>claimFocus</code>), appends
-printable keys (shift-aware US layout via
-<code>Window.evMods</code>), deletes with Backspace, and sets its
+<code>std.Window</code>: <code>Label</code>, <code>TextBox</code> and
+the form inputs <code>PasswordBox</code>, <code>NumberBox</code>,
+<code>TextArea</code>, <code>Button</code>, <code>Checkbox</code>,
+<code>RadioButton</code>, <code>Slider</code> and
+<code>Dropdown</code>, held in a <code>Gui</code> container that pumps
+the window's input events and dispatches them to the widgets. Widgets
+draw into a <code>std.Image</code> canvas, which the application blits
+to the window with <code>Window.present</code>. The
+<code>TextBox</code> takes keyboard focus (click it, or
+<code>claimFocus</code>), appends printable keys (shift-aware US layout
+via <code>Window.evMods</code>), deletes with Backspace, and sets its
 <code>entered</code> flag on Return. (File:
 <code>widget.flint</code>.)</p></div>
 
@@ -3374,11 +3380,36 @@ non-interactive text. <code>TextBox</code> <code>text</code>
 <code>blur</code> <code>append(c)</code> <code>backspace</code>
 <code>clear</code> <code>clearEntered</code> <code>draw(im)</code> —
 single-line input (a <code>static</code> <code>keyChar(code, mods)</code>
-maps the US layout). <code>Gui</code> <code>addLabel</code>
-<code>addBox</code> <code>nLabels</code> <code>nBoxes</code>
+maps the US layout). <code>PasswordBox</code> draws bullets instead of
+its text. <code>NumberBox</code> <code>value</code>
+<code>setValue(v)</code> takes digits with an optional leading minus
+(Up/Down step the value). <code>TextArea</code> <code>lines</code> is
+multi-line input where Return inserts a newline. The three live in
+their own <code>Gui</code> slots (<code>addPass</code>
+<code>addNum</code> <code>addArea</code>); only plain
+<code>TextBox</code> objects go in <code>addBox</code>.
+<code>Button</code> <code>text</code> <code>setText(t)</code>
+<code>clicked</code> <code>clearClicked</code> — pressing inside arms
+it, releasing inside fires (Space/Return clicks while focused).
+<code>Checkbox</code> <code>checked</code> <code>setChecked(v)</code>
+<code>toggle</code> (click or Space). <code>RadioButton</code>
+<code>group</code> <code>setGroup(g)</code> <code>selected</code>
+<code>setSelected(v)</code> — buttons sharing a group id are exclusive.
+<code>Slider</code> <code>value</code> <code>setValue(v)</code>
+<code>setMin(m)</code> <code>setMax(m)</code> (click/drag, Left/Right
+±1, Shift ×10, Up +10, Down −10). <code>Dropdown</code>
+<code>addOption(s)</code> <code>nOptions</code> <code>selected</code>
+<code>select(i)</code> <code>selectedText</code> <code>isOpen</code>
+<code>openList</code> <code>closeList</code> <code>toggle</code> (click,
+Up/Down/Return/Escape). <code>Gui</code> <code>addLabel</code>
+<code>addBox</code> <code>addButton</code> <code>addCheck</code>
+<code>addRadio</code> <code>addSlider</code> <code>addDrop</code>
+<code>nLabels</code> <code>nBoxes</code> (and one counter per kind)
 <code>running</code> <code>setRunning(v)</code> <code>step()</code>
-(pump + dispatch pending events) <code>draw(im)</code> (labels, then
-boxes) — fixed capacity of 8 of each kind.</p>
+(pump + dispatch: press, release, motion, keys)
+<code>draw(im)</code> (labels, boxes, buttons, checks, radios, sliders,
+drops on top) — fixed capacity of 8 of each kind, with a single
+keyboard focus shared across kinds.</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/window_gui.flint</span></div>
@@ -3418,6 +3449,100 @@ int main() {
             print("]\n");
             echo.setText("you typed: " + box.text());
             box.clearEntered();
+        }
+        c.fill(Image.rgb(16, 16, 32));
+        gui.draw(c);
+        w.present(c);
+    }
+    print("done.\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
+<div class="code"><div class="head"><span>examples/form.flint</span></div>
+<pre><code class="flint">import std.Window;
+import std.Gui;
+import std.Image;
+
+int main() {
+    Window w = Window.open(480, 360, "flint form");
+    if (w == null) {
+        print("no display\n");
+        return 0;
+    }
+    print("opened ok\n");
+    Gui gui = new Gui(w);
+    Label title = new Label(16, 10, 240, 16, "Form demo");
+    Label nameTag = new Label(16, 38, 80, 16, "Name:");
+    TextBox name = new TextBox(100, 34, 220, 26, 32);
+    Label passTag = new Label(16, 68, 80, 16, "Pass:");
+    PasswordBox pass = new PasswordBox(100, 64, 220, 26, 32);
+    Label ageTag = new Label(16, 98, 80, 16, "Age:");
+    NumberBox age = new NumberBox(100, 94, 80, 26, 3);
+    Label bioTag = new Label(16, 128, 80, 16, "Bio:");
+    TextArea bio = new TextArea(100, 124, 220, 64, 128);
+    Checkbox mail = new Checkbox(16, 196, 160, 20, "Email news");
+    Checkbox sms = new Checkbox(200, 196, 160, 20, "SMS alerts");
+    RadioButton rRed = new RadioButton(16, 222, 100, 20, "Red");
+    rRed.setGroup(1);
+    RadioButton rGreen = new RadioButton(130, 222, 100, 20, "Green");
+    rGreen.setGroup(1);
+    RadioButton rBlue = new RadioButton(244, 222, 100, 20, "Blue");
+    rBlue.setGroup(1);
+    Label volTag = new Label(16, 248, 80, 16, "Vol:");
+    Slider vol = new Slider(100, 248, 220, 20, 100);
+    Label volVal = new Label(330, 248, 60, 16, "0");
+    Label shipTag = new Label(16, 276, 80, 16, "Ship:");
+    Dropdown ship = new Dropdown(100, 272, 160, 26);
+    ship.addOption("Standard");
+    ship.addOption("Express");
+    ship.addOption("Overnight");
+    Button okBtn = new Button(16, 310, 120, 30, "Submit");
+    Label echo = new Label(150, 316, 314, 16, "");
+    gui.addLabel(title);
+    gui.addLabel(nameTag);
+    gui.addBox(name);
+    gui.addLabel(passTag);
+    gui.addPass(pass);
+    gui.addLabel(ageTag);
+    gui.addNum(age);
+    gui.addLabel(bioTag);
+    gui.addArea(bio);
+    gui.addCheck(mail);
+    gui.addCheck(sms);
+    gui.addRadio(rRed);
+    gui.addRadio(rGreen);
+    gui.addRadio(rBlue);
+    gui.addLabel(volTag);
+    gui.addSlider(vol);
+    gui.addLabel(volVal);
+    gui.addLabel(shipTag);
+    gui.addDrop(ship);
+    gui.addButton(okBtn);
+    gui.addLabel(echo);
+    Image c = new Image(480, 360);
+    while (w.running() && gui.running() == 1) {
+        gui.step();
+        if (w.width() != c.w || w.height() != c.h) {
+            c = new Image(w.width(), w.height());
+        }
+        if (w.evType() == Window.KEY() && w.evState() == 1
+                && Window.keyChar(w.evKey()) == 27) {
+            return 0;   // Escape quits
+        }
+        volVal.setText(str.itoa(vol.value()));
+        if (okBtn.clicked() == 1) {
+            string color = "red";
+            if (rGreen.selected() == 1) {
+                color = "green";
+            }
+            if (rBlue.selected() == 1) {
+                color = "blue";
+            }
+            echo.setText("ok " + name.text() + " " + color);
+            print("submit [");
+            print(name.text());
+            print("]\n");
+            okBtn.clearClicked();
         }
         c.fill(Image.rgb(16, 16, 32));
         gui.draw(c);

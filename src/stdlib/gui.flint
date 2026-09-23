@@ -41,6 +41,7 @@ class Window {
     int shm_fd;    // memfd backing the buffer
     int frame_id;  // current frame callback object id
     int frame_pending;
+    int last_commit;   // monotonic ms of the last commit (pacing)
     int next_id;   // next free client object id (13+)
     // read buffer for the socket stream
     string rb; int rb_n; int rb_i;
@@ -73,6 +74,7 @@ class Window {
         this.shm_fd = -1;
         this.frame_id = 0;
         this.frame_pending = 0;
+        this.last_commit = 0;
         this.next_id = 16;
         this.msg = alloc(32);
         this.pollfd = alloc(12);
@@ -233,6 +235,15 @@ class Window {
                 Window.put32(m, 12, 14);
                 self.sendPlain(m, 16);
                 self.deco = 16;
+                // Request server-side mode NOW, before the first commit:
+                // KWin withholds presentation until the mode is set
+                // (Qt does exactly this). Waiting for the configure
+                // first deadlocks: no done arrives to unblock present().
+                m = alloc(12);
+                Window.put32(m, 0, 16);
+                Window.put32(m, 4, (12 << 16) | 1);   // set_mode
+                Window.put32(m, 8, 2);                // server_side
+                self.sendPlain(m, 12);
                 break;
             }
             di = di + 1;
@@ -247,7 +258,7 @@ class Window {
         self.sendPlain(m, 8);
         int g = 0;
         while (g < 200) {
-            int c = self.readMsg(0);
+            int c = self.readMsg(-1);
             if (c == -2) {
                 return null;
             }
@@ -263,6 +274,17 @@ class Window {
         // The initial ack_configure went out from readMsg while waiting
         // above (every configure is acked on receipt); just mark it.
         self.xdg_acked = 1;
+        // Tell the compositor the window's visible bounds, like Qt
+        // does: KWin lays out server decorations from this, and never
+        // maps a decorated surface without it.
+        m = alloc(24);
+        Window.put32(m, 0, 13);
+        Window.put32(m, 4, (24 << 16) | 3);         // set_window_geometry
+        Window.put32(m, 8, 0);
+        Window.put32(m, 12, 0);
+        Window.put32(m, 16, self.w);
+        Window.put32(m, 20, self.h);
+        self.sendPlain(m, 24);
         // Attach the buffer and commit the first frame. attach takes
         // (buffer, x, y) since wayland 1.25 (x = y = 0) -> 20 bytes.
         self.buf1 = 9;
@@ -326,7 +348,7 @@ class Window {
     // MOTION, FRAME, CLOSE).
     int nextEvent() {
         while (1) {
-            int c = this.readMsg(0);
+            int c = this.readMsg(-1);
             if (c == -2) {
                 return Window.CLOSE();
             }
@@ -337,7 +359,7 @@ class Window {
     }
     // Non-blocking: the next input event, or 0 when none is pending.
     int peekEvent() {
-        int c = this.readMsg(1);
+        int c = this.readMsg(0);
         if (c == -2) {
             return Window.CLOSE();
         }
@@ -354,9 +376,51 @@ class Window {
     int evMods() { return this.mods; }
 
     // -------------------------------------------------------- drawing
-    // Blit im into the shared buffer and commit; waits for the
-    // compositor's frame callback first so the single buffer is safe to
-    // overwrite. im must be w x h.
+    // Milliseconds since boot (CLOCK_MONOTONIC) for frame pacing.
+    int nowMs() {
+        string ts = this.msg;
+        int r = sys.syscall(228, 1, ts, 0, 0, 0);
+        if (r < 0) {
+            return this.last_commit;
+        }
+        int sec = Window.get32(ts, 0);
+        int nsec = Window.get32(ts, 8);
+        return sec * 1000 + nsec / 1000000;
+    }
+    // Peek at the next full message WITHOUT consuming it: 1 when it is
+    // our frame callback's done, 0 for anything else, -1 when empty,
+    // -2 when the connection is gone. Lets present() wait for its own
+    // frame while leaving input queued for step().
+    int peekFrame() {
+        this.last_fd = -1;
+        int r = this.take(8, 0);
+        if (r != 0) {
+            return r;
+        }
+        int w0 = Window.get32(this.rb, 0);
+        int w1 = Window.get32(this.rb, 4);
+        int size = (w1 >> 16) & 0xFFFF;
+        int opcode = w1 & 0xFFFF;
+        if (size < 8 || size > 4088) {
+            return -2;
+        }
+        if (size > 8) {
+            r = this.take(size, 0);
+            if (r != 0) {
+                return r;
+            }
+        }
+        if (w0 == this.frame_id && opcode == 0) {
+            return 1;
+        }
+        return 0;
+    }
+    // Blit im into the shared buffer and commit. When our frame
+    // callback arrives we pace on it; hidden windows (occluded,
+    // minimized, other desktop) get no callbacks, so after ~50ms we
+    // commit anyway (at most every 250ms) and the app stays live and
+    // responsive. Only our own frame message is consumed here; every
+    // other message stays queued for step(). im must be w x h.
     void present(Image im) {
         // Follow resizes (e.g. maximized): rebuild the pool/buffers at
         // the configured size before waiting on the frame callback.
@@ -366,21 +430,43 @@ class Window {
             this.pend_w = 0;
             this.pend_h = 0;
         }
+        int paced = 0;
         if (this.frame_pending) {
-            int g = 0;
-            while (g < 2000) {
+            // Wait up to ~50ms for OUR frame done in 1ms slices. Anything
+            // else on the wire is left queued for step().
+            int s = 0;
+            int seen = 0;
+            while (s < 50) {
+                int p = this.peekFrame();
+                if (p == -2) {
+                    return;
+                }
+                if (p == 1) {
+                    seen = 1;
+                    break;
+                }
+                sys.nanosleep(0, 1000000);
+                s = s + 1;
+            }
+            // Consume the done only when the peek saw it (it is fully
+            // buffered, so this cannot block). Consuming anything else
+            // here would eat the clicks and keys meant for step().
+            if (seen == 1) {
                 int c = this.readMsg(0);
                 if (c == -2) {
                     return;
                 }
                 if (c == Window.FRAME()) {
                     this.frame_pending = 0;
-                    break;
+                    paced = 1;
                 }
-                g = g + 1;
             }
-            if (this.frame_pending) {
-                return;   // no frame in sight; skip pacing rather than hang
+        }
+        if (paced == 0) {
+            // No callback in sight: commit at most every 250ms so a
+            // hidden window neither spins nor stalls its input loop.
+            if (this.nowMs() - this.last_commit < 250) {
+                return;
             }
         }
         int ww = im.w;
@@ -408,12 +494,19 @@ class Window {
         Window.put32(m, 12, 0);
         Window.put32(m, 16, 0);
         this.sendPlain(m, 20);
-        // Request the frame callback BEFORE the commit so it is part of the
-        // committed state (the compositor sends it when this frame is shown).
-        Window.put32(m, 0, 10);
-        Window.put32(m, 4, (12 << 16) | 3);         // frame
-        Window.put32(m, 8, fr_id);
-        this.sendPlain(m, 12);
+        // Request a frame callback BEFORE the commit so it is part of
+        // the committed state (the compositor sends it when this frame
+        // is shown) — but only when none is outstanding, so callbacks
+        // never pile up while hidden.
+        if (this.frame_pending == 0) {
+            Window.put32(m, 0, 10);
+            Window.put32(m, 4, (12 << 16) | 3);     // frame
+            Window.put32(m, 8, fr_id);
+            this.sendPlain(m, 12);
+            this.frame_id = fr_id;
+            this.next_id = this.next_id + 1;
+            this.frame_pending = 1;
+        }
         // Damage the whole buffer: without damage the compositor may
         // keep showing a transparent hole (damage_buffer opcode is 9).
         Window.put32(m, 0, 10);
@@ -426,10 +519,8 @@ class Window {
         Window.put32(m, 0, 10);
         Window.put32(m, 4, (8 << 16) | 6);          // commit
         this.sendPlain(m, 8);
-        this.frame_id = fr_id;
-        this.next_id = this.next_id + 1;
         this.buf_toggle = 1 - this.buf_toggle;
-        this.frame_pending = 1;
+        this.last_commit = this.nowMs();
     }
     // Recreate the shm pool and both buffers at a new size (follows a
     // compositor resize such as maximize). The old pool is closed but
@@ -672,8 +763,9 @@ class Window {
         return r < 0 ? r : 0;
     }
     // Ensure at least n bytes in the read buffer. 0 ok, -1 no data
-    // (non-blocking), -2 connection closed.
-    int take(int n, int nonblock) {
+    // yet, -2 connection closed. wait_ms is the poll timeout: -1
+    // blocks, 0 returns at once, >0 waits that many milliseconds.
+    int take(int n, int wait_ms) {
         if (this.rb_i > 0) {
             int c = this.rb_n - this.rb_i;
             int k = 0;
@@ -693,7 +785,7 @@ class Window {
             string pf = this.pollfd;   // struct pollfd { int fd; short ev; short rev; }
             Window.put32(pf, 0, this.fd);
             sys.shortStore(pf + 4, 1);   // POLLIN
-            int pr = sys.syscall(7, pf, 1, nonblock == 1 ? 0 : -1, 0, 0);
+            int pr = sys.syscall(7, pf, 1, wait_ms, 0, 0);
             if (pr < 0) {
                 if (pr == -4) {
                     continue;   // EINTR: retry
@@ -702,10 +794,7 @@ class Window {
                 return -2;
             }
             if (pr == 0) {
-                if (nonblock == 1) {
-                    return -1;   // nothing pending
-                }
-                continue;        // blocking: poll(0) shouldn't fire; retry
+                return -1;   // nothing yet (polled out or timed out)
             }
             int n2 = sys.read(this.fd, this.rb + this.rb_n, 4096 - this.rb_n);
             if (n2 < 0) {
@@ -724,10 +813,11 @@ class Window {
         return 0;
     }
     // Read one full message; 0 internal, >0 user-visible code, -1 no
-    // data (non-blocking), -2 connection closed.
-    int readMsg(int nonblock) {
+    // data yet, -2 connection closed. wait_ms: -1 blocks, 0 polls
+    // once, >0 waits that many milliseconds.
+    int readMsg(int wait_ms) {
         this.last_fd = -1;
-        int r = this.take(8, nonblock);
+        int r = this.take(8, wait_ms);
         if (r != 0) {
             return r;
         }
@@ -747,7 +837,7 @@ class Window {
             return -2;
         }
         if (size > 8) {
-            r = this.take(size, nonblock);
+            r = this.take(size, wait_ms);
             if (r != 0) {
                 return r;
             }
@@ -817,8 +907,10 @@ class Window {
                 this.ev_x = Window.fixed(Window.get32(this.rb, 16));
                 this.ev_y = Window.fixed(Window.get32(this.rb, 20));
             } else if (opcode == 2) {
-                this.ev_x = Window.fixed(Window.get32(this.rb, 16));
-                this.ev_y = Window.fixed(Window.get32(this.rb, 20));
+                // motion: (time, x, y) — coords at 12/16, unlike
+                // enter/button which carry them at 16/20.
+                this.ev_x = Window.fixed(Window.get32(this.rb, 12));
+                this.ev_y = Window.fixed(Window.get32(this.rb, 16));
                 code = Window.MOTION();
             } else if (opcode == 3) {
                 this.ev_button = Window.get32(this.rb, 16);
@@ -912,7 +1004,7 @@ class Window {
         this.sendPlain(m, 12);
         int g = 0;
         while (g < 200) {
-            int c = this.readMsg(0);
+            int c = this.readMsg(-1);
             if (c == -2) {
                 return 0;
             }

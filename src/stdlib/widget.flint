@@ -1,6 +1,8 @@
-// std/widget — small widgets for std.Window: Label and TextBox, held in
-// a Gui container that pumps input events and dispatches them to the
-// widgets (import std.Gui, std.Label, std.TextBox, std.Widget).
+// std/widget — small widgets for std.Window: Label, TextBox and the
+// form inputs PasswordBox, NumberBox, TextArea, Button, Checkbox,
+// RadioButton, Slider and Dropdown, held in a Gui container that pumps
+// input events and dispatches them to the widgets (import std.Gui,
+// std.Label, std.TextBox, std.Widget).
 //
 // Widgets draw into a std.Image canvas which the application blits to
 // the window with Window.present. A typical program:
@@ -33,6 +35,17 @@
 package std;
 
 // Shared widget geometry.
+//
+// NOTE on method calls: flintc dispatches every method call through
+// the static type's vtable, whose slots follow declaration order
+// (own methods first, then inherited ones). A subclass that declares
+// methods in a different order gets different slots, so calling a
+// method through a base-typed reference holding a subclass object
+// runs the WRONG method. This file therefore never does that: every
+// Gui slot, local and focused reference uses the concrete widget
+// type, subclass objects live only in concretely-typed slots, and
+// overrides talk to their parent via super (which bypasses the
+// vtable). Keep it that way.
 class Widget {
     int x; int y; int w; int h;
     public Widget(int x, int y, int w, int h) {
@@ -189,6 +202,629 @@ class TextBox extends Widget {
     }
 }
 
+// A password box: a TextBox that draws bullets instead of its text.
+class PasswordBox extends TextBox {
+    string mask;   // max+1 bytes of '*' shadowing buf, NUL-terminated
+    public PasswordBox(int x, int y, int w, int h, int max) {
+        super(x, y, w, h, max);
+        this.mask = alloc(max + 1);
+        sys.byteStore(this.mask, 0);
+    }
+    public void append(int c) {
+        int was = this.len;
+        super.append(c);
+        if (this.len > was) {
+            sys.byteStore(this.mask + this.len - 1, 42);
+            sys.byteStore(this.mask + this.len, 0);
+        }
+    }
+    public void backspace() {
+        super.backspace();
+        sys.byteStore(this.mask + this.len, 0);
+    }
+    public void clear() {
+        super.clear();
+        sys.byteStore(this.mask, 0);
+    }
+    // TextBox.onPress/claimFocus call this.hit(), which would dispatch
+    // to the wrong slot on a PasswordBox object, so test geometry inline
+    // here (same rule as NumberBox/TextArea below).
+    public void onPress(int px, int py) {
+        if (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) {
+            this.focused = 1;
+        }
+    }
+    public int claimFocus(int px, int py) {
+        if (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 14) {
+            this.backspace();
+            return;
+        }
+        if (code == 28) {
+            this.entered = 1;
+            return;
+        }
+        int c = TextBox.keyChar(code, mods);
+        if (c > 0) {
+            this.append(c);
+        }
+    }
+    public void draw(Image im) {
+        int border = this.focused == 1 ? 0xFFFFFF00 : 0xFF666688;
+        im.fillRect(this.x, this.y, this.w, this.h, 0xFF222233);
+        im.rect(this.x, this.y, this.w, this.h, border);
+        im.text(this.x + 4, this.y + (this.h - 7) / 2, this.mask, 0xFFFFFFFF);
+    }
+}
+
+// A single-line integer input. Only digits (and a leading minus) are
+// accepted; Up/Down step the value. value() parses with atoi.
+class NumberBox extends TextBox {
+    public NumberBox(int x, int y, int w, int h, int max) {
+        super(x, y, w, h, max);
+    }
+    // Inline geometry: inherited onPress/claimFocus call this.hit(),
+    // which misdispatches on subclass objects (see PasswordBox).
+    public void onPress(int px, int py) {
+        if (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) {
+            this.focused = 1;
+        }
+    }
+    public int claimFocus(int px, int py) {
+        if (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 14) {
+            this.backspace();
+            return;
+        }
+        if (code == 28) {
+            this.entered = 1;
+            return;
+        }
+        if (code == 103) {
+            this.setValue(this.value() + 1);
+            return;
+        }
+        if (code == 108) {
+            this.setValue(this.value() - 1);
+            return;
+        }
+        int c = TextBox.keyChar(code, mods);
+        if (c >= 48 && c <= 57) {
+            this.append(c);
+            return;
+        }
+        if (c == 45 && this.len == 0) {
+            this.append(c);
+            return;
+        }
+    }
+    public int value() { return atoi(this.buf); }
+    public void setValue(int v) {
+        this.clear();
+        string s = str.itoa(v);
+        int i = 0;
+        while (i < strlen(s)) {
+            this.append(sys.byteLoad(s + i));
+            i = i + 1;
+        }
+    }
+}
+
+// A multi-line text input. Return inserts a newline instead of setting
+// the entered flag; lines draw top-down, 8 pixels apart.
+class TextArea extends TextBox {
+    public TextArea(int x, int y, int w, int h, int max) {
+        super(x, y, w, h, max);
+    }
+    // Inline geometry: inherited onPress/claimFocus call this.hit(),
+    // which misdispatches on subclass objects (see PasswordBox).
+    public void onPress(int px, int py) {
+        if (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) {
+            this.focused = 1;
+        }
+    }
+    public int claimFocus(int px, int py) {
+        if (px >= this.x && px < this.x + this.w
+                && py >= this.y && py < this.y + this.h) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 14) {
+            this.backspace();
+            return;
+        }
+        if (code == 28) {
+            this.append(10);
+            return;
+        }
+        int c = TextBox.keyChar(code, mods);
+        if (c > 0) {
+            this.append(c);
+        }
+    }
+    public int lines() {
+        int n = 1;
+        int i = 0;
+        while (i < this.len) {
+            if (sys.byteLoad(this.buf + i) == 10) {
+                n = n + 1;
+            }
+            i = i + 1;
+        }
+        return n;
+    }
+    public void draw(Image im) {
+        int border = this.focused == 1 ? 0xFFFFFF00 : 0xFF666688;
+        im.fillRect(this.x, this.y, this.w, this.h, 0xFF222233);
+        im.rect(this.x, this.y, this.w, this.h, border);
+        int y = this.y + 4;
+        int ls = 0;
+        int i = 0;
+        while (i <= this.len) {
+            int c = 10;
+            if (i < this.len) {
+                c = sys.byteLoad(this.buf + i);
+            }
+            if (c == 10) {
+                if (y + 7 < this.y + this.h) {
+                    sys.byteStore(this.buf + i, 0);
+                    im.text(this.x + 4, y, this.buf + ls, 0xFFFFFFFF);
+                    sys.byteStore(this.buf + i, c);
+                }
+                y = y + 8;
+                ls = i + 1;
+            }
+            i = i + 1;
+        }
+    }
+}
+
+// A push button: pressing inside arms it, releasing inside fires
+// clicked(). Space/Return also clicks it while focused.
+class Button extends Widget {
+    string str;
+    int focused;
+    int pressed;
+    int clicked;
+    public Button(int x, int y, int w, int h, string str) {
+        super(x, y, w, h);
+        this.str = str;
+        this.focused = 0;
+        this.pressed = 0;
+        this.clicked = 0;
+    }
+    public string text() { return this.str; }
+    public void setText(string t) { this.str = t; }
+    public int clicked() { return this.clicked; }
+    public void clearClicked() { this.clicked = 0; }
+    public void onPress(int px, int py) {
+        if (this.hit(px, py)) {
+            this.pressed = 1;
+        }
+    }
+    public void onRelease(int px, int py) {
+        if (this.pressed == 1 && this.hit(px, py)) {
+            this.clicked = 1;
+        }
+        this.pressed = 0;
+    }
+    public int claimFocus(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 28 || code == 57) {
+            this.clicked = 1;
+        }
+    }
+    public void draw(Image im) {
+        int bg = 0xFF222233;
+        if (this.pressed == 1) {
+            bg = 0xFF111122;
+        }
+        int border = 0xFF666688;
+        if (this.focused == 1) {
+            border = 0xFFFFFF00;
+        }
+        im.fillRect(this.x, this.y, this.w, this.h, bg);
+        im.rect(this.x, this.y, this.w, this.h, border);
+        int tw = im.textWidth(this.str);
+        int tx = this.x + 4;
+        if (tw < this.w - 8) {
+            tx = this.x + (this.w - tw) / 2;
+        }
+        im.text(tx, this.y + (this.h - 7) / 2, this.str, 0xFFFFFFFF);
+    }
+}
+
+// A labeled checkbox: click or Space toggles it.
+class Checkbox extends Widget {
+    string str;
+    int checked;
+    int focused;
+    public Checkbox(int x, int y, int w, int h, string str) {
+        super(x, y, w, h);
+        this.str = str;
+        this.checked = 0;
+        this.focused = 0;
+    }
+    public string text() { return this.str; }
+    public int checked() { return this.checked; }
+    public void setChecked(int v) { this.checked = v == 0 ? 0 : 1; }
+    public void toggle() { this.checked = 1 - this.checked; }
+    public void onPress(int px, int py) {
+        if (this.hit(px, py)) {
+            this.toggle();
+        }
+    }
+    public int claimFocus(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 57) {
+            this.toggle();
+        }
+    }
+    public void draw(Image im) {
+        int border = 0xFF666688;
+        if (this.focused == 1) {
+            border = 0xFFFFFF00;
+        }
+        int by = this.y + (this.h - 9) / 2;
+        im.fillRect(this.x, by, 9, 9, 0xFF222233);
+        im.rect(this.x, by, 9, 9, border);
+        if (this.checked == 1) {
+            im.text(this.x + 2, by + 1, "X", 0xFFFFFFFF);
+        }
+        im.text(this.x + 14, this.y + (this.h - 7) / 2, this.str, 0xFFFFFFFF);
+    }
+}
+
+// A labeled radio button. Buttons sharing a group id are exclusive:
+// selecting one deselects the rest (Gui enforces this on press).
+class RadioButton extends Widget {
+    string str;
+    int group;
+    int selected;
+    int focused;
+    public RadioButton(int x, int y, int w, int h, string str) {
+        super(x, y, w, h);
+        this.str = str;
+        this.group = 0;
+        this.selected = 0;
+        this.focused = 0;
+    }
+    public string text() { return this.str; }
+    public int group() { return this.group; }
+    public void setGroup(int g) { this.group = g; }
+    public int selected() { return this.selected; }
+    public void setSelected(int v) { this.selected = v == 0 ? 0 : 1; }
+    public void onPress(int px, int py) {
+        if (this.hit(px, py)) {
+            this.selected = 1;
+        }
+    }
+    public int claimFocus(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (code == 57) {
+            this.selected = 1;
+        }
+    }
+    public void draw(Image im) {
+        int border = 0xFF666688;
+        if (this.focused == 1) {
+            border = 0xFFFFFF00;
+        }
+        int cx = this.x + 5;
+        int cy = this.y + this.h / 2;
+        im.circle(cx, cy, 4, border);
+        if (this.selected == 1) {
+            im.fillCircle(cx, cy, 2, 0xFFFFFFFF);
+        }
+        im.text(this.x + 12, this.y + (this.h - 7) / 2, this.str, 0xFFFFFFFF);
+    }
+}
+
+// A horizontal slider: click or drag the track, or Left/Right (+Shift
+// for x10) while focused. Up adds 10, Down subtracts 10.
+class Slider extends Widget {
+    int min;
+    int max;
+    int value;
+    int grabbed;
+    int focused;
+    public Slider(int x, int y, int w, int h, int max) {
+        super(x, y, w, h);
+        this.min = 0;
+        this.max = max;
+        this.value = 0;
+        this.grabbed = 0;
+        this.focused = 0;
+    }
+    public int value() { return this.value; }
+    public void setMin(int m) {
+        this.min = m;
+        this.setValue(this.value);
+    }
+    public void setMax(int m) {
+        this.max = m;
+        this.setValue(this.value);
+    }
+    public void setValue(int v) {
+        if (v < this.min) {
+            v = this.min;
+        }
+        if (v > this.max) {
+            v = this.max;
+        }
+        this.value = v;
+    }
+    public void setFromX(int px) {
+        if (this.w <= 0 || this.max <= this.min) {
+            return;
+        }
+        this.setValue(this.min + (px - this.x) * (this.max - this.min) / this.w);
+    }
+    public void onPress(int px, int py) {
+        if (this.hit(px, py)) {
+            this.grabbed = 1;
+            this.setFromX(px);
+        }
+    }
+    public void onDrag(int px) {
+        if (this.grabbed == 1) {
+            this.setFromX(px);
+        }
+    }
+    public void onRelease() { this.grabbed = 0; }
+    public int claimFocus(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        int step = 1;
+        if (mods == 1 || mods == 4) {
+            step = 10;
+        }
+        if (code == 105 || code == 108) {
+            this.setValue(this.value - step);
+        } else if (code == 106 || code == 103) {
+            this.setValue(this.value + step);
+        }
+    }
+    public void draw(Image im) {
+        int border = 0xFF666688;
+        if (this.focused == 1) {
+            border = 0xFFFFFF00;
+        }
+        im.fillRect(this.x, this.y, this.w, this.h, 0xFF222233);
+        im.rect(this.x, this.y, this.w, this.h, border);
+        im.fillRect(this.x + 4, this.y + this.h / 2 - 1, this.w - 8, 3, 0xFF666688);
+        int kx = this.x + 4;
+        if (this.max > this.min) {
+            kx = this.x + 4 + (this.value - this.min) * (this.w - 8) / (this.max - this.min);
+        }
+        im.fillRect(kx - 3, this.y + 2, 7, this.h - 4, 0xFFFFFFFF);
+    }
+}
+
+// A drop-down select: closed it shows the chosen option; click to open
+// the list, click an option (or press Return) to pick it, Escape closes.
+class Dropdown extends Widget {
+    string opt0; string opt1; string opt2; string opt3;
+    string opt4; string opt5; string opt6; string opt7;
+    int nopts;
+    int selected;
+    int highlight;
+    int open;
+    int focused;
+    public Dropdown(int x, int y, int w, int h) {
+        super(x, y, w, h);
+        this.opt0 = null; this.opt1 = null; this.opt2 = null; this.opt3 = null;
+        this.opt4 = null; this.opt5 = null; this.opt6 = null; this.opt7 = null;
+        this.nopts = 0;
+        this.selected = -1;
+        this.highlight = 0;
+        this.open = 0;
+        this.focused = 0;
+    }
+    // 1 when the option was stored, 0 when the list (8) is full.
+    public int addOption(string s) {
+        if (this.nopts == 0) { this.opt0 = s; }
+        else if (this.nopts == 1) { this.opt1 = s; }
+        else if (this.nopts == 2) { this.opt2 = s; }
+        else if (this.nopts == 3) { this.opt3 = s; }
+        else if (this.nopts == 4) { this.opt4 = s; }
+        else if (this.nopts == 5) { this.opt5 = s; }
+        else if (this.nopts == 6) { this.opt6 = s; }
+        else if (this.nopts == 7) { this.opt7 = s; }
+        else { return 0; }
+        if (this.selected == -1) {
+            this.selected = 0;
+        }
+        this.nopts = this.nopts + 1;
+        return 1;
+    }
+    public int nOptions() { return this.nopts; }
+    public int selected() { return this.selected; }
+    public int isOpen() { return this.open; }
+    public string opt(int i) {
+        if (i == 0) { return this.opt0; }
+        if (i == 1) { return this.opt1; }
+        if (i == 2) { return this.opt2; }
+        if (i == 3) { return this.opt3; }
+        if (i == 4) { return this.opt4; }
+        if (i == 5) { return this.opt5; }
+        if (i == 6) { return this.opt6; }
+        return this.opt7;
+    }
+    public string selectedText() {
+        if (this.selected < 0 || this.selected >= this.nopts) {
+            return "";
+        }
+        return this.opt(this.selected);
+    }
+    // 1 when the option was picked, 0 for an out-of-range index.
+    public int select(int i) {
+        if (i < 0 || i >= this.nopts) {
+            return 0;
+        }
+        this.selected = i;
+        this.highlight = i;
+        return 1;
+    }
+    public void openList() { this.open = 1; }
+    public void closeList() { this.open = 0; }
+    public void toggle() { this.open = 1 - this.open; }
+    public void focus() { this.focused = 1; }
+    // Option row under (px, py), or -1 (rows are h pixels tall).
+    public int rowAt(int px, int py) {
+        if (px < this.x || px >= this.x + this.w) {
+            return -1;
+        }
+        int r = (py - (this.y + this.h)) / this.h;
+        if (r < 0 || r >= this.nopts) {
+            return -1;
+        }
+        return r;
+    }
+    public void onPress(int px, int py) {
+        if (this.hit(px, py)) {
+            this.toggle();
+            return;
+        }
+        if (this.open == 1) {
+            int r = this.rowAt(px, py);
+            if (r >= 0) {
+                this.select(r);
+            }
+            this.closeList();
+        }
+    }
+    public int claimFocus(int px, int py) {
+        if (this.hit(px, py)) {
+            this.focused = 1;
+            return 1;
+        }
+        if (this.open == 1 && this.rowAt(px, py) >= 0) {
+            this.focused = 1;
+            return 1;
+        }
+        return 0;
+    }
+    public void blur() { this.focused = 0; }
+    public void onKey(int code, int mods) {
+        if (this.focused != 1) {
+            return;
+        }
+        if (this.open == 0) {
+            if (code == 28 || code == 57) {
+                this.openList();
+            }
+            return;
+        }
+        if (code == 108 && this.highlight < this.nopts - 1) {
+            this.highlight = this.highlight + 1;
+        } else if (code == 103 && this.highlight > 0) {
+            this.highlight = this.highlight - 1;
+        } else if (code == 28) {
+            this.select(this.highlight);
+            this.closeList();
+        } else if (code == 1) {
+            this.closeList();
+        }
+    }
+    public void draw(Image im) {
+        int border = 0xFF666688;
+        if (this.focused == 1) {
+            border = 0xFFFFFF00;
+        }
+        im.fillRect(this.x, this.y, this.w, this.h, 0xFF222233);
+        im.rect(this.x, this.y, this.w, this.h, border);
+        im.text(this.x + 4, this.y + (this.h - 7) / 2, this.selectedText(), 0xFFFFFFFF);
+        string arrow = "v";
+        if (this.open == 1) {
+            arrow = "^";
+        }
+        im.text(this.x + this.w - 12, this.y + (this.h - 7) / 2, arrow, 0xFFFFFFFF);
+        if (this.open == 1) {
+            int i = 0;
+            while (i < this.nopts) {
+                int ry = this.y + this.h * (i + 1);
+                int bg = 0xFF222233;
+                if (i == this.highlight) {
+                    bg = 0xFF444466;
+                }
+                im.fillRect(this.x, ry, this.w, this.h, bg);
+                im.rect(this.x, ry, this.w, this.h, border);
+                im.text(this.x + 4, ry + (this.h - 7) / 2, this.opt(i), 0xFFFFFFFF);
+                i = i + 1;
+            }
+        }
+    }
+}
+
 // Container that owns a window and a set of widgets. Fixed-capacity
 // named fields (8 of each kind) keep field access refcount-safe.
 class Gui {
@@ -199,7 +835,41 @@ class Gui {
     TextBox box0; TextBox box1; TextBox box2; TextBox box3;
     TextBox box4; TextBox box5; TextBox box6; TextBox box7;
     int nboxes;
-    TextBox focused;
+    Button button0; Button button1; Button button2; Button button3;
+    Button button4; Button button5; Button button6; Button button7;
+    int nbuttons;
+    Checkbox check0; Checkbox check1; Checkbox check2; Checkbox check3;
+    Checkbox check4; Checkbox check5; Checkbox check6; Checkbox check7;
+    int nchecks;
+    RadioButton radio0; RadioButton radio1; RadioButton radio2; RadioButton radio3;
+    RadioButton radio4; RadioButton radio5; RadioButton radio6; RadioButton radio7;
+    int nradios;
+    Slider slider0; Slider slider1; Slider slider2; Slider slider3;
+    Slider slider4; Slider slider5; Slider slider6; Slider slider7;
+    int nsliders;
+    Dropdown drop0; Dropdown drop1; Dropdown drop2; Dropdown drop3;
+    Dropdown drop4; Dropdown drop5; Dropdown drop6; Dropdown drop7;
+    int ndrops;
+    PasswordBox pass0; PasswordBox pass1; PasswordBox pass2; PasswordBox pass3;
+    PasswordBox pass4; PasswordBox pass5; PasswordBox pass6; PasswordBox pass7;
+    int npass;
+    NumberBox num0; NumberBox num1; NumberBox num2; NumberBox num3;
+    NumberBox num4; NumberBox num5; NumberBox num6; NumberBox num7;
+    int nnum;
+    TextArea area0; TextArea area1; TextArea area2; TextArea area3;
+    TextArea area4; TextArea area5; TextArea area6; TextArea area7;
+    int narea;
+    // Keyboard focus, one live reference per kind at most (concrete
+    // types only, so every call below dispatches to the right method).
+    TextBox focusedBox;
+    PasswordBox focusedPass;
+    NumberBox focusedNum;
+    TextArea focusedArea;
+    Button focusedBtn;
+    Checkbox focusedChk;
+    RadioButton focusedRad;
+    Slider focusedSld;
+    Dropdown focusedDrp;
     int running;
     public Gui(Window win) {
         this.win = win;
@@ -209,7 +879,39 @@ class Gui {
         this.box0 = null; this.box1 = null; this.box2 = null; this.box3 = null;
         this.box4 = null; this.box5 = null; this.box6 = null; this.box7 = null;
         this.nboxes = 0;
-        this.focused = null;
+        this.button0 = null; this.button1 = null; this.button2 = null; this.button3 = null;
+        this.button4 = null; this.button5 = null; this.button6 = null; this.button7 = null;
+        this.nbuttons = 0;
+        this.check0 = null; this.check1 = null; this.check2 = null; this.check3 = null;
+        this.check4 = null; this.check5 = null; this.check6 = null; this.check7 = null;
+        this.nchecks = 0;
+        this.radio0 = null; this.radio1 = null; this.radio2 = null; this.radio3 = null;
+        this.radio4 = null; this.radio5 = null; this.radio6 = null; this.radio7 = null;
+        this.nradios = 0;
+        this.slider0 = null; this.slider1 = null; this.slider2 = null; this.slider3 = null;
+        this.slider4 = null; this.slider5 = null; this.slider6 = null; this.slider7 = null;
+        this.nsliders = 0;
+        this.drop0 = null; this.drop1 = null; this.drop2 = null; this.drop3 = null;
+        this.drop4 = null; this.drop5 = null; this.drop6 = null; this.drop7 = null;
+        this.ndrops = 0;
+        this.pass0 = null; this.pass1 = null; this.pass2 = null; this.pass3 = null;
+        this.pass4 = null; this.pass5 = null; this.pass6 = null; this.pass7 = null;
+        this.npass = 0;
+        this.num0 = null; this.num1 = null; this.num2 = null; this.num3 = null;
+        this.num4 = null; this.num5 = null; this.num6 = null; this.num7 = null;
+        this.nnum = 0;
+        this.area0 = null; this.area1 = null; this.area2 = null; this.area3 = null;
+        this.area4 = null; this.area5 = null; this.area6 = null; this.area7 = null;
+        this.narea = 0;
+        this.focusedBox = null;
+        this.focusedPass = null;
+        this.focusedNum = null;
+        this.focusedArea = null;
+        this.focusedBtn = null;
+        this.focusedChk = null;
+        this.focusedRad = null;
+        this.focusedSld = null;
+        this.focusedDrp = null;
         this.running = 1;
     }
     public void addLabel(Label l) {
@@ -238,10 +940,119 @@ class Gui {
     }
     public int running() { return this.running; }
     public void setRunning(int v) { this.running = v; }
-    // Number of labels/boxes added (at most 8 of each).
+    // Number of widgets added (at most 8 of each kind).
     public int nLabels() { return this.nlabels; }
     public int nBoxes() { return this.nboxes; }
-    // Pump and dispatch all pending events for this frame.
+    public int nButtons() { return this.nbuttons; }
+    public int nChecks() { return this.nchecks; }
+    public int nRadios() { return this.nradios; }
+    public int nSliders() { return this.nsliders; }
+    public int nDrops() { return this.ndrops; }
+    public int nPass() { return this.npass; }
+    public int nNum() { return this.nnum; }
+    public int nArea() { return this.narea; }
+    public void addButton(Button b) {
+        if (this.nbuttons == 0) { this.button0 = b; }
+        else if (this.nbuttons == 1) { this.button1 = b; }
+        else if (this.nbuttons == 2) { this.button2 = b; }
+        else if (this.nbuttons == 3) { this.button3 = b; }
+        else if (this.nbuttons == 4) { this.button4 = b; }
+        else if (this.nbuttons == 5) { this.button5 = b; }
+        else if (this.nbuttons == 6) { this.button6 = b; }
+        else if (this.nbuttons == 7) { this.button7 = b; }
+        else { return; }
+        this.nbuttons = this.nbuttons + 1;
+    }
+    public void addCheck(Checkbox c) {
+        if (this.nchecks == 0) { this.check0 = c; }
+        else if (this.nchecks == 1) { this.check1 = c; }
+        else if (this.nchecks == 2) { this.check2 = c; }
+        else if (this.nchecks == 3) { this.check3 = c; }
+        else if (this.nchecks == 4) { this.check4 = c; }
+        else if (this.nchecks == 5) { this.check5 = c; }
+        else if (this.nchecks == 6) { this.check6 = c; }
+        else if (this.nchecks == 7) { this.check7 = c; }
+        else { return; }
+        this.nchecks = this.nchecks + 1;
+    }
+    public void addRadio(RadioButton r) {
+        if (this.nradios == 0) { this.radio0 = r; }
+        else if (this.nradios == 1) { this.radio1 = r; }
+        else if (this.nradios == 2) { this.radio2 = r; }
+        else if (this.nradios == 3) { this.radio3 = r; }
+        else if (this.nradios == 4) { this.radio4 = r; }
+        else if (this.nradios == 5) { this.radio5 = r; }
+        else if (this.nradios == 6) { this.radio6 = r; }
+        else if (this.nradios == 7) { this.radio7 = r; }
+        else { return; }
+        this.nradios = this.nradios + 1;
+    }
+    public void addSlider(Slider s) {
+        if (this.nsliders == 0) { this.slider0 = s; }
+        else if (this.nsliders == 1) { this.slider1 = s; }
+        else if (this.nsliders == 2) { this.slider2 = s; }
+        else if (this.nsliders == 3) { this.slider3 = s; }
+        else if (this.nsliders == 4) { this.slider4 = s; }
+        else if (this.nsliders == 5) { this.slider5 = s; }
+        else if (this.nsliders == 6) { this.slider6 = s; }
+        else if (this.nsliders == 7) { this.slider7 = s; }
+        else { return; }
+        this.nsliders = this.nsliders + 1;
+    }
+    public void addDrop(Dropdown d) {
+        if (this.ndrops == 0) { this.drop0 = d; }
+        else if (this.ndrops == 1) { this.drop1 = d; }
+        else if (this.ndrops == 2) { this.drop2 = d; }
+        else if (this.ndrops == 3) { this.drop3 = d; }
+        else if (this.ndrops == 4) { this.drop4 = d; }
+        else if (this.ndrops == 5) { this.drop5 = d; }
+        else if (this.ndrops == 6) { this.drop6 = d; }
+        else if (this.ndrops == 7) { this.drop7 = d; }
+        else { return; }
+        this.ndrops = this.ndrops + 1;
+    }
+    // PasswordBox, NumberBox and TextArea have their own slots: they
+    // override TextBox methods, so sharing TextBox slots would dispatch
+    // to the wrong method. Only plain TextBox objects go in addBox.
+    public void addPass(PasswordBox t) {
+        if (this.npass == 0) { this.pass0 = t; }
+        else if (this.npass == 1) { this.pass1 = t; }
+        else if (this.npass == 2) { this.pass2 = t; }
+        else if (this.npass == 3) { this.pass3 = t; }
+        else if (this.npass == 4) { this.pass4 = t; }
+        else if (this.npass == 5) { this.pass5 = t; }
+        else if (this.npass == 6) { this.pass6 = t; }
+        else if (this.npass == 7) { this.pass7 = t; }
+        else { return; }
+        this.npass = this.npass + 1;
+    }
+    public void addNum(NumberBox t) {
+        if (this.nnum == 0) { this.num0 = t; }
+        else if (this.nnum == 1) { this.num1 = t; }
+        else if (this.nnum == 2) { this.num2 = t; }
+        else if (this.nnum == 3) { this.num3 = t; }
+        else if (this.nnum == 4) { this.num4 = t; }
+        else if (this.nnum == 5) { this.num5 = t; }
+        else if (this.nnum == 6) { this.num6 = t; }
+        else if (this.nnum == 7) { this.num7 = t; }
+        else { return; }
+        this.nnum = this.nnum + 1;
+    }
+    public void addArea(TextArea t) {
+        if (this.narea == 0) { this.area0 = t; }
+        else if (this.narea == 1) { this.area1 = t; }
+        else if (this.narea == 2) { this.area2 = t; }
+        else if (this.narea == 3) { this.area3 = t; }
+        else if (this.narea == 4) { this.area4 = t; }
+        else if (this.narea == 5) { this.area5 = t; }
+        else if (this.narea == 6) { this.area6 = t; }
+        else if (this.narea == 7) { this.area7 = t; }
+        else { return; }
+        this.narea = this.narea + 1;
+    }
+    // Pump and dispatch all pending events for this frame. Button
+    // presses (state 1) dispatch presses, releases (state 0) dispatch
+    // releases so buttons fire on release-inside and sliders ungrab.
     public void step() {
         if (this.win == null) {
             return;
@@ -249,9 +1060,20 @@ class Gui {
         int e = this.win.peekEvent();
         while (e != 0) {
             if (e == Window.CLOSE()) {
+                // Quitting (or a dead connection, which also reads as
+                // CLOSE): stop pumping at once. Looping on would spin
+                // forever here, since a closed socket reports CLOSE on
+                // every further peek.
                 this.running = 0;
-            } else if (e == Window.BUTTON() && this.win.evButton() == 1) {
-                this.dispatchPress(this.win.evX(), this.win.evY());
+                return;
+            } else if (e == Window.BUTTON()) {
+                if (this.win.evState() == 1) {
+                    this.dispatchPress(this.win.evX(), this.win.evY());
+                } else {
+                    this.dispatchRelease(this.win.evX(), this.win.evY());
+                }
+            } else if (e == Window.MOTION()) {
+                this.dispatchMotion(this.win.evX(), this.win.evY());
             } else if (e == Window.KEY()) {
                 if (this.win.evState() == 1) {
                     this.dispatchKey(this.win.evKey(), this.win.evMods());
@@ -261,7 +1083,8 @@ class Gui {
         }
     }
     // Redraw every widget (call after clearing the canvas). Layer
-    // order: labels (bottom), boxes (top).
+    // order: labels (bottom), then boxes, buttons, checks, radios,
+    // sliders, drops (top, so open lists paint over everything).
     public void draw(Image im) {
         if (this.label0 != null) { Label l = this.label0; l.draw(im); }
         if (this.label1 != null) { Label l = this.label1; l.draw(im); }
@@ -279,76 +1102,325 @@ class Gui {
         if (this.box5 != null) { TextBox t = this.box5; t.draw(im); }
         if (this.box6 != null) { TextBox t = this.box6; t.draw(im); }
         if (this.box7 != null) { TextBox t = this.box7; t.draw(im); }
+        if (this.pass0 != null) { PasswordBox p = this.pass0; p.draw(im); }
+        if (this.pass1 != null) { PasswordBox p = this.pass1; p.draw(im); }
+        if (this.pass2 != null) { PasswordBox p = this.pass2; p.draw(im); }
+        if (this.pass3 != null) { PasswordBox p = this.pass3; p.draw(im); }
+        if (this.pass4 != null) { PasswordBox p = this.pass4; p.draw(im); }
+        if (this.pass5 != null) { PasswordBox p = this.pass5; p.draw(im); }
+        if (this.pass6 != null) { PasswordBox p = this.pass6; p.draw(im); }
+        if (this.pass7 != null) { PasswordBox p = this.pass7; p.draw(im); }
+        if (this.num0 != null) { NumberBox n = this.num0; n.draw(im); }
+        if (this.num1 != null) { NumberBox n = this.num1; n.draw(im); }
+        if (this.num2 != null) { NumberBox n = this.num2; n.draw(im); }
+        if (this.num3 != null) { NumberBox n = this.num3; n.draw(im); }
+        if (this.num4 != null) { NumberBox n = this.num4; n.draw(im); }
+        if (this.num5 != null) { NumberBox n = this.num5; n.draw(im); }
+        if (this.num6 != null) { NumberBox n = this.num6; n.draw(im); }
+        if (this.num7 != null) { NumberBox n = this.num7; n.draw(im); }
+        if (this.area0 != null) { TextArea a = this.area0; a.draw(im); }
+        if (this.area1 != null) { TextArea a = this.area1; a.draw(im); }
+        if (this.area2 != null) { TextArea a = this.area2; a.draw(im); }
+        if (this.area3 != null) { TextArea a = this.area3; a.draw(im); }
+        if (this.area4 != null) { TextArea a = this.area4; a.draw(im); }
+        if (this.area5 != null) { TextArea a = this.area5; a.draw(im); }
+        if (this.area6 != null) { TextArea a = this.area6; a.draw(im); }
+        if (this.area7 != null) { TextArea a = this.area7; a.draw(im); }
+        if (this.button0 != null) { Button b = this.button0; b.draw(im); }
+        if (this.button1 != null) { Button b = this.button1; b.draw(im); }
+        if (this.button2 != null) { Button b = this.button2; b.draw(im); }
+        if (this.button3 != null) { Button b = this.button3; b.draw(im); }
+        if (this.button4 != null) { Button b = this.button4; b.draw(im); }
+        if (this.button5 != null) { Button b = this.button5; b.draw(im); }
+        if (this.button6 != null) { Button b = this.button6; b.draw(im); }
+        if (this.button7 != null) { Button b = this.button7; b.draw(im); }
+        if (this.check0 != null) { Checkbox c = this.check0; c.draw(im); }
+        if (this.check1 != null) { Checkbox c = this.check1; c.draw(im); }
+        if (this.check2 != null) { Checkbox c = this.check2; c.draw(im); }
+        if (this.check3 != null) { Checkbox c = this.check3; c.draw(im); }
+        if (this.check4 != null) { Checkbox c = this.check4; c.draw(im); }
+        if (this.check5 != null) { Checkbox c = this.check5; c.draw(im); }
+        if (this.check6 != null) { Checkbox c = this.check6; c.draw(im); }
+        if (this.check7 != null) { Checkbox c = this.check7; c.draw(im); }
+        if (this.radio0 != null) { RadioButton r = this.radio0; r.draw(im); }
+        if (this.radio1 != null) { RadioButton r = this.radio1; r.draw(im); }
+        if (this.radio2 != null) { RadioButton r = this.radio2; r.draw(im); }
+        if (this.radio3 != null) { RadioButton r = this.radio3; r.draw(im); }
+        if (this.radio4 != null) { RadioButton r = this.radio4; r.draw(im); }
+        if (this.radio5 != null) { RadioButton r = this.radio5; r.draw(im); }
+        if (this.radio6 != null) { RadioButton r = this.radio6; r.draw(im); }
+        if (this.radio7 != null) { RadioButton r = this.radio7; r.draw(im); }
+        if (this.slider0 != null) { Slider s = this.slider0; s.draw(im); }
+        if (this.slider1 != null) { Slider s = this.slider1; s.draw(im); }
+        if (this.slider2 != null) { Slider s = this.slider2; s.draw(im); }
+        if (this.slider3 != null) { Slider s = this.slider3; s.draw(im); }
+        if (this.slider4 != null) { Slider s = this.slider4; s.draw(im); }
+        if (this.slider5 != null) { Slider s = this.slider5; s.draw(im); }
+        if (this.slider6 != null) { Slider s = this.slider6; s.draw(im); }
+        if (this.slider7 != null) { Slider s = this.slider7; s.draw(im); }
+        if (this.drop0 != null) { Dropdown d = this.drop0; d.draw(im); }
+        if (this.drop1 != null) { Dropdown d = this.drop1; d.draw(im); }
+        if (this.drop2 != null) { Dropdown d = this.drop2; d.draw(im); }
+        if (this.drop3 != null) { Dropdown d = this.drop3; d.draw(im); }
+        if (this.drop4 != null) { Dropdown d = this.drop4; d.draw(im); }
+        if (this.drop5 != null) { Dropdown d = this.drop5; d.draw(im); }
+        if (this.drop6 != null) { Dropdown d = this.drop6; d.draw(im); }
+        if (this.drop7 != null) { Dropdown d = this.drop7; d.draw(im); }
+    }
+    // Deselect every selected radio in group g except slot keep.
+    public void clearGroup(int g, int keep) {
+        if (this.radio0 != null && 0 != keep && this.radio0.group() == g) {
+            this.radio0.setSelected(0);
+        }
+        if (this.radio1 != null && 1 != keep && this.radio1.group() == g) {
+            this.radio1.setSelected(0);
+        }
+        if (this.radio2 != null && 2 != keep && this.radio2.group() == g) {
+            this.radio2.setSelected(0);
+        }
+        if (this.radio3 != null && 3 != keep && this.radio3.group() == g) {
+            this.radio3.setSelected(0);
+        }
+        if (this.radio4 != null && 4 != keep && this.radio4.group() == g) {
+            this.radio4.setSelected(0);
+        }
+        if (this.radio5 != null && 5 != keep && this.radio5.group() == g) {
+            this.radio5.setSelected(0);
+        }
+        if (this.radio6 != null && 6 != keep && this.radio6.group() == g) {
+            this.radio6.setSelected(0);
+        }
+        if (this.radio7 != null && 7 != keep && this.radio7.group() == g) {
+            this.radio7.setSelected(0);
+        }
+    }
+    // Press dispatch, topmost layer first (drops, sliders, radios,
+    // checks, buttons, boxes). The first widget claiming focus wins it.
+    // Blur every focused widget (focus is single: one live reference
+    // per kind at most, all cleared here before a new claim).
+    public void blurAll() {
+        if (this.focusedBox != null) { this.focusedBox.blur(); this.focusedBox = null; }
+        if (this.focusedPass != null) { this.focusedPass.blur(); this.focusedPass = null; }
+        if (this.focusedNum != null) { this.focusedNum.blur(); this.focusedNum = null; }
+        if (this.focusedArea != null) { this.focusedArea.blur(); this.focusedArea = null; }
+        if (this.focusedBtn != null) { this.focusedBtn.blur(); this.focusedBtn = null; }
+        if (this.focusedChk != null) { this.focusedChk.blur(); this.focusedChk = null; }
+        if (this.focusedRad != null) { this.focusedRad.blur(); this.focusedRad = null; }
+        if (this.focusedSld != null) { this.focusedSld.blur(); this.focusedSld = null; }
+        if (this.focusedDrp != null) { this.focusedDrp.blur(); this.focusedDrp = null; }
+    }
+    // Each press helper returns 1 when the widget claimed the press
+    // (topmost claimant consumes it, so lower layers never see it).
+    public int pressBox(TextBox t, int x, int y) {
+        if (t.hit(x, y) == 0) {
+            return 0;
+        }
+        t.onPress(x, y);
+        this.blurAll();
+        t.claimFocus(x, y);
+        this.focusedBox = t;
+        return 1;
+    }
+    public int pressPass(PasswordBox t, int x, int y) {
+        if (t.hit(x, y) == 0) {
+            return 0;
+        }
+        t.onPress(x, y);
+        this.blurAll();
+        t.claimFocus(x, y);
+        this.focusedPass = t;
+        return 1;
+    }
+    public int pressNum(NumberBox t, int x, int y) {
+        if (t.hit(x, y) == 0) {
+            return 0;
+        }
+        t.onPress(x, y);
+        this.blurAll();
+        t.claimFocus(x, y);
+        this.focusedNum = t;
+        return 1;
+    }
+    public int pressArea(TextArea t, int x, int y) {
+        if (t.hit(x, y) == 0) {
+            return 0;
+        }
+        t.onPress(x, y);
+        this.blurAll();
+        t.claimFocus(x, y);
+        this.focusedArea = t;
+        return 1;
+    }
+    public int pressButton(Button b, int x, int y) {
+        if (b.hit(x, y) == 0) {
+            return 0;
+        }
+        b.onPress(x, y);
+        this.blurAll();
+        b.claimFocus(x, y);
+        this.focusedBtn = b;
+        return 1;
+    }
+    public int pressCheck(Checkbox c, int x, int y) {
+        if (c.hit(x, y) == 0) {
+            return 0;
+        }
+        c.onPress(x, y);
+        this.blurAll();
+        c.claimFocus(x, y);
+        this.focusedChk = c;
+        return 1;
+    }
+    public int pressSlider(Slider s, int x, int y) {
+        if (s.hit(x, y) == 0) {
+            return 0;
+        }
+        s.onPress(x, y);
+        this.blurAll();
+        s.claimFocus(x, y);
+        this.focusedSld = s;
+        return 1;
+    }
+    public int pressDrop(Dropdown d, int x, int y) {
+        if (d.claimFocus(x, y) == 0) {
+            d.onPress(x, y);
+            return 0;
+        }
+        d.onPress(x, y);
+        this.blurAll();
+        // Focus stays on the dropdown even though picking an option
+        // closed the list (re-testing geometry here would fail).
+        d.focus();
+        this.focusedDrp = d;
+        return 1;
+    }
+    public int pressRadio(RadioButton r, int x, int y, int slot) {
+        if (r.hit(x, y) == 0) {
+            return 0;
+        }
+        r.onPress(x, y);
+        this.blurAll();
+        r.claimFocus(x, y);
+        this.focusedRad = r;
+        if (r.selected() == 1) {
+            this.clearGroup(r.group(), slot);
+        }
+        return 1;
     }
     public void dispatchPress(int x, int y) {
-        if (this.box0 != null) {
-            TextBox t = this.box0;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box1 != null) {
-            TextBox t = this.box1;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box2 != null) {
-            TextBox t = this.box2;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box3 != null) {
-            TextBox t = this.box3;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box4 != null) {
-            TextBox t = this.box4;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box5 != null) {
-            TextBox t = this.box5;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box6 != null) {
-            TextBox t = this.box6;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
-        if (this.box7 != null) {
-            TextBox t = this.box7;
-            t.onPress(x, y);
-            if (t.claimFocus(x, y) == 1) {
-                if (this.focused != null) { this.focused.blur(); }
-                this.focused = t;
-            }
-        }
+        if (this.drop0 != null && this.pressDrop(this.drop0, x, y) == 1) { return; }
+        if (this.drop1 != null && this.pressDrop(this.drop1, x, y) == 1) { return; }
+        if (this.drop2 != null && this.pressDrop(this.drop2, x, y) == 1) { return; }
+        if (this.drop3 != null && this.pressDrop(this.drop3, x, y) == 1) { return; }
+        if (this.drop4 != null && this.pressDrop(this.drop4, x, y) == 1) { return; }
+        if (this.drop5 != null && this.pressDrop(this.drop5, x, y) == 1) { return; }
+        if (this.drop6 != null && this.pressDrop(this.drop6, x, y) == 1) { return; }
+        if (this.drop7 != null && this.pressDrop(this.drop7, x, y) == 1) { return; }
+        if (this.slider0 != null && this.pressSlider(this.slider0, x, y) == 1) { return; }
+        if (this.slider1 != null && this.pressSlider(this.slider1, x, y) == 1) { return; }
+        if (this.slider2 != null && this.pressSlider(this.slider2, x, y) == 1) { return; }
+        if (this.slider3 != null && this.pressSlider(this.slider3, x, y) == 1) { return; }
+        if (this.slider4 != null && this.pressSlider(this.slider4, x, y) == 1) { return; }
+        if (this.slider5 != null && this.pressSlider(this.slider5, x, y) == 1) { return; }
+        if (this.slider6 != null && this.pressSlider(this.slider6, x, y) == 1) { return; }
+        if (this.slider7 != null && this.pressSlider(this.slider7, x, y) == 1) { return; }
+        if (this.radio0 != null && this.pressRadio(this.radio0, x, y, 0) == 1) { return; }
+        if (this.radio1 != null && this.pressRadio(this.radio1, x, y, 1) == 1) { return; }
+        if (this.radio2 != null && this.pressRadio(this.radio2, x, y, 2) == 1) { return; }
+        if (this.radio3 != null && this.pressRadio(this.radio3, x, y, 3) == 1) { return; }
+        if (this.radio4 != null && this.pressRadio(this.radio4, x, y, 4) == 1) { return; }
+        if (this.radio5 != null && this.pressRadio(this.radio5, x, y, 5) == 1) { return; }
+        if (this.radio6 != null && this.pressRadio(this.radio6, x, y, 6) == 1) { return; }
+        if (this.radio7 != null && this.pressRadio(this.radio7, x, y, 7) == 1) { return; }
+        if (this.check0 != null && this.pressCheck(this.check0, x, y) == 1) { return; }
+        if (this.check1 != null && this.pressCheck(this.check1, x, y) == 1) { return; }
+        if (this.check2 != null && this.pressCheck(this.check2, x, y) == 1) { return; }
+        if (this.check3 != null && this.pressCheck(this.check3, x, y) == 1) { return; }
+        if (this.check4 != null && this.pressCheck(this.check4, x, y) == 1) { return; }
+        if (this.check5 != null && this.pressCheck(this.check5, x, y) == 1) { return; }
+        if (this.check6 != null && this.pressCheck(this.check6, x, y) == 1) { return; }
+        if (this.check7 != null && this.pressCheck(this.check7, x, y) == 1) { return; }
+        if (this.button0 != null && this.pressButton(this.button0, x, y) == 1) { return; }
+        if (this.button1 != null && this.pressButton(this.button1, x, y) == 1) { return; }
+        if (this.button2 != null && this.pressButton(this.button2, x, y) == 1) { return; }
+        if (this.button3 != null && this.pressButton(this.button3, x, y) == 1) { return; }
+        if (this.button4 != null && this.pressButton(this.button4, x, y) == 1) { return; }
+        if (this.button5 != null && this.pressButton(this.button5, x, y) == 1) { return; }
+        if (this.button6 != null && this.pressButton(this.button6, x, y) == 1) { return; }
+        if (this.button7 != null && this.pressButton(this.button7, x, y) == 1) { return; }
+        if (this.box0 != null && this.pressBox(this.box0, x, y) == 1) { return; }
+        if (this.box1 != null && this.pressBox(this.box1, x, y) == 1) { return; }
+        if (this.box2 != null && this.pressBox(this.box2, x, y) == 1) { return; }
+        if (this.box3 != null && this.pressBox(this.box3, x, y) == 1) { return; }
+        if (this.box4 != null && this.pressBox(this.box4, x, y) == 1) { return; }
+        if (this.box5 != null && this.pressBox(this.box5, x, y) == 1) { return; }
+        if (this.box6 != null && this.pressBox(this.box6, x, y) == 1) { return; }
+        if (this.box7 != null && this.pressBox(this.box7, x, y) == 1) { return; }
+        if (this.pass0 != null && this.pressPass(this.pass0, x, y) == 1) { return; }
+        if (this.pass1 != null && this.pressPass(this.pass1, x, y) == 1) { return; }
+        if (this.pass2 != null && this.pressPass(this.pass2, x, y) == 1) { return; }
+        if (this.pass3 != null && this.pressPass(this.pass3, x, y) == 1) { return; }
+        if (this.pass4 != null && this.pressPass(this.pass4, x, y) == 1) { return; }
+        if (this.pass5 != null && this.pressPass(this.pass5, x, y) == 1) { return; }
+        if (this.pass6 != null && this.pressPass(this.pass6, x, y) == 1) { return; }
+        if (this.pass7 != null && this.pressPass(this.pass7, x, y) == 1) { return; }
+        if (this.num0 != null && this.pressNum(this.num0, x, y) == 1) { return; }
+        if (this.num1 != null && this.pressNum(this.num1, x, y) == 1) { return; }
+        if (this.num2 != null && this.pressNum(this.num2, x, y) == 1) { return; }
+        if (this.num3 != null && this.pressNum(this.num3, x, y) == 1) { return; }
+        if (this.num4 != null && this.pressNum(this.num4, x, y) == 1) { return; }
+        if (this.num5 != null && this.pressNum(this.num5, x, y) == 1) { return; }
+        if (this.num6 != null && this.pressNum(this.num6, x, y) == 1) { return; }
+        if (this.num7 != null && this.pressNum(this.num7, x, y) == 1) { return; }
+        if (this.area0 != null && this.pressArea(this.area0, x, y) == 1) { return; }
+        if (this.area1 != null && this.pressArea(this.area1, x, y) == 1) { return; }
+        if (this.area2 != null && this.pressArea(this.area2, x, y) == 1) { return; }
+        if (this.area3 != null && this.pressArea(this.area3, x, y) == 1) { return; }
+        if (this.area4 != null && this.pressArea(this.area4, x, y) == 1) { return; }
+        if (this.area5 != null && this.pressArea(this.area5, x, y) == 1) { return; }
+        if (this.area6 != null && this.pressArea(this.area6, x, y) == 1) { return; }
+        if (this.area7 != null && this.pressArea(this.area7, x, y) == 1) { return; }
     }
     public void dispatchKey(int code, int mods) {
-        if (this.focused != null) {
-            this.focused.onKey(code, mods);
-        }
+        if (this.focusedBox != null) { this.focusedBox.onKey(code, mods); }
+        else if (this.focusedPass != null) { this.focusedPass.onKey(code, mods); }
+        else if (this.focusedNum != null) { this.focusedNum.onKey(code, mods); }
+        else if (this.focusedArea != null) { this.focusedArea.onKey(code, mods); }
+        else if (this.focusedBtn != null) { this.focusedBtn.onKey(code, mods); }
+        else if (this.focusedChk != null) { this.focusedChk.onKey(code, mods); }
+        else if (this.focusedRad != null) { this.focusedRad.onKey(code, mods); }
+        else if (this.focusedSld != null) { this.focusedSld.onKey(code, mods); }
+        else if (this.focusedDrp != null) { this.focusedDrp.onKey(code, mods); }
+    }
+    // Motion goes to grabbed sliders so dragging works.
+    public void dispatchMotion(int x, int y) {
+        if (this.slider0 != null) { Slider s = this.slider0; s.onDrag(x); }
+        if (this.slider1 != null) { Slider s = this.slider1; s.onDrag(x); }
+        if (this.slider2 != null) { Slider s = this.slider2; s.onDrag(x); }
+        if (this.slider3 != null) { Slider s = this.slider3; s.onDrag(x); }
+        if (this.slider4 != null) { Slider s = this.slider4; s.onDrag(x); }
+        if (this.slider5 != null) { Slider s = this.slider5; s.onDrag(x); }
+        if (this.slider6 != null) { Slider s = this.slider6; s.onDrag(x); }
+        if (this.slider7 != null) { Slider s = this.slider7; s.onDrag(x); }
+    }
+    // Release ends button presses (firing click on release-inside)
+    // and slider grabs.
+    public void dispatchRelease(int x, int y) {
+        if (this.button0 != null) { Button b = this.button0; b.onRelease(x, y); }
+        if (this.button1 != null) { Button b = this.button1; b.onRelease(x, y); }
+        if (this.button2 != null) { Button b = this.button2; b.onRelease(x, y); }
+        if (this.button3 != null) { Button b = this.button3; b.onRelease(x, y); }
+        if (this.button4 != null) { Button b = this.button4; b.onRelease(x, y); }
+        if (this.button5 != null) { Button b = this.button5; b.onRelease(x, y); }
+        if (this.button6 != null) { Button b = this.button6; b.onRelease(x, y); }
+        if (this.button7 != null) { Button b = this.button7; b.onRelease(x, y); }
+        if (this.slider0 != null) { Slider s = this.slider0; s.onRelease(); }
+        if (this.slider1 != null) { Slider s = this.slider1; s.onRelease(); }
+        if (this.slider2 != null) { Slider s = this.slider2; s.onRelease(); }
+        if (this.slider3 != null) { Slider s = this.slider3; s.onRelease(); }
+        if (this.slider4 != null) { Slider s = this.slider4; s.onRelease(); }
+        if (this.slider5 != null) { Slider s = this.slider5; s.onRelease(); }
+        if (this.slider6 != null) { Slider s = this.slider6; s.onRelease(); }
+        if (this.slider7 != null) { Slider s = this.slider7; s.onRelease(); }
     }
 }
