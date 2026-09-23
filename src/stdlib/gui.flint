@@ -39,6 +39,7 @@ class Window {
 
     int fd;        // the compositor socket
     int closed;    // 1 once the connection is gone
+    int dead_reported; // 1 once CLOSE was reported for a dead connection
     int ok;        // 1 once the handshake succeeded
     int w; int h; int stride;
     string shm_buf; // h*stride bytes, ARGB8888 (bytes B,G,R,A per pixel)
@@ -72,6 +73,7 @@ class Window {
     public Window() {
         this.fd = -1;
         this.closed = 0;
+        this.dead_reported = 0;
         this.ok = 0;
         this.w = 0; this.h = 0; this.stride = 0;
         this.shm_buf = null;
@@ -372,9 +374,13 @@ class Window {
     // Block until the next input event; returns its code (KEY, BUTTON,
     // MOTION, FRAME, CLOSE).
     int nextEvent() {
+        if (this.fd < 0 || this.dead_reported == 1) {
+            return 0;
+        }
         while (1) {
             int c = this.readMsg(-1);
             if (c == -2) {
+                this.dead_reported = 1;
                 return Window.CLOSE();
             }
             if (c > 0) {
@@ -383,9 +389,15 @@ class Window {
         }
     }
     // Non-blocking: the next input event, or 0 when none is pending.
+    // A dead (or closed) connection reports CLOSE at most once;
+    // further calls return 0 so `while (e != 0)` pumps terminate.
     int peekEvent() {
+        if (this.fd < 0 || this.dead_reported == 1) {
+            return 0;
+        }
         int c = this.readMsg(0);
         if (c == -2) {
+            this.dead_reported = 1;
             return Window.CLOSE();
         }
         return c > 0 ? c : 0;

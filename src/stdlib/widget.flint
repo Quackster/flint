@@ -1061,9 +1061,8 @@ class Gui {
         while (e != 0) {
             if (e == Window.CLOSE()) {
                 // Quitting (or a dead connection, which also reads as
-                // CLOSE): stop pumping at once. Looping on would spin
-                // forever here, since a closed socket reports CLOSE on
-                // every further peek.
+                // CLOSE): stop pumping at once. (A dead connection
+                // reports CLOSE at most once; further peeks return 0.)
                 this.running = 0;
                 return;
             } else if (e == Window.BUTTON()) {

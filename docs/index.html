@@ -3282,8 +3282,18 @@ carry Linux evdev key codes (<code>keyChar</code> maps them, with
 8/9/13/27 for Backspace/Tab/Return/Escape), and <code>evMods</code>
 reports the keyboard modifier mask (bit 1 Shift_L, bit 2 Caps_L,
 bit 4 Shift_R). It answers the compositor's ping so the window never
-shows as unresponsive, and the close button (or Alt+F4) surfaces as
-<code>CLOSE</code>. It requests server-side decorations via
+shows as unresponsive. The close button (or Alt+F4) surfaces as
+<code>CLOSE</code>; answer it with <code>close()</code>, which tears
+the display connection down so the compositor removes the window —
+without that the window stays mapped and goes "not responding".
+<code>minimize()</code> hides the window in the taskbar (the user
+restores it; a client cannot un-minimize itself). Each
+<code>Window</code> is its own display connection, so several can be
+open at once — pump and present each. <code>CLOSE</code> is reported
+at most once per connection; further <code>peekEvent</code>/
+<code>nextEvent</code> calls then return 0, so
+<code>while (e != 0)</code> pumps terminate. It requests
+server-side decorations via
 <code>xdg-decoration</code> when offered, so KWin draws the usual
 title bar with min/max/close. It follows resizes (e.g. maximize):
 the buffers are rebuilt at the configured size, so
@@ -3296,7 +3306,8 @@ Without a compositor (e.g. headless),
 <code>gui.flint</code>.)</p></div>
 
 <h2>Methods</h2>
-<p><code>open</code> <code>close</code> <code>running</code>
+<p><code>open</code> <code>close</code> <code>minimize</code>
+<code>running</code>
 <code>width</code> <code>height</code> <code>present</code>
 <code>nextEvent</code> <code>peekEvent</code> <code>evType</code>
 <code>evX</code> <code>evY</code> <code>evButton</code> <code>evKey</code>
@@ -3352,6 +3363,73 @@ int main() {
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
+<div class="code"><div class="head"><span>examples/windows.flint</span></div>
+<pre><code class="flint">// Several windows at once: each Window is its own connection.
+// Open opens a second window, Close closes it again.
+import std.Window;
+import std.Gui;
+import std.Image;
+
+int main() {
+    Window w = Window.open(480, 200, "flint windows");
+    if (w == null) {
+        print("no display\n");
+        return 0;
+    }
+    Gui gui = new Gui(w);
+    Button openBtn = new Button(16, 48, 120, 30, "Open");
+    Button closeBtn = new Button(150, 48, 120, 30, "Close");
+    Label status = new Label(16, 100, 448, 16, "window 2: closed");
+    gui.addButton(openBtn);
+    gui.addButton(closeBtn);
+    gui.addLabel(status);
+    Window w2 = null;
+    int open2 = 0;
+    Image c = new Image(480, 200);
+    Image c2 = null;
+    while (w.running() && gui.running() == 1) {
+        gui.step();
+        if (openBtn.clicked() == 1) {
+            openBtn.clearClicked();
+            if (open2 == 0) {
+                w2 = Window.open(360, 200, "flint window 2");
+                if (w2 != null) {
+                    open2 = 1;
+                    c2 = new Image(360, 200);
+                    print("window 2 opened\n");
+                }
+            }
+        }
+        if (closeBtn.clicked() == 1) {
+            closeBtn.clearClicked();
+            if (open2 == 1) {
+                w2.close();   // tears the connection down
+                open2 = 0;
+                status.setText("window 2: closed");
+            }
+        }
+        // Pump and present window 2 on its own connection; the
+        // title-bar close arrives as CLOSE and is answered the
+        // same way (close() removes the window).
+        if (open2 == 1) {
+            if (w2.running() == 0) {
+                open2 = 0;
+                status.setText("window 2: closed");
+            } else {
+                int e2 = 0;
+                while (e2 != 0) {
+                    e2 = w2.peekEvent();
+                }
+                w2.present(c2);
+            }
+        }
+        c.fill(Image.rgb(16, 16, 32));
+        gui.draw(c);
+        w.present(c);
+    }
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output (headless; on a desktop the buttons work)</span>no display</div>
 </section>
 <section id="std-widget" class="doc-section" data-label="Widget">
 <div class="page-head"><h1>Standard library: <code>Widget</code></h1>
