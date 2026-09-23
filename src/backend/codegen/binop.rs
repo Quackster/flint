@@ -37,8 +37,8 @@ impl Ctx<'_> {
         let ptrish = |t: &Ty| {
             matches!(
                 t,
-                Ty::Ptr | Ty::Str | Ty::Array | Ty::Struct(_) | Ty::List | Ty::Queue | Ty::HashMap
-                    | Ty::HashSet
+                Ty::Ptr | Ty::Str | Ty::Array | Ty::Struct(_) | Ty::Interface(_) | Ty::List
+                    | Ty::Queue | Ty::HashMap | Ty::HashSet
             )
         };
         if cmp {

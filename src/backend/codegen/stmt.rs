@@ -88,6 +88,17 @@ impl Ctx<'_> {
         }
     }
 
+    /// True when an assignment target is a static field (`ClassName.f`):
+    /// no instance lookup applies to it.
+    pub(crate) fn is_static_target(&self, target: &Expr) -> bool {
+        if let Expr::Field { base, name, .. } = target {
+            if let Some(sidx) = self.is_class_name(base) {
+                return self.is_static_field(sidx, name);
+            }
+        }
+        false
+    }
+
     /// Struct index when an assignment target holds a class value.
     pub(crate) fn assign_target_class(&self, target: &Expr, frame: &Frame) -> CompileResult<Option<usize>> {
         match target {
@@ -171,18 +182,33 @@ impl Ctx<'_> {
                 self.coll_expect = None;
                 self.str_copy = saved;
                 self.maybe_retain(value, frame);
-                if lkind == LocalKind::Heap {
+                let is_iface = matches!(lty, Ty::Interface(_));
+                if lkind == LocalKind::Heap || is_iface {
                     // overwrite: release the old reference, then store
-                    let rel: Option<String> = match (lsidx, lty.coll_kind()) {
-                        (Some(s), _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
-                        (None, Some(k)) => Some(coll_release_name(k).to_string()),
-                        _ => None,
+                    let rel: Option<String> = match (lsidx, lty.coll_kind(), is_iface) {
+                        (Some(s), _, _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
+                        (None, Some(k), _) => Some(coll_release_name(k).to_string()),
+                        (None, None, true) => Some("flint_release".to_string()),
+                        (None, None, false) => None,
                     };
                     self.emit("\tpop %r10");
                     if let Some(rel) = rel {
                         self.emit(&format!("\tmovq {}(%rbp), %r11", loff));
+                        // the generic release has no null check
+                        let guard = (rel == "flint_release").then(|| {
+                            let s = format!(".Lrel_skip{}", self.strn);
+                            self.strn += 1;
+                            s
+                        });
+                        if let Some(g) = &guard {
+                            self.emit("\ttest %r11, %r11");
+                            self.emit(&format!("\tjz {}", g));
+                        }
                         self.emit("\tmov %r11, %rdi");
                         self.emit(&format!("\tcall {}", rel));
+                        if let Some(g) = &guard {
+                            self.emit(&format!("{}:", g));
+                        }
                     }
                     self.emit(&format!("\tmov %r10, {}(%rbp)", loff));
                 } else {
@@ -272,6 +298,8 @@ impl Ctx<'_> {
                 // class/collection target: release the old reference before storing
                 let target_class = self.assign_target_class(target, frame)?;
                 let target_coll = self.assign_target_coll(target, frame)?;
+                let target_iface = !self.is_static_target(target)
+                    && self.expr_interface_type(target, frame)?.is_some();
                 self.emit("\tpop %r10"); // value -> r10 (caller-saved temp)
                 self.emit_lvalue_addr(target, frame)?; // pushes address
                 // Hold the address in %rdx: flint_release clobbers %rax (the
@@ -286,6 +314,18 @@ impl Ctx<'_> {
                     self.emit("\tmovq (%rdx), %r11");
                     self.emit("\tmov %r11, %rdi");
                     self.emit(&format!("\tcall {}", coll_release_name(k)));
+                } else if target_iface {
+                    // interface target: release the old reference (the generic
+                    // release has no null check and is a v1 no-op at refcount
+                    // zero, so guard the call with a null test)
+                    self.emit("\tmovq (%rdx), %r11");
+                    self.emit("\ttest %r11, %r11");
+                    let skip = format!(".Lrel_skip{}", self.strn);
+                    self.strn += 1;
+                    self.emit(&format!("\tjz {}", skip));
+                    self.emit("\tmov %r11, %rdi");
+                    self.emit("\tcall flint_release");
+                    self.emit(&format!("{}:", skip));
                 }
                 self.emit("\tmov %r10, (%rdx)");
                 let _ = vty;
@@ -461,6 +501,28 @@ impl Ctx<'_> {
                 op,
                 value,
             } => {
+                if !self.is_static_target(target)
+                    && self.expr_interface_type(target, frame)?.is_some()
+                {
+                    // Event registration: `handler += impl` — store the
+                    // reference (C#-style subscription), releasing the
+                    // previously registered one if any.
+                    self.gen_expr(value, frame)?;
+                    self.maybe_retain(value, frame);
+                    self.emit("\tpop %r10"); // value -> r10
+                    self.emit_lvalue_addr(target, frame)?;
+                    self.emit("\tpop %rdx"); // %rdx = address
+                    self.emit("\tmovq (%rdx), %r11");
+                    self.emit("\ttest %r11, %r11");
+                    let skip = format!(".Lrel_skip{}", self.strn);
+                    self.strn += 1;
+                    self.emit(&format!("\tjz {}", skip));
+                    self.emit("\tmov %r11, %rdi");
+                    self.emit("\tcall flint_release");
+                    self.emit(&format!("{}:", skip));
+                    self.emit("\tmov %r10, (%rdx)");
+                    return Ok(());
+                }
                 if self.assign_target_class(target, frame)?.is_some() {
                     return Err(CompileError::new(
                         *span,

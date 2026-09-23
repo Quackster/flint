@@ -4,29 +4,42 @@
 // input events and dispatches them to the widgets (import std.Gui,
 // std.Label, std.TextBox, std.Widget).
 //
-// Widgets draw into a std.Image canvas which the application blits to
-// the window with Window.present. A typical program:
+// Widgets draw into a std.Image canvas which run() blits to the
+// window. A typical program registers handlers with `+=` (C#-style)
+// and calls run():
 //
-//   import std.Window;
 //   import std.Gui;
 //   import std.Image;
-//   Window w = Window.open(480, 200, "flint gui");
-//   if (w == null) { print("no display\n"); return 0; }
-//   Gui gui = new Gui(w);
-//   Label label = new Label(16, 12, 200, 16, "Hello");
-//   TextBox box = new TextBox(16, 44, 240, 30, 32);
-//   gui.addLabel(label);
-//   gui.addBox(box);
-//   Image c = new Image(480, 200);
-//   while (w.running() && gui.running() == 1) {
-//       gui.step();                 // pump + dispatch pending events
-//       if (box.entered() == 1) {  // ... use box.text() ...
-//           box.clearEntered();
+//   class FormApp implements OnSetup, OnDraw {
+//       Gui gui;
+//       TextBox box;
+//       Label label;
+//       void setup() {
+//           this.box = new TextBox(16, 44, 240, 30, 32);
+//           this.label = new Label(16, 12, 200, 16, "Hello");
+//           this.gui.addLabel(this.label);
+//           this.gui.addBox(this.box);
 //       }
-//       c.fill(Image.rgb(16, 16, 32));
-//       gui.draw(c);
-//       w.present(c);
+//       void draw(Image c) {
+//           c.fill(Image.rgb(16, 16, 32));
+//           if (this.box.entered() == 1) {  // ... use box.text() ...
+//               this.box.clearEntered();
+//           }
+//       }
 //   }
+//   int main() {
+//       FormApp app = new FormApp();
+//       app.gui = Gui.open(480, 200, "flint gui");
+//       if (app.gui == null) { print("no display\n"); return 0; }
+//       app.gui.setup += app;
+//       app.gui.draw += app;
+//       return app.gui.run();
+//   }
+//
+// run() owns the whole loop: it pumps and dispatches the window's
+// events, follows resizes (new canvas + OnResize), calls OnDraw, then
+// the widget draw, and presents. Escape quits by default. The raw
+// step()/peekEvent()/Window API stays for advanced use.
 //
 // Note: the compiler has a refcount bug for object arrays (re-reading
 // an element underflows a refcount and segfaults at exit), so Gui
@@ -829,6 +842,15 @@ class Dropdown extends Widget {
 // named fields (8 of each kind) keep field access refcount-safe.
 class Gui {
     Window win;
+    Image canvas;
+    int quit_esc;
+    OnSetup setup;
+    OnDraw draw;
+    OnKey key;
+    OnButton button;
+    OnMotion motion;
+    OnResize resize;
+    OnClose close;
     Label label0; Label label1; Label label2; Label label3;
     Label label4; Label label5; Label label6; Label label7;
     int nlabels;
@@ -873,6 +895,15 @@ class Gui {
     int running;
     public Gui(Window win) {
         this.win = win;
+        this.canvas = null;
+        this.quit_esc = 1;
+        this.setup = null;
+        this.draw = null;
+        this.key = null;
+        this.button = null;
+        this.motion = null;
+        this.resize = null;
+        this.close = null;
         this.label0 = null; this.label1 = null; this.label2 = null; this.label3 = null;
         this.label4 = null; this.label5 = null; this.label6 = null; this.label7 = null;
         this.nlabels = 0;
@@ -913,6 +944,66 @@ class Gui {
         this.focusedSld = null;
         this.focusedDrp = null;
         this.running = 1;
+    }
+    // Open the window and the Gui; null without a compositor.
+    static Gui open(int ww, int hh, string title) {
+        Window w = Window.open(ww, hh, title);
+        if (w == null) {
+            return null;
+        }
+        return new Gui(w);
+    }
+    // Stop the loop after this frame (e.g. from a key handler).
+    public void stop() {
+        this.running = 0;
+    }
+    // Keep Escape from quitting (a key handler can still stop()).
+    public void noEscapeQuit() {
+        this.quit_esc = 0;
+    }
+    public Window window() {
+        return this.win;
+    }
+    // The event loop; 0 on return. Calls OnSetup once, then each
+    // frame: step() (pump + dispatch to the widgets), re-create the
+    // canvas when the window was resized (and OnResize), the default
+    // Escape-quit, OnDraw, the widget draw, and present. Tears the
+    // connection down on the way out. No-op when the window is null.
+    public int run() {
+        if (this.win == null) {
+            return 0;
+        }
+        if (this.canvas == null) {
+            this.canvas = new Image(this.win.width(), this.win.height());
+        }
+        if (this.setup != null) {
+            this.setup.setup();
+        }
+        while (this.win.running() == 1 && this.running == 1) {
+            int last = this.step();
+            if (last == Window.CLOSE() && this.close != null) {
+                this.close.close();
+            }
+            if (last == Window.KEY() && this.quit_esc == 1
+                    && this.win.evState() == 1
+                    && Window.keyChar(this.win.evKey()) == 27) {
+                this.running = 0;
+            }
+            if (this.win.width() != this.canvas.w
+                    || this.win.height() != this.canvas.h) {
+                this.canvas = new Image(this.win.width(), this.win.height());
+                if (this.resize != null) {
+                    this.resize.resize(this.win.width(), this.win.height());
+                }
+            }
+            if (this.draw != null) {
+                this.draw.draw(this.canvas);
+            }
+            this.drawWidgets(this.canvas);
+            this.win.present(this.canvas);
+        }
+        this.win.close();
+        return 0;
     }
     public void addLabel(Label l) {
         if (this.nlabels == 0) { this.label0 = l; }
@@ -1050,21 +1141,24 @@ class Gui {
         else { return; }
         this.narea = this.narea + 1;
     }
-    // Pump and dispatch all pending events for this frame. Button
-    // presses (state 1) dispatch presses, releases (state 0) dispatch
-    // releases so buttons fire on release-inside and sliders ungrab.
-    public void step() {
+    // Pump and dispatch all pending events for this frame; returns
+    // the last code pumped (0 when none). Button presses (state 1)
+    // dispatch presses, releases (state 0) dispatch releases so
+    // buttons fire on release-inside and sliders ungrab.
+    public int step() {
         if (this.win == null) {
-            return;
+            return 0;
         }
         int e = this.win.peekEvent();
+        int last = 0;
         while (e != 0) {
+            last = e;
             if (e == Window.CLOSE()) {
                 // Quitting (or a dead connection, which also reads as
                 // CLOSE): stop pumping at once. (A dead connection
                 // reports CLOSE at most once; further peeks return 0.)
                 this.running = 0;
-                return;
+                return last;
             } else if (e == Window.BUTTON()) {
                 if (this.win.evState() == 1) {
                     this.dispatchPress(this.win.evX(), this.win.evY());
@@ -1080,11 +1174,13 @@ class Gui {
             }
             e = this.win.peekEvent();
         }
+        return last;
     }
     // Redraw every widget (call after clearing the canvas). Layer
     // order: labels (bottom), then boxes, buttons, checks, radios,
     // sliders, drops (top, so open lists paint over everything).
-    public void draw(Image im) {
+    // run() calls it each frame after the OnDraw handler.
+    public void drawWidgets(Image im) {
         if (this.label0 != null) { Label l = this.label0; l.draw(im); }
         if (this.label1 != null) { Label l = this.label1; l.draw(im); }
         if (this.label2 != null) { Label l = this.label2; l.draw(im); }

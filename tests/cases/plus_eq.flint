@@ -1,0 +1,78 @@
+// plus_eq: `+=` on an interface-typed lvalue is event registration —
+// it stores the reference (C#-style subscription) and releases the
+// previously registered one. Also covers `=` and re-declaration of an
+// interface-typed value, and dispatch through the interface.
+interface OnTick {
+    void tick(int n);
+}
+
+class T implements OnTick {
+    int last;
+    public T() {
+        this.last = -1;
+    }
+    public void tick(int n) {
+        this.last = n;
+    }
+    public int lastVal() {
+        return this.last;
+    }
+}
+
+class U implements OnTick {
+    int seen;
+    public U() {
+        this.seen = 0;
+    }
+    public void tick(int n) {
+        this.seen = this.seen + n;
+    }
+    public int total() {
+        return this.seen;
+    }
+}
+
+class Holder {
+    OnTick tick;
+    public Holder() {
+        this.tick = null;
+    }
+    public void fire(int n) {
+        this.tick.tick(n);
+    }
+    public OnTick get() {
+        return this.tick;
+    }
+}
+
+int via(OnTick h) {
+    h.tick(7);
+    return 0;
+}
+
+int main() {
+    Holder h = new Holder();
+    T t = new T();
+    h.tick += t;               // register
+    h.fire(5);
+    printi(t.lastVal()); print(" ");    // 5
+    via(h.get());
+    printi(t.lastVal()); print("\n");   // 7 (dispatch through interface)
+    U u = new U();
+    h.tick += u;               // re-register: releases t's reference
+    h.fire(9);
+    printi(u.total()); print(" ");      // 9
+    printi(t.lastVal()); print("\n");   // 7 (t untouched)
+    // `=` behaves the same as `+=` for interface values
+    h.tick = t;
+    h.fire(11);
+    printi(t.lastVal()); print("\n");   // 11
+    // local interface value: re-declare releases the old reference
+    OnTick local = t;
+    local.tick(1);
+    printi(t.lastVal()); print(" ");    // 1 (tick sets)
+    local = u;
+    local.tick(1);
+    printi(u.total()); print("\n");     // 10
+    return 0;
+}

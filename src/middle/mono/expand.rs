@@ -18,7 +18,9 @@ impl<'a> Mono<'a> {
         // never match and inheritance/vtable dispatch silently breaks).
         c.extends = c.extends.as_ref().map(|p| super::mangle(&c.package, p));
         for i in c.implements.iter_mut() {
-            *i = super::mangle(&c.package, i);
+            // Qualified names (from the parser's interface resolution) carry
+            // their own package; short names use the class's package.
+            *i = super::mangle_fqn(&c.package, i);
         }
         for f in c.fields.iter_mut() {
             f.ty = self.resolve_type(&f.ty, &subst)?;

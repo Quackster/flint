@@ -7,95 +7,104 @@
 // drop-down and a submit button. Press Submit (or Return in a box) to
 // echo a summary line. Press Escape to quit (or close the app from
 // the compositor).
-import std.Window;
 import std.Gui;
 import std.Image;
 
+class FormApp implements OnSetup, OnDraw {
+    Gui gui;
+    TextBox name;
+    PasswordBox pass;
+    NumberBox age;
+    TextArea bio;
+    Checkbox mail;
+    Checkbox sms;
+    RadioButton rRed;
+    RadioButton rGreen;
+    RadioButton rBlue;
+    Slider vol;
+    Label volVal;
+    Dropdown ship;
+    Button okBtn;
+    Label echo;
+    void setup() {
+        Label title = new Label(16, 10, 240, 16, "Form demo");
+        Label nameTag = new Label(16, 38, 80, 16, "Name:");
+        this.name = new TextBox(100, 34, 220, 26, 32);
+        Label passTag = new Label(16, 68, 80, 16, "Pass:");
+        this.pass = new PasswordBox(100, 64, 220, 26, 32);
+        Label ageTag = new Label(16, 98, 80, 16, "Age:");
+        this.age = new NumberBox(100, 94, 80, 26, 3);
+        Label bioTag = new Label(16, 128, 80, 16, "Bio:");
+        this.bio = new TextArea(100, 124, 220, 64, 128);
+        this.mail = new Checkbox(16, 196, 160, 20, "Email news");
+        this.sms = new Checkbox(200, 196, 160, 20, "SMS alerts");
+        this.rRed = new RadioButton(16, 222, 100, 20, "Red");
+        this.rRed.setGroup(1);
+        this.rGreen = new RadioButton(130, 222, 100, 20, "Green");
+        this.rGreen.setGroup(1);
+        this.rBlue = new RadioButton(244, 222, 100, 20, "Blue");
+        this.rBlue.setGroup(1);
+        Label volTag = new Label(16, 248, 80, 16, "Vol:");
+        this.vol = new Slider(100, 248, 220, 20, 100);
+        this.volVal = new Label(330, 248, 60, 16, "0");
+        Label shipTag = new Label(16, 276, 80, 16, "Ship:");
+        this.ship = new Dropdown(100, 272, 160, 26);
+        this.ship.addOption("Standard");
+        this.ship.addOption("Express");
+        this.ship.addOption("Overnight");
+        this.okBtn = new Button(16, 310, 120, 30, "Submit");
+        this.echo = new Label(150, 316, 314, 16, "");
+        this.gui.addLabel(title);
+        this.gui.addLabel(nameTag);
+        this.gui.addBox(this.name);
+        this.gui.addLabel(passTag);
+        this.gui.addPass(this.pass);
+        this.gui.addLabel(ageTag);
+        this.gui.addNum(this.age);
+        this.gui.addLabel(bioTag);
+        this.gui.addArea(this.bio);
+        this.gui.addCheck(this.mail);
+        this.gui.addCheck(this.sms);
+        this.gui.addRadio(this.rRed);
+        this.gui.addRadio(this.rGreen);
+        this.gui.addRadio(this.rBlue);
+        this.gui.addLabel(volTag);
+        this.gui.addSlider(this.vol);
+        this.gui.addLabel(this.volVal);
+        this.gui.addLabel(shipTag);
+        this.gui.addDrop(this.ship);
+        this.gui.addButton(this.okBtn);
+        this.gui.addLabel(this.echo);
+    }
+    void draw(Image c) {
+        c.fill(Image.rgb(16, 16, 32));
+        this.volVal.setText(str.itoa(this.vol.value()));
+        if (this.okBtn.clicked() == 1) {
+            string color = "red";
+            if (this.rGreen.selected() == 1) {
+                color = "green";
+            }
+            if (this.rBlue.selected() == 1) {
+                color = "blue";
+            }
+            this.echo.setText("ok " + this.name.text() + " " + color);
+            print("submit [");
+            print(this.name.text());
+            print("]\n");
+            this.okBtn.clearClicked();
+        }
+    }
+}
+
 int main() {
-    Window w = Window.open(480, 360, "flint form");
-    if (w == null) {
+    FormApp app = new FormApp();
+    app.gui = Gui.open(480, 360, "flint form");
+    if (app.gui == null) {
         print("no display\n");
         return 0;
     }
     print("opened ok\n");
-    Gui gui = new Gui(w);
-    Label title = new Label(16, 10, 240, 16, "Form demo");
-    Label nameTag = new Label(16, 38, 80, 16, "Name:");
-    TextBox name = new TextBox(100, 34, 220, 26, 32);
-    Label passTag = new Label(16, 68, 80, 16, "Pass:");
-    PasswordBox pass = new PasswordBox(100, 64, 220, 26, 32);
-    Label ageTag = new Label(16, 98, 80, 16, "Age:");
-    NumberBox age = new NumberBox(100, 94, 80, 26, 3);
-    Label bioTag = new Label(16, 128, 80, 16, "Bio:");
-    TextArea bio = new TextArea(100, 124, 220, 64, 128);
-    Checkbox mail = new Checkbox(16, 196, 160, 20, "Email news");
-    Checkbox sms = new Checkbox(200, 196, 160, 20, "SMS alerts");
-    RadioButton rRed = new RadioButton(16, 222, 100, 20, "Red");
-    rRed.setGroup(1);
-    RadioButton rGreen = new RadioButton(130, 222, 100, 20, "Green");
-    rGreen.setGroup(1);
-    RadioButton rBlue = new RadioButton(244, 222, 100, 20, "Blue");
-    rBlue.setGroup(1);
-    Label volTag = new Label(16, 248, 80, 16, "Vol:");
-    Slider vol = new Slider(100, 248, 220, 20, 100);
-    Label volVal = new Label(330, 248, 60, 16, "0");
-    Label shipTag = new Label(16, 276, 80, 16, "Ship:");
-    Dropdown ship = new Dropdown(100, 272, 160, 26);
-    ship.addOption("Standard");
-    ship.addOption("Express");
-    ship.addOption("Overnight");
-    Button okBtn = new Button(16, 310, 120, 30, "Submit");
-    Label echo = new Label(150, 316, 314, 16, "");
-    gui.addLabel(title);
-    gui.addLabel(nameTag);
-    gui.addBox(name);
-    gui.addLabel(passTag);
-    gui.addPass(pass);
-    gui.addLabel(ageTag);
-    gui.addNum(age);
-    gui.addLabel(bioTag);
-    gui.addArea(bio);
-    gui.addCheck(mail);
-    gui.addCheck(sms);
-    gui.addRadio(rRed);
-    gui.addRadio(rGreen);
-    gui.addRadio(rBlue);
-    gui.addLabel(volTag);
-    gui.addSlider(vol);
-    gui.addLabel(volVal);
-    gui.addLabel(shipTag);
-    gui.addDrop(ship);
-    gui.addButton(okBtn);
-    gui.addLabel(echo);
-    Image c = new Image(480, 360);
-    while (w.running() && gui.running() == 1) {
-        gui.step();
-        if (w.width() != c.w || w.height() != c.h) {
-            c = new Image(w.width(), w.height());
-        }
-        if (w.evType() == Window.KEY() && w.evState() == 1
-                && Window.keyChar(w.evKey()) == 27) {
-            return 0;   // Escape quits
-        }
-        volVal.setText(str.itoa(vol.value()));
-        if (okBtn.clicked() == 1) {
-            string color = "red";
-            if (rGreen.selected() == 1) {
-                color = "green";
-            }
-            if (rBlue.selected() == 1) {
-                color = "blue";
-            }
-            echo.setText("ok " + name.text() + " " + color);
-            print("submit [");
-            print(name.text());
-            print("]\n");
-            okBtn.clearClicked();
-        }
-        c.fill(Image.rgb(16, 16, 32));
-        gui.draw(c);
-        w.present(c);
-    }
-    print("done.\n");
-    return 0;
+    app.gui.setup += app;
+    app.gui.draw += app;
+    return app.gui.run();
 }

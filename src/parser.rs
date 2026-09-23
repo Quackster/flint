@@ -969,7 +969,9 @@ impl<'a> Parser<'a> {
             self.bump();
             loop {
                 let i = self.expect_ident()?;
-                implements.push(i);
+                // Resolve to a fully qualified name so monomorphize can mangle
+                // it with the *interface's* package (not the class's).
+                implements.push(self.resolve_interface(&i).unwrap_or(i));
                 if self.at(&Tok::Comma) {
                     self.bump();
                     continue;

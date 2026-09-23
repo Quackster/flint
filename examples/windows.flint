@@ -6,83 +6,95 @@
 // and exits. On a desktop it shows a 480x200 window with Open and
 // Close buttons: Open opens a second window, Close closes it (Open
 // can open a new one). Press Escape to quit (or close the app from
-// the compositor).
-import std.Window;
+// the compositor). The second window is pumped with the raw Window API
+// (the documented advanced path for pumping several windows at once).
 import std.Gui;
+import std.Window;
 import std.Image;
 
-int main() {
-    Window w = Window.open(480, 200, "flint windows");
-    if (w == null) {
-        print("no display\n");
-        return 0;
+class WinApp implements OnSetup, OnDraw {
+    Gui gui;
+    Button openBtn;
+    Button closeBtn;
+    Label status;
+    Window w2;
+    Image c2;
+    int open2;
+    void setup() {
+        Label title = new Label(16, 12, 240, 16, "Flint windows");
+        this.openBtn = new Button(16, 48, 120, 30, "Open");
+        this.closeBtn = new Button(150, 48, 120, 30, "Close");
+        this.status = new Label(16, 100, 448, 16, "window 2: closed");
+        this.w2 = null;
+        this.c2 = null;
+        this.open2 = 0;
+        this.gui.addLabel(title);
+        this.gui.addButton(this.openBtn);
+        this.gui.addButton(this.closeBtn);
+        this.gui.addLabel(this.status);
     }
-    print("opened ok\n");
-    Gui gui = new Gui(w);
-    Label title = new Label(16, 12, 240, 16, "Flint windows");
-    Button openBtn = new Button(16, 48, 120, 30, "Open");
-    Button closeBtn = new Button(150, 48, 120, 30, "Close");
-    Label status = new Label(16, 100, 448, 16, "window 2: closed");
-    gui.addLabel(title);
-    gui.addButton(openBtn);
-    gui.addButton(closeBtn);
-    gui.addLabel(status);
-    Window w2 = null;
-    Image c2 = null;
-    int open2 = 0;
-    Image c = new Image(480, 200);
-    while (w.running() && gui.running() == 1) {
-        gui.step();
-        if (w.evType() == Window.KEY() && w.evState() == 1
-                && Window.keyChar(w.evKey()) == 27) {
-            return 0;   // Escape quits
-        }
-        if (openBtn.clicked() == 1) {
-            openBtn.clearClicked();
-            if (open2 == 0) {
-                w2 = Window.open(360, 200, "flint window 2");
-                if (w2 != null) {
-                    open2 = 1;
-                    c2 = new Image(360, 200);
-                    c2.fill(Image.rgb(16, 16, 32));
-                    c2.text(16, 80, "Hello from window 2", 0xFFFFFFFF);
+    void draw(Image c) {
+        c.fill(Image.rgb(16, 16, 32));
+        if (this.openBtn.clicked() == 1) {
+            this.openBtn.clearClicked();
+            if (this.open2 == 0) {
+                this.w2 = Window.open(360, 200, "flint window 2");
+                if (this.w2 != null) {
+                    this.open2 = 1;
+                    this.c2 = new Image(360, 200);
+                    this.c2.fill(Image.rgb(16, 16, 32));
+                    this.c2.text(16, 80, "Hello from window 2", 0xFFFFFFFF);
+                    this.w2.present(this.c2);
                     print("window 2 opened\n");
                 }
             }
         }
-        if (closeBtn.clicked() == 1) {
-            closeBtn.clearClicked();
-            if (open2 == 1) {
-                w2.close();
-                open2 = 0;
-                status.setText("window 2: closed");
+        if (this.closeBtn.clicked() == 1) {
+            this.closeBtn.clearClicked();
+            if (this.open2 == 1) {
+                this.w2.close();
+                this.c2 = null;
+                this.open2 = 0;
+                this.status.setText("window 2: closed");
                 print("window 2 closed\n");
             }
         }
-        // Pump and present window 2: its own events (e.g. the close
-        // button) and its frames are independent of window 1.
-        if (open2 == 1) {
-            if (w2.running() == 0) {
-                open2 = 0;
-                status.setText("window 2: closed");
-                print("done.\n");
+        // Pump and present window 2 (its events and frames are
+        // independent of window 1).
+        if (this.open2 == 1) {
+            if (this.w2.running() == 0) {
+                this.c2 = null;
+                this.open2 = 0;
+                this.status.setText("window 2: closed");
+                print("window 2 closed by user\n");
             } else {
-                int e2 = w2.peekEvent();
+                int e2 = this.w2.peekEvent();
                 while (e2 != 0) {
-                    e2 = w2.peekEvent();
+                    e2 = this.w2.peekEvent();
                 }
-                if (w2.width() != c2.w || w2.height() != c2.h) {
-                    c2 = new Image(w2.width(), w2.height());
-                    c2.fill(Image.rgb(16, 16, 32));
-                    c2.text(16, 80, "Hello from window 2", 0xFFFFFFFF);
+                if (this.c2 == null || this.w2.width() != this.c2.w
+                        || this.w2.height() != this.c2.h) {
+                    this.c2 = new Image(this.w2.width(), this.w2.height());
+                    this.c2.fill(Image.rgb(16, 16, 32));
+                    this.c2.text(16, 80, "Hello from window 2", 0xFFFFFFFF);
                 }
-                w2.present(c2);
+                this.w2.present(this.c2);
             }
         }
-        c.fill(Image.rgb(16, 16, 32));
-        gui.draw(c);
-        w.present(c);
     }
+}
+
+int main() {
+    WinApp app = new WinApp();
+    app.gui = Gui.open(480, 200, "flint windows");
+    if (app.gui == null) {
+        print("no display\n");
+        return 0;
+    }
+    print("opened ok\n");
+    app.gui.setup += app;
+    app.gui.draw += app;
+    app.gui.run();
     print("done.\n");
     return 0;
 }

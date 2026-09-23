@@ -17,7 +17,7 @@
 <div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#collections">Collections overview</a></li><li><a href="#coll-list">list</a></li><li><a href="#coll-queue">queue</a></li><li><a href="#coll-hashset">hashset</a></li><li><a href="#coll-hashmap">hashmap</a></li><li><a href="#coll-dictionary">dictionary</a></li><li><a href="#coll-typed">Typed elements</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li><li><a href="#std-window">Window</a></li><li><a href="#std-widget">Widget</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li><li><a href="#std-window">Window</a></li><li><a href="#std-app">App</a></li><li><a href="#std-widget">Widget</a></li></ul></div>
 </nav>
 <main class="main">
 <section id="index" class="doc-section" data-label="Overview">
@@ -3275,7 +3275,10 @@ sum=88</div>
 <p class="lede"><code>import std.Window;</code> — a Wayland
 desktop window: open a window, draw an <code>std.Image</code> into
 it, and receive basic input events (frame, key, mouse motion and
-button). It speaks the raw <code>wayland-client</code> protocol
+button). The normal path is <code>std.App</code> (see
+<a href="#std-app">App</a>), which owns the window, the canvas and
+the whole event loop; the raw <code>Window</code> API below is for
+advanced use (e.g. pumping several windows at once). It speaks the raw <code>wayland-client</code> protocol
 directly over the display socket (no X, no extra tools) and creates
 a proper <code>xdg_toplevel</code> so the compositor maps it. Key events
 carry Linux evdev key codes (<code>keyChar</code> maps them, with
@@ -3318,119 +3321,189 @@ Without a compositor (e.g. headless),
 <code>strEq</code></p>
 
 <h2>Example</h2>
-<div class="code"><div class="head"><span>examples/gui.flint</span></div>
-<pre><code class="flint">import std.Window;
-import std.Image;
-
-int main() {
-    Window w = Window.open(320, 200, "flint gui");
-    if (w == null) {
-        print("no display\n");
-        return 0;
-    }
-    print("opened ok\n");
-    Image c = new Image(320, 200);
-    c.fill(Image.rgb(10, 10, 20));
-    int t = 0;
-    while (w.running()) {
-        if (t &lt; 3) {
-            print("iter ");
-            printi(t);
-            print(" running=");
-            printi(w.running());
-            print("\n");
-        }
-        int e = w.peekEvent();
-        while (e != 0) {
-            if (e == Window.KEY() && Window.keyChar(w.evKey()) == 113) {
-                return 0;   // 'q' quits
-            }
-            if (e == Window.BUTTON() && w.evState() == 1) {
-                c.fillRect(w.evX() - 4, w.evY() - 4, 8, 8, Image.rgb(255, 64, 64));
-            }
-            if (e == Window.MOTION()) {
-                c.set(w.evX(), w.evY(), Image.rgb(255, 200, 0));
-            }
-            e = w.peekEvent();
-        }
-        t = t + 1;
-        int px = (t * 7) % 320;
-        c.set(px, 100, Image.rgb(0, 255, 0));
-        c.set(px + 1, 100, Image.rgb(0, 255, 0));
-        c.set(px, 101, Image.rgb(0, 255, 0));
-        w.present(c);
-    }
-    return 0;
-}</code></pre></div>
-<div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 <div class="code"><div class="head"><span>examples/windows.flint</span></div>
-<pre><code class="flint">// Several windows at once: each Window is its own connection.
-// Open opens a second window, Close closes it again.
-import std.Window;
+<pre><code class="flint">// The second window is pumped with the raw Window API (the
+// documented advanced path for pumping several windows at once).
 import std.Gui;
+import std.Window;
 import std.Image;
 
-int main() {
-    Window w = Window.open(480, 200, "flint windows");
-    if (w == null) {
-        print("no display\n");
-        return 0;
+class WinApp implements OnSetup, OnDraw {
+    Gui gui;
+    Button openBtn;
+    Button closeBtn;
+    Label status;
+    Window w2;
+    Image c2;
+    int open2;
+    void setup() {
+        Label title = new Label(16, 12, 240, 16, "Flint windows");
+        this.openBtn = new Button(16, 48, 120, 30, "Open");
+        this.closeBtn = new Button(150, 48, 120, 30, "Close");
+        this.status = new Label(16, 100, 448, 16, "window 2: closed");
+        this.w2 = null;
+        this.c2 = null;
+        this.open2 = 0;
+        this.gui.addLabel(title);
+        this.gui.addButton(this.openBtn);
+        this.gui.addButton(this.closeBtn);
+        this.gui.addLabel(this.status);
     }
-    Gui gui = new Gui(w);
-    Button openBtn = new Button(16, 48, 120, 30, "Open");
-    Button closeBtn = new Button(150, 48, 120, 30, "Close");
-    Label status = new Label(16, 100, 448, 16, "window 2: closed");
-    gui.addButton(openBtn);
-    gui.addButton(closeBtn);
-    gui.addLabel(status);
-    Window w2 = null;
-    int open2 = 0;
-    Image c = new Image(480, 200);
-    Image c2 = null;
-    while (w.running() && gui.running() == 1) {
-        gui.step();
-        if (openBtn.clicked() == 1) {
-            openBtn.clearClicked();
-            if (open2 == 0) {
-                w2 = Window.open(360, 200, "flint window 2");
-                if (w2 != null) {
-                    open2 = 1;
-                    c2 = new Image(360, 200);
+    void draw(Image c) {
+        c.fill(Image.rgb(16, 16, 32));
+        if (this.openBtn.clicked() == 1) {
+            this.openBtn.clearClicked();
+            if (this.open2 == 0) {
+                this.w2 = Window.open(360, 200, "flint window 2");
+                if (this.w2 != null) {
+                    this.open2 = 1;
+                    this.c2 = new Image(360, 200);
+                    this.c2.fill(Image.rgb(16, 16, 32));
+                    this.c2.text(16, 80, "Hello from window 2", 0xFFFFFFFF);
+                    this.w2.present(this.c2);
                     print("window 2 opened\n");
                 }
             }
         }
-        if (closeBtn.clicked() == 1) {
-            closeBtn.clearClicked();
-            if (open2 == 1) {
-                w2.close();   // tears the connection down
-                open2 = 0;
-                status.setText("window 2: closed");
+        if (this.closeBtn.clicked() == 1) {
+            this.closeBtn.clearClicked();
+            if (this.open2 == 1) {
+                this.w2.close();
+                this.c2 = null;
+                this.open2 = 0;
+                this.status.setText("window 2: closed");
+                print("window 2 closed\n");
             }
         }
-        // Pump and present window 2 on its own connection; the
-        // title-bar close arrives as CLOSE and is answered the
-        // same way (close() removes the window).
-        if (open2 == 1) {
-            if (w2.running() == 0) {
-                open2 = 0;
-                status.setText("window 2: closed");
-                print("done.\n");
+        // Pump and present window 2 (its events and frames are
+        // independent of window 1).
+        if (this.open2 == 1) {
+            if (this.w2.running() == 0) {
+                this.c2 = null;
+                this.open2 = 0;
+                this.status.setText("window 2: closed");
+                print("window 2 closed by user\n");
             } else {
-                int e2 = w2.peekEvent();
+                int e2 = this.w2.peekEvent();
                 while (e2 != 0) {
-                    e2 = w2.peekEvent();
+                    e2 = this.w2.peekEvent();
                 }
-                w2.present(c2);
+                if (this.c2 == null || this.w2.width() != this.c2.w
+                        || this.w2.height() != this.c2.h) {
+                    this.c2 = new Image(this.w2.width(), this.w2.height());
+                    this.c2.fill(Image.rgb(16, 16, 32));
+                    this.c2.text(16, 80, "Hello from window 2", 0xFFFFFFFF);
+                }
+                this.w2.present(this.c2);
             }
         }
-        c.fill(Image.rgb(16, 16, 32));
-        gui.draw(c);
-        w.present(c);
     }
+}
+
+int main() {
+    WinApp app = new WinApp();
+    app.gui = Gui.open(480, 200, "flint windows");
+    if (app.gui == null) {
+        print("no display\n");
+        return 0;
+    }
+    print("opened ok\n");
+    app.gui.setup += app;
+    app.gui.draw += app;
+    app.gui.run();
+    print("done.\n");
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (headless; on a desktop the buttons work)</span>no display</div>
+</section>
+<section id="std-app" class="doc-section" data-label="App">
+<div class="page-head"><h1>Standard library: <code>App</code></h1>
+<p class="lede"><code>import std.App;</code> — the normal path for a
+windowed app. <code>App</code> owns the window, the canvas and the
+whole event loop: <code>App.open</code> creates everything (and
+returns <code>null</code> without a compositor, e.g. headless), and
+<code>run</code> pumps and dispatches the window's events to the
+registered handlers, follows resizes (a new canvas plus
+<code>OnResize</code>), calls <code>OnDraw</code> each frame and
+presents the canvas (paced by the frame callback). Register handler
+objects with <code>+=</code> (C#-style): the handler is a class
+implementing the event interfaces — <code>OnSetup</code>
+(<code>setup()</code>), <code>OnDraw</code> (<code>draw(Image)</code>),
+<code>OnKey</code> (<code>key(code, mods)</code>), <code>OnButton</code>
+(<code>button(state, x, y)</code>), <code>OnMotion</code>
+(<code>motion(x, y)</code>), <code>OnResize</code>
+(<code>resize(w, h)</code>) and <code>OnClose</code>
+(<code>close()</code>). Escape quits by default (<code>noEscapeQuit</code>
+disables it); the close button and a dead connection stop the loop and
+call <code>OnClose</code>. <code>run</code> is a no-op (returns 0) when
+the window is null. The raw <code>std.Window</code> API stays for
+advanced use (e.g. pumping several windows at once). (File:
+<code>gui.flint</code>.)</p></div>
+
+<h2>Methods</h2>
+<p>static <code>open(ww, hh, title)</code>; <code>run()</code>
+(pump + dispatch + present; 0 on return, no-op without a window)
+<code>stop()</code> (stop the loop after this frame)
+<code>window()</code> <code>canvas()</code> <code>running()</code>
+<code>noEscapeQuit()</code>; handler fields <code>setup</code>
+<code>draw</code> <code>key</code> <code>button</code>
+<code>motion</code> <code>resize</code> <code>close</code> (each an
+interface, registered with <code>+=</code>).</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/gui.flint</span></div>
+<pre><code class="flint">import std.App;
+import std.Image;
+import std.Window;
+
+class Demo implements OnDraw, OnKey, OnButton, OnMotion {
+    App app;
+    int t;
+    void draw(Image c) {
+        if (this.t &lt; 3) {
+            print("iter ");
+            printi(this.t);
+            print(" running=");
+            printi(this.app.running());
+            print("\n");
+        }
+        this.t = this.t + 1;
+        int px = (this.t * 7) % c.w;
+        c.set(px, 100, Image.rgb(0, 255, 0));
+        c.set(px + 1, 100, Image.rgb(0, 255, 0));
+        c.set(px, 101, Image.rgb(0, 255, 0));
+    }
+    void key(int code, int mods) {
+        if (Window.keyChar(code) == 113) {
+            this.app.stop();   // 'q' quits
+        }
+    }
+    void button(int state, int x, int y) {
+        if (state == 1) {
+            this.app.canvas().fillRect(x - 4, y - 4, 8, 8, Image.rgb(255, 64, 64));
+        }
+    }
+    void motion(int x, int y) {
+        this.app.canvas().set(x, y, Image.rgb(255, 200, 0));
+    }
+}
+
+int main() {
+    Demo d = new Demo();
+    d.app = App.open(320, 200, "flint gui");
+    if (d.app == null) {
+        print("no display\n");
+        return 0;
+    }
+    print("opened ok\n");
+    d.app.canvas().fill(Image.rgb(10, 10, 20));
+    d.app.draw += d;
+    d.app.key += d;
+    d.app.button += d;
+    d.app.motion += d;
+    return d.app.run();
+}</code></pre></div>
+<div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 </section>
 <section id="std-widget" class="doc-section" data-label="Widget">
 <div class="page-head"><h1>Standard library: <code>Widget</code></h1>
@@ -3439,10 +3512,17 @@ int main() {
 the form inputs <code>PasswordBox</code>, <code>NumberBox</code>,
 <code>TextArea</code>, <code>Button</code>, <code>Checkbox</code>,
 <code>RadioButton</code>, <code>Slider</code> and
-<code>Dropdown</code>, held in a <code>Gui</code> container that pumps
-the window's input events and dispatches them to the widgets. Widgets
-draw into a <code>std.Image</code> canvas, which the application blits
-to the window with <code>Window.present</code>. The
+<code>Dropdown</code>, held in a <code>Gui</code> container. The normal
+path is <code>Gui.open</code> + registering handler objects with
+<code>+=</code> (C#-style, the same interfaces as
+<a href="#std-app">App</a>) + <code>run()</code>, which owns the whole
+loop: it pumps and dispatches the window's events to the widgets,
+follows resizes, calls <code>OnDraw</code> then the widget draw, and
+presents. Escape quits by default (<code>noEscapeQuit</code> disables
+it). The raw <code>step()</code>/<code>drawWidgets</code>/<code>Window</code>
+API stays for advanced use. Widgets
+draw into a <code>std.Image</code> canvas, which <code>run()</code>
+blits to the window. The
 <code>TextBox</code> takes keyboard focus (click it, or
 <code>claimFocus</code>), appends printable keys (shift-aware US layout
 via <code>Window.evMods</code>), deletes with Backspace, and sets its
@@ -3480,155 +3560,169 @@ it, releasing inside fires (Space/Return clicks while focused).
 <code>addOption(s)</code> <code>nOptions</code> <code>selected</code>
 <code>select(i)</code> <code>selectedText</code> <code>isOpen</code>
 <code>openList</code> <code>closeList</code> <code>toggle</code> (click,
-Up/Down/Return/Escape). <code>Gui</code> <code>addLabel</code>
-<code>addBox</code> <code>addButton</code> <code>addCheck</code>
-<code>addRadio</code> <code>addSlider</code> <code>addDrop</code>
-<code>nLabels</code> <code>nBoxes</code> (and one counter per kind)
-<code>running</code> <code>setRunning(v)</code> <code>step()</code>
-(pump + dispatch: press, release, motion, keys)
-<code>draw(im)</code> (labels, boxes, buttons, checks, radios, sliders,
-drops on top) — fixed capacity of 8 of each kind, with a single
-keyboard focus shared across kinds.</p>
+Up/Down/Return/Escape). <code>Gui</code> static <code>open(ww, hh,
+title)</code> (null without a compositor) <code>run()</code> (pump +
+dispatch + present; 0 on return, no-op without a window)
+<code>stop()</code> <code>window()</code> <code>running()</code>
+<code>setRunning(v)</code> <code>noEscapeQuit()</code>
+<code>step()</code> (pump + dispatch: press, release, motion, keys;
+returns the last event code) <code>drawWidgets(im)</code> (labels,
+boxes, buttons, checks, radios, sliders, drops on top)
+<code>addLabel</code> <code>addBox</code> <code>addButton</code>
+<code>addCheck</code> <code>addRadio</code> <code>addSlider</code>
+<code>addDrop</code> <code>addPass</code> <code>addNum</code>
+<code>addArea</code> <code>nLabels</code> <code>nBoxes</code> (and one
+counter per kind); handler fields <code>setup</code> <code>draw</code>
+<code>key</code> <code>button</code> <code>motion</code>
+<code>resize</code> <code>close</code> (each an interface, registered
+with <code>+=</code>) — fixed capacity of 8 of each kind, with a
+single keyboard focus shared across kinds.</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/window_gui.flint</span></div>
-<pre><code class="flint">import std.Window;
-import std.Gui;
+<pre><code class="flint">import std.Gui;
 import std.Image;
 
+class FormApp implements OnSetup, OnDraw {
+    Gui gui;
+    TextBox box;
+    Label echo;
+    void setup() {
+        Label title = new Label(16, 12, 240, 16, "Flint widgets");
+        Label prompt = new Label(16, 48, 240, 16, "Type below, press Enter:");
+        this.echo = new Label(16, 136, 360, 16, "");
+        this.box = new TextBox(16, 80, 240, 30, 64);
+        this.gui.addLabel(title);
+        this.gui.addLabel(prompt);
+        this.gui.addLabel(this.echo);
+        this.gui.addBox(this.box);
+    }
+    void draw(Image c) {
+        c.fill(Image.rgb(16, 16, 32));
+        if (this.box.entered() == 1) {
+            print("typed [");
+            print(this.box.text());
+            print("]\n");
+            this.echo.setText("you typed: " + this.box.text());
+            this.box.clearEntered();
+        }
+    }
+}
+
 int main() {
-    Window w = Window.open(480, 200, "flint gui");
-    if (w == null) {
+    FormApp app = new FormApp();
+    app.gui = Gui.open(480, 200, "flint gui");
+    if (app.gui == null) {
         print("no display\n");
         return 0;
     }
     print("opened ok\n");
-    Gui gui = new Gui(w);
-    Label title = new Label(16, 12, 240, 16, "Flint widgets");
-    Label prompt = new Label(16, 48, 240, 16, "Type below, press Enter:");
-    Label echo = new Label(16, 136, 360, 16, "");
-    TextBox box = new TextBox(16, 80, 240, 30, 64);
-    gui.addLabel(title);
-    gui.addLabel(prompt);
-    gui.addLabel(echo);
-    gui.addBox(box);
-    Image c = new Image(480, 200);
-    while (w.running() && gui.running() == 1) {
-        gui.step();
-        if (w.width() != c.w || w.height() != c.h) {
-            c = new Image(w.width(), w.height());
-        }
-        if (w.evType() == Window.KEY() && w.evState() == 1
-                && Window.keyChar(w.evKey()) == 27) {
-            return 0;   // Escape quits
-        }
-        if (box.entered() == 1) {
-            print("typed [");
-            print(box.text());
-            print("]\n");
-            echo.setText("you typed: " + box.text());
-            box.clearEntered();
-        }
-        c.fill(Image.rgb(16, 16, 32));
-        gui.draw(c);
-        w.present(c);
-    }
-    print("done.\n");
-    return 0;
+    app.gui.setup += app;
+    app.gui.draw += app;
+    return app.gui.run();
 }</code></pre></div>
 <div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 <div class="code"><div class="head"><span>examples/form.flint</span></div>
-<pre><code class="flint">import std.Window;
-import std.Gui;
+<pre><code class="flint">import std.Gui;
 import std.Image;
 
+class FormApp implements OnSetup, OnDraw {
+    Gui gui;
+    TextBox name;
+    PasswordBox pass;
+    NumberBox age;
+    TextArea bio;
+    Checkbox mail;
+    Checkbox sms;
+    RadioButton rRed;
+    RadioButton rGreen;
+    RadioButton rBlue;
+    Slider vol;
+    Label volVal;
+    Dropdown ship;
+    Button okBtn;
+    Label echo;
+    void setup() {
+        Label title = new Label(16, 10, 240, 16, "Form demo");
+        Label nameTag = new Label(16, 38, 80, 16, "Name:");
+        this.name = new TextBox(100, 34, 220, 26, 32);
+        Label passTag = new Label(16, 68, 80, 16, "Pass:");
+        this.pass = new PasswordBox(100, 64, 220, 26, 32);
+        Label ageTag = new Label(16, 98, 80, 16, "Age:");
+        this.age = new NumberBox(100, 94, 80, 26, 3);
+        Label bioTag = new Label(16, 128, 80, 16, "Bio:");
+        this.bio = new TextArea(100, 124, 220, 64, 128);
+        this.mail = new Checkbox(16, 196, 160, 20, "Email news");
+        this.sms = new Checkbox(200, 196, 160, 20, "SMS alerts");
+        this.rRed = new RadioButton(16, 222, 100, 20, "Red");
+        this.rRed.setGroup(1);
+        this.rGreen = new RadioButton(130, 222, 100, 20, "Green");
+        this.rGreen.setGroup(1);
+        this.rBlue = new RadioButton(244, 222, 100, 20, "Blue");
+        this.rBlue.setGroup(1);
+        Label volTag = new Label(16, 248, 80, 16, "Vol:");
+        this.vol = new Slider(100, 248, 220, 20, 100);
+        this.volVal = new Label(330, 248, 60, 16, "0");
+        Label shipTag = new Label(16, 276, 80, 16, "Ship:");
+        this.ship = new Dropdown(100, 272, 160, 26);
+        this.ship.addOption("Standard");
+        this.ship.addOption("Express");
+        this.ship.addOption("Overnight");
+        this.okBtn = new Button(16, 310, 120, 30, "Submit");
+        this.echo = new Label(150, 316, 314, 16, "");
+        this.gui.addLabel(title);
+        this.gui.addLabel(nameTag);
+        this.gui.addBox(this.name);
+        this.gui.addLabel(passTag);
+        this.gui.addPass(this.pass);
+        this.gui.addLabel(ageTag);
+        this.gui.addNum(this.age);
+        this.gui.addLabel(bioTag);
+        this.gui.addArea(this.bio);
+        this.gui.addCheck(this.mail);
+        this.gui.addCheck(this.sms);
+        this.gui.addRadio(this.rRed);
+        this.gui.addRadio(this.rGreen);
+        this.gui.addRadio(this.rBlue);
+        this.gui.addLabel(volTag);
+        this.gui.addSlider(this.vol);
+        this.gui.addLabel(this.volVal);
+        this.gui.addLabel(shipTag);
+        this.gui.addDrop(this.ship);
+        this.gui.addButton(this.okBtn);
+        this.gui.addLabel(this.echo);
+    }
+    void draw(Image c) {
+        c.fill(Image.rgb(16, 16, 32));
+        this.volVal.setText(str.itoa(this.vol.value()));
+        if (this.okBtn.clicked() == 1) {
+            string color = "red";
+            if (this.rGreen.selected() == 1) {
+                color = "green";
+            }
+            if (this.rBlue.selected() == 1) {
+                color = "blue";
+            }
+            this.echo.setText("ok " + this.name.text() + " " + color);
+            print("submit [");
+            print(this.name.text());
+            print("]\n");
+            this.okBtn.clearClicked();
+        }
+    }
+}
+
 int main() {
-    Window w = Window.open(480, 360, "flint form");
-    if (w == null) {
+    FormApp app = new FormApp();
+    app.gui = Gui.open(480, 360, "flint form");
+    if (app.gui == null) {
         print("no display\n");
         return 0;
     }
     print("opened ok\n");
-    Gui gui = new Gui(w);
-    Label title = new Label(16, 10, 240, 16, "Form demo");
-    Label nameTag = new Label(16, 38, 80, 16, "Name:");
-    TextBox name = new TextBox(100, 34, 220, 26, 32);
-    Label passTag = new Label(16, 68, 80, 16, "Pass:");
-    PasswordBox pass = new PasswordBox(100, 64, 220, 26, 32);
-    Label ageTag = new Label(16, 98, 80, 16, "Age:");
-    NumberBox age = new NumberBox(100, 94, 80, 26, 3);
-    Label bioTag = new Label(16, 128, 80, 16, "Bio:");
-    TextArea bio = new TextArea(100, 124, 220, 64, 128);
-    Checkbox mail = new Checkbox(16, 196, 160, 20, "Email news");
-    Checkbox sms = new Checkbox(200, 196, 160, 20, "SMS alerts");
-    RadioButton rRed = new RadioButton(16, 222, 100, 20, "Red");
-    rRed.setGroup(1);
-    RadioButton rGreen = new RadioButton(130, 222, 100, 20, "Green");
-    rGreen.setGroup(1);
-    RadioButton rBlue = new RadioButton(244, 222, 100, 20, "Blue");
-    rBlue.setGroup(1);
-    Label volTag = new Label(16, 248, 80, 16, "Vol:");
-    Slider vol = new Slider(100, 248, 220, 20, 100);
-    Label volVal = new Label(330, 248, 60, 16, "0");
-    Label shipTag = new Label(16, 276, 80, 16, "Ship:");
-    Dropdown ship = new Dropdown(100, 272, 160, 26);
-    ship.addOption("Standard");
-    ship.addOption("Express");
-    ship.addOption("Overnight");
-    Button okBtn = new Button(16, 310, 120, 30, "Submit");
-    Label echo = new Label(150, 316, 314, 16, "");
-    gui.addLabel(title);
-    gui.addLabel(nameTag);
-    gui.addBox(name);
-    gui.addLabel(passTag);
-    gui.addPass(pass);
-    gui.addLabel(ageTag);
-    gui.addNum(age);
-    gui.addLabel(bioTag);
-    gui.addArea(bio);
-    gui.addCheck(mail);
-    gui.addCheck(sms);
-    gui.addRadio(rRed);
-    gui.addRadio(rGreen);
-    gui.addRadio(rBlue);
-    gui.addLabel(volTag);
-    gui.addSlider(vol);
-    gui.addLabel(volVal);
-    gui.addLabel(shipTag);
-    gui.addDrop(ship);
-    gui.addButton(okBtn);
-    gui.addLabel(echo);
-    Image c = new Image(480, 360);
-    while (w.running() && gui.running() == 1) {
-        gui.step();
-        if (w.width() != c.w || w.height() != c.h) {
-            c = new Image(w.width(), w.height());
-        }
-        if (w.evType() == Window.KEY() && w.evState() == 1
-                && Window.keyChar(w.evKey()) == 27) {
-            return 0;   // Escape quits
-        }
-        volVal.setText(str.itoa(vol.value()));
-        if (okBtn.clicked() == 1) {
-            string color = "red";
-            if (rGreen.selected() == 1) {
-                color = "green";
-            }
-            if (rBlue.selected() == 1) {
-                color = "blue";
-            }
-            echo.setText("ok " + name.text() + " " + color);
-            print("submit [");
-            print(name.text());
-            print("]\n");
-            okBtn.clearClicked();
-        }
-        c.fill(Image.rgb(16, 16, 32));
-        gui.draw(c);
-        w.present(c);
-    }
-    print("done.\n");
-    return 0;
+    app.gui.setup += app;
+    app.gui.draw += app;
+    return app.gui.run();
 }</code></pre></div>
 <div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 </section>

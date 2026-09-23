@@ -1,50 +1,58 @@
-// gui: the std.Window class (import std.Window) — a Wayland window with
+// gui: the std.App class (import std.App) — a Wayland window with
 // drawing and basic input events. Build:
 //   flintc src/stdlib/gui.flint src/stdlib/image.flint src/stdlib/math.flint src/stdlib/checksum.flint examples/gui.flint -o gui
 // Without a Wayland compositor (e.g. headless) it prints "no display" and
 // exits. On a desktop it shows a 320x200 window: a moving dot leaves a
 // green trail, mouse motion draws yellow marks, mouse buttons draw red
 // squares. Press 'q' to quit (or close the app from the compositor).
-import std.Window;
+import std.App;
 import std.Image;
+import std.Window;
+
+class Demo implements OnDraw, OnKey, OnButton, OnMotion {
+    App app;
+    int t;
+    void draw(Image c) {
+        if (this.t < 3) {
+            print("iter ");
+            printi(this.t);
+            print(" running=");
+            printi(this.app.running());
+            print("\n");
+        }
+        this.t = this.t + 1;
+        int px = (this.t * 7) % c.w;
+        c.set(px, 100, Image.rgb(0, 255, 0));
+        c.set(px + 1, 100, Image.rgb(0, 255, 0));
+        c.set(px, 101, Image.rgb(0, 255, 0));
+    }
+    void key(int code, int mods) {
+        if (Window.keyChar(code) == 113) {
+            this.app.stop();   // 'q' quits
+        }
+    }
+    void button(int state, int x, int y) {
+        if (state == 1) {
+            this.app.canvas().fillRect(x - 4, y - 4, 8, 8, Image.rgb(255, 64, 64));
+        }
+    }
+    void motion(int x, int y) {
+        this.app.canvas().set(x, y, Image.rgb(255, 200, 0));
+    }
+}
 
 int main() {
-    Window w = Window.open(320, 200, "flint gui");
-    if (w == null) {
+    Demo d = new Demo();
+    d.app = App.open(320, 200, "flint gui");
+    if (d.app == null) {
         print("no display\n");
         return 0;
     }
     print("opened ok\n");
-    Image c = new Image(320, 200);
-    c.fill(Image.rgb(10, 10, 20));
-    int t = 0;
-    while (w.running()) {
-        if (t < 3) {
-            print("iter ");
-            printi(t);
-            print(" running=");
-            printi(w.running());
-            print("\n");
-        }
-        int e = w.peekEvent();
-        while (e != 0) {
-            if (e == Window.KEY() && Window.keyChar(w.evKey()) == 113) {
-                return 0;   // 'q' quits
-            }
-            if (e == Window.BUTTON() && w.evState() == 1) {
-                c.fillRect(w.evX() - 4, w.evY() - 4, 8, 8, Image.rgb(255, 64, 64));
-            }
-            if (e == Window.MOTION()) {
-                c.set(w.evX(), w.evY(), Image.rgb(255, 200, 0));
-            }
-            e = w.peekEvent();
-        }
-        t = t + 1;
-        int px = (t * 7) % 320;
-        c.set(px, 100, Image.rgb(0, 255, 0));
-        c.set(px + 1, 100, Image.rgb(0, 255, 0));
-        c.set(px, 101, Image.rgb(0, 255, 0));
-        w.present(c);
-    }
-    return 0;
+    d.app.canvas().fill(Image.rgb(10, 10, 20));
+    d.app.draw += d;
+    d.app.key += d;
+    d.app.button += d;
+    d.app.motion += d;
+    return d.app.run();
 }

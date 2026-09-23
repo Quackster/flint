@@ -31,6 +31,16 @@ pub(crate) fn mangle(package: &str, name: &str) -> String {
     }
 }
 
+/// Mangle a possibly-qualified name (`a.b.Name` or `Name`). A qualified name
+/// carries its own package and is mangled with it; a short name is mangled
+/// with the caller's (e.g. the class's) package.
+pub(crate) fn mangle_fqn(pkg: &str, name: &str) -> String {
+    match name.rfind('.') {
+        Some(pos) => mangle(&name[..pos], &name[pos + 1..]),
+        None => mangle(pkg, name),
+    }
+}
+
 /// Expand generic classes and functions into concrete monomorphs.
 ///
 /// The parser emits `Ty::Param` / `Ty::Inst` and `type_args` for generic
@@ -99,8 +109,14 @@ impl<'a> Mono<'a> {
         for (i, f) in self.prog.funcs.iter().enumerate() {
             self.func_by_name.insert(fqn(&f.package, &f.name), i);
         }
-        // Interfaces are non-generic in v1; pass them through unchanged.
-        self.out.interfaces = self.prog.interfaces.clone();
+        // Interfaces are non-generic in v1; pass them through with mangled
+        // names (so the backend's name-based lookups match the mangled
+        // `implements` entries).
+        for i in self.prog.interfaces.iter() {
+            let mut c = i.clone();
+            c.name = mangle(&i.package, &i.name);
+            self.out.interfaces.push(c);
+        }
         // Enums are non-generic in v1; pass them through unchanged.
         self.out.enums = self.prog.enums.clone();
         // Reserve slots for every non-generic struct and function (stable order).

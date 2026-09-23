@@ -4,7 +4,18 @@
 // Gui dispatch + draw. No window is opened, so every check is
 // deterministic and safe headless.
 import std.Gui;
+import std.App;
 import std.Image;
+
+class AppH implements OnSetup, OnDraw, OnKey {
+    App app;
+    int setupCount;
+    int drawCount;
+    int keyCount;
+    void setup() { this.setupCount = this.setupCount + 1; }
+    void draw(Image c) { this.drawCount = this.drawCount + 1; }
+    void key(int code, int mods) { this.keyCount = this.keyCount + 1; }
+}
 
 int main() {
     // ---- Image: 5x7 font text ----
@@ -89,7 +100,7 @@ int main() {
     printi(gui.nLabels()); print(" ");                // 1
     printi(gui.nBoxes()); print(" ");                 // 1
     Image im4 = new Image(64, 32);
-    gui.draw(im4);
+    gui.drawWidgets(im4);
     printi(im4.get(5, 8) != 0 ? 1 : 0); print(" ");   // 1 (box fill drawn)
     printi(im4.get(0, 0) != 0 ? 1 : 0); print("\n");  // 1 (box border)
     i = 0;
@@ -254,10 +265,35 @@ int main() {
 
     // ---- Gui draw covers every kind ----
     Image im5 = new Image(240, 400);
-    gui2.draw(im5);
+    gui2.drawWidgets(im5);
     printi(im5.get(5, 10) != 0 ? 1 : 0); print(" ");    // 1 (button fill)
     printi(im5.get(2, 35) != 0 ? 1 : 0); print(" ");    // 1 (check fill)
     printi(im5.get(5, 100) != 0 ? 1 : 0); print(" ");   // 1 (radio dot)
     printi(im5.get(50, 155) != 0 ? 1 : 0); print("\n"); // 1 (slider knob)
+
+    // ---- App: a null window makes run() a no-op; += registration and
+    // interface dispatch (C#-style) ----
+    App app = new App();
+    printi(app.running()); print(" ");           // 1
+    printi(app.run()); print(" ");              // 0 (no window)
+    AppH ah = new AppH();
+    ah.app = app;
+    app.setup += ah;
+    app.draw += ah;
+    app.key += ah;
+    app.setup.setup();
+    printi(ah.setupCount); print(" ");          // 1
+    Image imA = new Image(8, 8);
+    app.draw.draw(imA);
+    printi(ah.drawCount); print(" ");           // 1
+    app.key.key(30, 0);
+    printi(ah.keyCount); print(" ");            // 1
+    app.stop();
+    printi(app.running()); print("\n");        // 0
+
+    // ---- Gui: a null window makes run() a no-op ----
+    Gui g3 = new Gui(null);
+    printi(g3.running()); print(" ");           // 1
+    printi(g3.run()); print("\n");             // 0 (no window)
     return 0;
 }

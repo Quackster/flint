@@ -1,5 +1,5 @@
 // std/gui — a Wayland window with drawing and basic input events
-// (import std.Window).
+// (import std.Window, std.App).
 //
 // `Window.open` connects to the compositor at
 // $XDG_RUNTIME_DIR/$WAYLAND_DISPLAY (default wayland-0), creates a
@@ -8,16 +8,29 @@
 // blits it and commits (paced by the compositor's frame callbacks).
 // `nextEvent` blocks on the next input event; `peekEvent` does not.
 //
-// Usage:
-//   import std.Window;
-//   Window w = Window.open(320, 200, "title");
-//   if (w == null) { print("no display\n"); return; }
-//   Image c = new Image(320, 200);
-//   while (w.running()) {
-//       int e = w.nextEvent();
-//       if (e == Window.CLOSE()) { break; }
-//       w.present(c);
+// The normal path is std.App: it owns the window, the canvas and the
+// whole event loop. Register handler objects with `+=` (C#-style):
+//   import std.App;
+//   import std.Image;
+//   class Demo implements OnDraw, OnKey {
+//       App app;
+//       void draw(Image c) { c.fill(Image.rgb(10, 10, 20)); }
+//       void key(int code, int mods) {
+//           if (Window.keyChar(code) == 113) { app.stop(); }  // 'q'
+//       }
 //   }
+//   int main() {
+//       Demo d = new Demo();
+//       d.app = App.open(320, 200, "title");
+//       if (d.app == null) { print("no display\n"); return 0; }
+//       d.app.draw += d;
+//       d.app.key += d;
+//       return d.app.run();
+//   }
+// `run` pumps and dispatches the window's events, calls the handlers,
+// follows resizes and presents the canvas; Escape quits by default
+// (`noEscapeQuit` disables it). The raw `nextEvent`/`peekEvent`/`evX`
+// API stays for advanced use (e.g. pumping several windows at once).
 //
 // Note: xdg-shell (xdg_toplevel) is used, so the compositor maps the
 // window and, when it offers xdg-decoration, draws a title bar with
@@ -401,6 +414,16 @@ class Window {
             return Window.CLOSE();
         }
         return c > 0 ? c : 0;
+    }
+    // Drain every pending event without dispatching it (the event
+    // fields keep the last one seen). A dead (or closed) connection
+    // reports CLOSE at most once; afterwards running() is 0. Used to
+    // keep a secondary window responsive from a primary window's loop.
+    void pump() {
+        int e = this.peekEvent();
+        while (e != 0) {
+            e = this.peekEvent();
+        }
     }
     int evType() { return this.ev_type; }
     int evX() { return this.ev_x; }
@@ -1087,5 +1110,148 @@ class Window {
     // A 64-bit read (two little-endian 32-bit halves).
     static int get64(string b, int off) {
         return sys.intLoad(b + off) | (sys.intLoad(b + off + 4) << 32);
+    }
+}
+
+// Event handlers registered on App (and Gui) with `+=`, C#-style:
+// `app.draw += myApp;`. Implement the interfaces you need on one
+// class; register it with each event you care about.
+interface OnSetup {
+    void setup();
+}
+interface OnDraw {
+    void draw(Image c);
+}
+interface OnKey {
+    void key(int code, int mods);
+}
+interface OnButton {
+    void button(int state, int x, int y);
+}
+interface OnMotion {
+    void motion(int x, int y);
+}
+interface OnResize {
+    void resize(int w, int h);
+}
+interface OnClose {
+    void close();
+}
+
+// The normal path for a windowed app: owns the window, the canvas and
+// the whole event loop. `App.open` creates everything; `run` pumps
+// and dispatches the window's events to the registered handlers,
+// follows resizes (new canvas + OnResize), calls OnDraw each frame
+// and presents the canvas (paced by Window.present). Escape quits by
+// default (`noEscapeQuit` disables it); the close button and a dead
+// connection stop the loop and call OnClose. `run` is a no-op when
+// the window is null (e.g. headless).
+class App {
+    Window win;
+    Image canvas;
+    int running;
+    int quit_esc;
+    OnSetup setup;
+    OnDraw draw;
+    OnKey key;
+    OnButton button;
+    OnMotion motion;
+    OnResize resize;
+    OnClose close;
+    public App() {
+        this.win = null;
+        this.canvas = null;
+        this.running = 1;
+        this.quit_esc = 1;
+        this.setup = null;
+        this.draw = null;
+        this.key = null;
+        this.button = null;
+        this.motion = null;
+        this.resize = null;
+        this.close = null;
+    }
+    // Open the window and the canvas; null without a compositor.
+    static App open(int ww, int hh, string title) {
+        Window w = Window.open(ww, hh, title);
+        if (w == null) {
+            return null;
+        }
+        App a = new App();
+        a.win = w;
+        a.canvas = new Image(ww, hh);
+        return a;
+    }
+    // The event loop; 0 on return. Calls OnSetup once, then each
+    // frame: pumps pending events (dispatching key/button/motion and
+    // the default Escape-quit), re-creates the canvas when the window
+    // was resized (and calls OnResize), calls OnDraw, and presents.
+    // Tears the connection down on the way out.
+    public int run() {
+        if (this.win == null) {
+            return 0;
+        }
+        if (this.setup != null) {
+            this.setup.setup();
+        }
+        while (this.win.running() == 1 && this.running == 1) {
+            int e = this.win.peekEvent();
+            while (e != 0) {
+                if (e == Window.CLOSE()) {
+                    this.running = 0;
+                    if (this.close != null) {
+                        this.close.close();
+                    }
+                } else if (e == Window.KEY() && this.win.evState() == 1) {
+                    if (this.quit_esc == 1
+                            && Window.keyChar(this.win.evKey()) == 27) {
+                        this.running = 0;
+                    }
+                    if (this.key != null) {
+                        this.key.key(this.win.evKey(), this.win.evMods());
+                    }
+                } else if (e == Window.BUTTON()) {
+                    if (this.button != null) {
+                        this.button.button(this.win.evState(),
+                                this.win.evX(), this.win.evY());
+                    }
+                } else if (e == Window.MOTION()) {
+                    if (this.motion != null) {
+                        this.motion.motion(this.win.evX(), this.win.evY());
+                    }
+                }
+                e = this.win.peekEvent();
+            }
+            if (this.win.width() != this.canvas.w
+                    || this.win.height() != this.canvas.h) {
+                this.canvas = new Image(this.win.width(), this.win.height());
+                if (this.resize != null) {
+                    this.resize.resize(this.win.width(), this.win.height());
+                }
+            }
+            if (this.draw != null) {
+                this.draw.draw(this.canvas);
+            }
+            this.win.present(this.canvas);
+        }
+        this.win.close();
+        return 0;
+    }
+    // Stop the loop after this frame (e.g. from a key handler).
+    public void stop() {
+        this.running = 0;
+    }
+    public Window window() {
+        return this.win;
+    }
+    public Image canvas() {
+        return this.canvas;
+    }
+    public int running() {
+        return this.running;
+    }
+    // Keep Escape from quitting (a key handler can still stop()).
+    public void noEscapeQuit() {
+        this.quit_esc = 0;
     }
 }
