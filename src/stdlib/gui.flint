@@ -387,87 +387,25 @@ class Window {
         int nsec = Window.get32(ts, 8);
         return sec * 1000 + nsec / 1000000;
     }
-    // Peek at the next full message WITHOUT consuming it: 1 when it is
-    // our frame callback's done, 0 for anything else, -1 when empty,
-    // -2 when the connection is gone. Lets present() wait for its own
-    // frame while leaving input queued for step().
-    int peekFrame() {
-        this.last_fd = -1;
-        int r = this.take(8, 0);
-        if (r != 0) {
-            return r;
-        }
-        int w0 = Window.get32(this.rb, 0);
-        int w1 = Window.get32(this.rb, 4);
-        int size = (w1 >> 16) & 0xFFFF;
-        int opcode = w1 & 0xFFFF;
-        if (size < 8 || size > 4088) {
-            return -2;
-        }
-        if (size > 8) {
-            r = this.take(size, 0);
-            if (r != 0) {
-                return r;
-            }
-        }
-        if (w0 == this.frame_id && opcode == 0) {
-            return 1;
-        }
-        return 0;
-    }
-    // Blit im into the shared buffer and commit. When our frame
-    // callback arrives we pace on it; hidden windows (occluded,
-    // minimized, other desktop) get no callbacks, so after ~50ms we
-    // commit anyway (at most every 250ms) and the app stays live and
-    // responsive. Only our own frame message is consumed here; every
-    // other message stays queued for step(). im must be w x h.
+    // Blit im into the shared buffer and commit, at most about every
+    // 16ms. present() never reads the socket (except through resize
+    // plumbing below): every inbound message stays queued for step(),
+    // so clicks and keys are never swallowed here. Skipped frames nap
+    // 1ms, so an idle loop still pumps input within ~2ms. Frame pacing
+    // happens implicitly — the next callback is only requested once
+    // the previous one fired. im must be w x h.
     void present(Image im) {
         // Follow resizes (e.g. maximized): rebuild the pool/buffers at
-        // the configured size before waiting on the frame callback.
+        // the configured size.
         if (this.pend_w > 0 && this.pend_h > 0
                 && (this.pend_w != this.w || this.pend_h != this.h)) {
             this.resizeBuffers(this.pend_w, this.pend_h);
             this.pend_w = 0;
             this.pend_h = 0;
         }
-        int paced = 0;
-        if (this.frame_pending) {
-            // Wait up to ~50ms for OUR frame done in 1ms slices. Anything
-            // else on the wire is left queued for step().
-            int s = 0;
-            int seen = 0;
-            while (s < 50) {
-                int p = this.peekFrame();
-                if (p == -2) {
-                    return;
-                }
-                if (p == 1) {
-                    seen = 1;
-                    break;
-                }
-                sys.nanosleep(0, 1000000);
-                s = s + 1;
-            }
-            // Consume the done only when the peek saw it (it is fully
-            // buffered, so this cannot block). Consuming anything else
-            // here would eat the clicks and keys meant for step().
-            if (seen == 1) {
-                int c = this.readMsg(0);
-                if (c == -2) {
-                    return;
-                }
-                if (c == Window.FRAME()) {
-                    this.frame_pending = 0;
-                    paced = 1;
-                }
-            }
-        }
-        if (paced == 0) {
-            // No callback in sight: commit at most every 250ms so a
-            // hidden window neither spins nor stalls its input loop.
-            if (this.nowMs() - this.last_commit < 250) {
-                return;
-            }
+        if (this.nowMs() - this.last_commit < 16) {
+            sys.nanosleep(0, 1000000);
+            return;
         }
         int ww = im.w;
         int words = ww * 4 / 4;
@@ -980,6 +918,10 @@ class Window {
             }
             code = Window.CONFIGURE();
         } else if (w0 == this.frame_id && opcode == 0) {
+            // Our frame callback fired (whoever consumes it): no
+            // callback is outstanding any more, so the next commit may
+            // request a fresh one.
+            this.frame_pending = 0;
             code = Window.FRAME();
         }
         this.ev_type = code;
