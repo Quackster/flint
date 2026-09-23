@@ -3417,7 +3417,7 @@ int main() {
                 status.setText("window 2: closed");
                 print("done.\n");
             } else {
-                int e2 = 0;
+                int e2 = w2.peekEvent();
                 while (e2 != 0) {
                     e2 = w2.peekEvent();
                 }
