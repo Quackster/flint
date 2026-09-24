@@ -67,10 +67,20 @@ impl<'a> Mono<'a> {
                 }),
             Expr::Call { callee, .. } => {
                 if let Some(fi) = self.resolve_func(callee) {
-                    let (is_generic, ret) = {
+                    let (is_generic, ret, is_async) = {
                         let f = &self.prog.funcs[fi];
-                        (f.type_params.is_empty(), f.ret.clone())
+                        (
+                            f.type_params.is_empty(),
+                            f.ret.clone(),
+                            f.is_async,
+                        )
                     };
+                    if is_async {
+                        // An async call evaluates to a std.Task handle.
+                        if let Some(ti) = self.class_by_name.get("std.Task") {
+                            return Ok(Ty::Struct(self.struct_new[ti]));
+                        }
+                    }
                     if !is_generic {
                         if let Some(r) = ret {
                             return Ok(self.resolve_type(&r, subst)?);

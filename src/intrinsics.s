@@ -1872,6 +1872,9 @@ flint_thread_wrapper:
     # Call fn(arg)
     mov %r11, %rdi       # arg in rdi
     call *%r10           # call fn(arg); rax = return value
+    # The worker may have clobbered r12 (it is a scratch register in the
+    # flintc calling style), so re-read the tid from the stack.
+    mov 16(%rsp), %r12
     # Store the worker's return value so thread_join can hand it back
     lea flint_thread_result(%rip), %r14
     movq %rax, 0(%r14, %r12, 8)
@@ -2631,3 +2634,119 @@ flint_munmap:
     syscall
     ret
     .size flint_munmap, .-flint_munmap
+
+    # ------------------------------------------------------------------
+    # Task support for `async` functions. A shared table (CLONE_VM) of 32
+    # entries, each 7 slots: slot 0 = function pointer, slots 1-6 = the
+    # arguments (a method's `this` is slot 1, i.e. ARGREGS[0]). A free
+    # flag per entry (0 = free, 1 = in use) is claimed with an atomic CAS.
+    # ------------------------------------------------------------------
+    .bss
+    .globl flint_task_table
+    .type flint_task_table, @object
+    flint_task_table:
+    .zero 32 * 7 * 8
+    .size flint_task_table, 32 * 7 * 8
+    .globl flint_task_free
+    .type flint_task_free, @object
+    flint_task_free:
+    .zero 32
+    .size flint_task_free, 32
+    .text
+
+    .globl flint_task_alloc
+    .type flint_task_alloc, @function
+# flint_task_alloc(a1, a2, a3, a4, a5, a6) -> int
+# Takes the argument slots in rdi rsi rdx rcx r8 r9, atomically claims a
+# free table entry, writes the argument slots into it (slots 1-6; slot 0
+# is the function pointer, written by the caller afterwards), and returns
+# the entry index. If all 32 entries are in use, sleeps 100us and retries.
+flint_task_alloc:
+    push %rbp
+    mov %rsp, %rbp
+    sub $168, %rsp
+    mov %rdi, 120(%rsp)
+    mov %rsi, 128(%rsp)
+    mov %rdx, 136(%rsp)
+    mov %rcx, 144(%rsp)
+    mov %r8, 152(%rsp)
+    mov %r9, 160(%rsp)
+.Ltask_scan:
+    xor %r10, %r10
+.Ltask_try:
+    lea flint_task_free(%rip), %r13
+    movzbl 0(%r13, %r10), %r11d
+    test %r11, %r11
+    jnz .Ltask_next
+    # Claim the slot: atomic CAS 0 -> 1 (fast path lost the race -> skip)
+    lea 0(%r13, %r10), %rdi
+    xor %esi, %esi
+    mov $1, %edx
+    call flint_atomic_cas
+    test %eax, %eax
+    jz .Ltask_next
+    # Claimed
+    jmp .Ltask_got
+.Ltask_next:
+    lea 1(%r10), %r10
+    cmp $32, %r10
+    jb .Ltask_try
+    # All slots in use: back off and rescan
+    xor %edi, %edi
+    mov $100000, %esi       # 100us
+    call flint_nanosleep
+    jmp .Ltask_scan
+ .Ltask_got:
+    # Base of the claimed entry: table + slot*56 (each entry is 7 qwords).
+    # (x86 index scales are only 1/2/4/8, so the 56-byte stride needs an imul.)
+    lea flint_task_table(%rip), %r13
+    mov %r10, %r12
+    imul $56, %r12
+    add %r13, %r12          # r12 = base of the entry
+    mov 120(%rsp), %r14
+    movq %r14, 8(%r12)
+    mov 128(%rsp), %r14
+    movq %r14, 16(%r12)
+    mov 136(%rsp), %r14
+    movq %r14, 24(%r12)
+    mov 144(%rsp), %r14
+    movq %r14, 32(%r12)
+    mov 152(%rsp), %r14
+    movq %r14, 40(%r12)
+    mov 160(%rsp), %r14
+    movq %r14, 48(%r12)
+    leave
+    mov %r10, %rax
+    ret
+    .size flint_task_alloc, .-flint_task_alloc
+
+    .globl flint_task_trampoline
+    .type flint_task_trampoline, @function
+# flint_task_trampoline(slot): called by flint_thread_wrapper with the
+# table entry index in rdi. Loads the entry's argument slots into the
+# argument registers (slot 1 = rdi = first arg / this), calls the
+# function pointer (slot 0); the return value is captured by the wrapper
+# and handed to flint_thread_join. Afterwards the free flag is cleared so
+# the entry can be reused. The slot index is kept in rbx because the
+# worker function may clobber every other scratch register (the wrapper
+# itself only needs r12, which the trampoline does not touch).
+flint_task_trampoline:
+    lea flint_task_table(%rip), %r13
+    mov %rdi, %rbx        # slot index (survives the worker call)
+    # Base of the entry: table + slot*56 (each entry is 7 qwords).
+    mov %rbx, %r14
+    imul $56, %r14
+    add %r13, %r14         # r14 = base of the entry
+    mov 8(%r14), %rdi
+    mov 16(%r14), %rsi
+    mov 24(%r14), %rdx
+    mov 32(%r14), %rcx
+    mov 40(%r14), %r8
+    mov 48(%r14), %r9
+    mov 0(%r14), %r10   # function pointer
+    call *%r10
+    # Free the entry for the next task
+    lea flint_task_free(%rip), %r11
+    movb $0, 0(%r11, %rbx)
+    ret
+    .size flint_task_trampoline, .-flint_task_trampoline

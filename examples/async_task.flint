@@ -1,0 +1,43 @@
+// async_task: parallel map with `async` methods. The range of work 1..N is
+// split into K chunks; each chunk is computed on its own `async` worker (a
+// separate thread) and the partial results are summed. Each `async` call
+// spawns a worker and evaluates to a std.Task handle; join() blocks until
+// that worker finishes and returns its value. 204 is the known sum of
+// squares of 1..8 (a self-check).
+//
+//   $ flintc src/stdlib/task.flint examples/async_task.flint -o async_task && ./async_task
+import std.Task;
+
+// Worker: sum the squares of [lo, hi].
+async int chunkSumSquares(int lo, int hi) {
+    int total = 0;
+    for (int n = lo; n <= hi; n = n + 1) {
+        total = total + n * n;
+    }
+    return total;
+}
+
+// Sum of squares of 1..N over K chunks; each chunk runs on its own task.
+int sumSquares(int N, int K) {
+    int span = N / K;
+    int total = 0;
+    for (int k = 0; k < K; k = k + 1) {
+        int lo = 1 + k * span;
+        int hi = lo + span - 1;
+        if (k == K - 1) {
+            hi = N;  // last chunk absorbs the remainder
+        }
+        Task t = chunkSumSquares(lo, hi);
+        total = total + t.join();
+    }
+    return total;
+}
+
+int main() {
+    int N = 8;
+    int K = 4;
+    int s = sumSquares(N, K);
+    print("sum of squares of 1.." + str.itoa(N) + " = " + str.itoa(s) + "\n");
+    print(s == 204 ? "PASS\n" : "FAIL\n");
+    return 0;
+}

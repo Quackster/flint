@@ -140,6 +140,11 @@ impl Ctx<'_> {
         }
         self.str_copy = saved;
         self.coll_expect = saved_ce;
+        // `async` function: the call spawns the body on a worker thread and
+        // evaluates to a std.Task.
+        if f.is_async {
+            return self.gen_async_call(name, args.len(), span);
+        }
         self.pop_args(args.len());
         self.emit(&format!("\tcall {}", name));
         if f.ret == Some(Ty::Void) || f.ret.is_none() {
@@ -225,6 +230,12 @@ impl Ctx<'_> {
                 }
                 self.str_copy = saved;
                 self.coll_expect = saved_ce;
+                // `async` static method: runs on a worker thread; the call
+                // evaluates to a std.Task.
+                if meth.is_async {
+                    let mangled = mangle(&class_def.name, method);
+                    return self.gen_async_call(&mangled, args.len(), span);
+                }
                 self.pop_args(args.len());
                 let mangled = mangle(&class_def.name, method);
                 self.emit(&format!("\tcall {}", mangled));
@@ -245,6 +256,17 @@ impl Ctx<'_> {
                             method,
                             meth.params.len(),
                             args.len()
+                        ),
+                    ));
+                }
+                // An async instance method is dispatched statically through
+                // the task trampoline; it cannot go through a vtable.
+                if meth.is_async && layout::has_vtable_slot(self.prog, sidx) {
+                    return Err(CompileError::new(
+                        span,
+                        format!(
+                            "async method '{}' of class '{}' cannot be virtual (the class has a vtable)",
+                            method, class_def.name
                         ),
                     ));
                 }
@@ -271,6 +293,13 @@ impl Ctx<'_> {
                         span,
                         "too many arguments for method (including this)",
                     ));
+                }
+                // `async` instance method: runs on a worker thread; the call
+                // evaluates to a std.Task (this goes in the first arg slot).
+                if meth.is_async {
+                    let def_name = self.prog.structs[def_ci].name.clone();
+                    let mangled = mangle(&def_name, method);
+                    return self.gen_async_call(&mangled, total, span);
                 }
                 self.pop_args(total);
                 // vtable dispatch when the static type has a vtable slot and
@@ -438,5 +467,79 @@ impl Ctx<'_> {
         for i in (0..n).rev() {
             self.emit(&format!("\tpop {}", ARGREGS[i]));
         }
+    }
+
+    /// Emit a call to an `async` function or method. The arguments (and,
+    /// for instance methods, `this` as the first argument) must already be
+    /// on the value stack. Claims a task-table slot, stores the arguments,
+    /// writes the function pointer, spawns the worker thread, and
+    /// constructs the std.Task object that is the call's value.
+    fn gen_async_call(
+        &mut self,
+        fn_name: &str,
+        n: usize,
+        span: Span,
+    ) -> CompileResult<Ty> {
+        if n > 6 {
+            return Err(CompileError::new(
+                span,
+                "too many arguments for async call (max 6, including this)",
+            ));
+        }
+        let task_idx = self
+            .struct_idx
+            .get("std_Task")
+            .copied()
+            .ok_or_else(|| {
+                CompileError::new(
+                    span,
+                    "async functions require std.Task; pass src/stdlib/task.flint to flintc",
+                )
+            })?;
+        let fields = layout::all_fields(self.prog, task_idx);
+        let idpos = fields.iter().position(|(nm, _)| nm == "id").ok_or_else(|| {
+            CompileError::new(
+                span,
+                "std.Task must have an `int id` field (the thread id)",
+            )
+        })?;
+        let idoff = layout::field_base_offset(self.prog, task_idx) + 8 * idpos as i64;
+        self.pop_args(n);
+        // Claim a slot; the arg registers go into slots 1-6.
+        self.emit("\tcall flint_task_alloc");
+        self.emit("\tmovq %rax, %r12"); // save the slot (failure path)
+        // Write the function pointer into slot 0. The entry is 7 qwords (56
+        // bytes); x86 index scales are only 1/2/4/8, so compute base = table +
+        // slot*56 with an imul.
+        self.emit("\tlea flint_task_table(%rip), %r14");
+        self.emit(&format!("\tlea {}(%rip), %r15", fn_name));
+        self.emit("\tmov %rax, %r13");
+        self.emit("\timul $56, %r13");
+        self.emit("\tadd %r14, %r13"); // r13 = base of the entry
+        self.emit("\tmovq %r15, 0(%r13)");
+        // Spawn the worker: it runs the trampoline with the slot index.
+        self.emit("\tlea flint_task_trampoline(%rip), %rdi");
+        self.emit("\tmovq %rax, %rsi");
+        self.emit("\tcall flint_thread_create");
+        let fail = format!(".Lasynctaskfail{}", self.strn);
+        let done = format!(".Lasynctaskdone{}", self.strn);
+        self.strn += 1;
+        // flint_thread_create returns the tid (>= 0) on success, -1 on error.
+        self.emit("\tcmp $-1, %rax");
+        self.emit(&format!("\tje {}", fail));
+        self.emit("\tmovq %rax, %r15"); // tid (flint_alloc clobbers %rax)
+        // Construct the Task object (heap path leaves the base in %rax).
+        self.emit_new_base(task_idx, None);
+        self.emit(&format!("\tmovq %r15, {}(%rax)", idoff));
+        self.emit("\tpush %rax");
+        self.emit(&format!("\tjmp {}", done));
+        self.emit(&format!("{}:", fail));
+        // thread_create failed: release the claimed slot, value is null.
+        self.emit("\tlea flint_task_free(%rip), %r11");
+        self.emit("\tmovb $0, 0(%r11, %r12)");
+        self.emit("\txor %rax, %rax");
+        self.emit("\tpush %rax");
+        self.emit(&format!("{}:", done));
+        Ok(Ty::Struct(task_idx))
     }
 }

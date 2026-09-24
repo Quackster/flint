@@ -238,6 +238,7 @@ fn placeholder_func() -> FuncDef {
         package: String::new(),
         name: String::from("__placeholder__"),
         type_params: Vec::new(),
+        is_async: false,
         params: Vec::new(),
         ret: None,
         body: Block {

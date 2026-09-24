@@ -42,6 +42,10 @@ pub struct MethodDef {
     pub name: String,
     pub vis: Vis,
     pub is_static: bool,
+    /// `async` method: a call runs the body on a worker thread and evaluates
+    /// to a std.Task (join() for the result); the body itself is compiled
+    /// as an ordinary function.
+    pub is_async: bool,
     pub is_ctor: bool,
     /// Abstract method: declared with `;` and no body. Only allowed in
     /// abstract classes and interfaces; a concrete class must override it.
@@ -165,6 +169,10 @@ pub struct FuncDef {
     pub package: String,
     pub name: String,
     pub type_params: Vec<String>, // e.g. `T identity<T>(T x)` -> ["T"]; non-empty = generic template
+    /// `async` function: a call runs the body on a worker thread and
+    /// evaluates to a std.Task (join() for the result); the body itself is
+    /// compiled as an ordinary function.
+    pub is_async: bool,
     pub params: Vec<(String, Option<Ty>, Span)>, // name, ty, span
     pub ret: Option<Ty>,
     pub body: Block,

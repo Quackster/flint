@@ -404,6 +404,7 @@ int main() {
 - The `@` operator yields a function's address.
 - Synchronization: `Sync.lock/unlock(&m)`, `Sync.cas(&v, old, new)`, `Sync.nanosleep(sec, nsec)` (import std.Sync). Lower-level: `sys.clone`, `sys.futex`.
 - Spawn workers up front (one per CPU), then join them: they run concurrently.
+- **Async methods** (import std.Task): mark a function or method `async int f(...)` (before the return type). A call to it spawns a worker thread and evaluates to a `Task` whose `join()` blocks and returns the worker's value. Arguments are captured automatically (an instance method passes `this` first); no raw function pointer needed. `async` methods cannot be constructors, cannot be `abstract`, and an `async` instance method cannot be virtual. See `examples/async_task.flint`.
 
 ```java
 import std.Thread;
@@ -600,6 +601,7 @@ int main() {
 | `std.Time`   | `millis`, `seconds`, `nanos`, `date` (`YYYY-MM-DD HH:MM:SS`) |
 | `std.Image`  | pixel buffer (`get`/`set`/`fill`/`clear`), `rgb`/`rgba` + channel extractors, `invert`/`grayscale`/`flipH`/`flipV`/`rotate90`/`scale`/`blur`, drawing (`hline`/`vline`/`rect`/`fillRect`/`line`/`circle`/`fillCircle`), text (`text(x, y, s, c)` (built-in 5×7 font, returns the pixel width), `textWidth(s)`), multi-format I/O (`save`/`load`, `toPpm`/`fromPpm`, `toPgm`/`fromPgm`, `toBmp`/`fromBmp`) |
 | `std.Thread` | `nCpu` (online CPU count), `spawn(@fn, arg)` (returns the id), `join(id)` (blocks; returns the worker's return value) |
+| `std.Task`   | the handle returned by an `async` call: `int id` (worker thread id), `join()` (blocks; returns the worker's return value) — see "Async methods" |
 | `std.Sync`   | `lock(&m)` / `unlock(&m)` (mutex: 0 unlocked, 1 locked), `cas(&v, old, new)` (1 on success), `nanosleep(sec, nsec)` |
 | `std.Socket` | `stream` (AF_INET/SOCK_STREAM), `bindPort(fd, port)` (0.0.0.0), `bindHost(fd, ip, port)` (a specific "a.b.c.d"), `listen(fd, backlog)`, `accept(fd)`, `connectHost(a, b, c, d, port)`, `sendAll(fd, s)`, `recv(fd)` (string or `null`), `close(fd)`, `nthDot(s, n)` (index of the n-th `.`) |
 | `std.Mem`    | `intArray(n)` (`*int`), `bytes(n)` (`*byte`), `copy(dst, src, n)`, `freeInt(*int)`, `freeByte(*byte)` — the high-level replacement for raw `alloc`/`free`/`memcpy` |

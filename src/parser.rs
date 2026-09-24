@@ -930,7 +930,11 @@ impl<'a> Parser<'a> {
                 let mut d = self.parse_enum()?;
                 d.package = self.current_package.clone();
                 enums.push(d);
-            } else if self.at(&Tok::Void) || self.is_decl_start() || self.is_generic_func_start() {
+            } else if self.at(&Tok::Async)
+                || self.at(&Tok::Void)
+                || self.is_decl_start()
+                || self.is_generic_func_start()
+            {
                 let mut d = self.parse_func()?;
                 d.package = self.current_package.clone();
                 funcs.push(d);
@@ -1011,12 +1015,25 @@ impl<'a> Parser<'a> {
             } else {
                 Accessor::None
             };
+            // `async` modifier (either order: `static async` / `async static`):
+            // the method body runs on a worker thread when called; the call
+            // expression evaluates to a std.Task.
+            let mut is_async = if self.at(&Tok::Async) {
+                self.bump();
+                true
+            } else {
+                false
+            };
             let is_static = if self.at(&Tok::Static) {
                 self.bump();
                 true
             } else {
                 false
             };
+            if !is_async && self.at(&Tok::Async) {
+                self.bump();
+                is_async = true;
+            }
             // `abstract` modifier (the method body is `;`, detected in parse_method_rest)
             if self.at(&Tok::Abstract) {
                 self.bump();
@@ -1033,6 +1050,12 @@ impl<'a> Parser<'a> {
                     return Err(CompileError::new(
                         self.cur().span,
                         "constructor cannot have accessor `get`/`set`/`getset`",
+                    ));
+                }
+                if is_async {
+                    return Err(CompileError::new(
+                        self.cur().span,
+                        "async methods cannot be constructors",
                     ));
                 }
                 let m = self.parse_ctor(&name, vis, is_static)?;
@@ -1086,7 +1109,13 @@ impl<'a> Parser<'a> {
                 // return type); both are constructors per the language spec.
                 let is_ctor = member_name == name
                     && ret.as_ref().map(|r| matches!(r, Ty::Void)).unwrap_or(true);
-                let method = self.parse_method_rest(member_name, ret, vis, is_static, is_ctor)?;
+                let method = self.parse_method_rest(member_name, ret, vis, is_static, is_ctor, is_async)?;
+                if is_async && method.is_abstract {
+                    return Err(CompileError::new(
+                        method.span,
+                        "async methods cannot be abstract (the worker thread needs a body)",
+                    ));
+                }
                 methods.push(method);
             } else if self.at(&Tok::Semicolon) {
                 // field
@@ -1151,6 +1180,7 @@ impl<'a> Parser<'a> {
             name,
             vis,
             is_static: false,
+            is_async: false,
             is_ctor: true,
             is_abstract: false,
             params,
@@ -1167,6 +1197,7 @@ impl<'a> Parser<'a> {
         vis: Vis,
         is_static: bool,
         is_ctor: bool,
+        is_async: bool,
     ) -> CompileResult<MethodDef> {
         let span = self.cur().span; // approximate
         self.expect(&Tok::LParen, "'(' after method name")?;
@@ -1200,6 +1231,7 @@ impl<'a> Parser<'a> {
             name,
             vis,
             is_static,
+            is_async,
             is_ctor,
             is_abstract,
             params,
@@ -1256,6 +1288,7 @@ impl<'a> Parser<'a> {
                 name: member_name,
                 vis,
                 is_static: false,
+                is_async: false,
                 is_ctor: false,
                 is_abstract: true,
                 type_params: Vec::new(),
@@ -1308,6 +1341,14 @@ impl<'a> Parser<'a> {
 
     fn parse_func(&mut self) -> CompileResult<FuncDef> {
         let span = self.cur().span;
+        // `async` prefix: the body runs on a worker thread when called; the
+        // call evaluates to a std.Task (join() for the result).
+        let is_async = if self.at(&Tok::Async) {
+            self.bump();
+            true
+        } else {
+            false
+        };
         // The return type may name a type parameter declared *after* the
         // function name (`T identity<T>(T x)`), so parse it leniently and
         // validate it against the type-parameter list once that is known.
@@ -1353,6 +1394,7 @@ impl<'a> Parser<'a> {
             package: String::new(),
             name,
             type_params,
+            is_async,
             params,
             ret,
             body,

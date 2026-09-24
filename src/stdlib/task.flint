@@ -1,0 +1,24 @@
+// std/task — handles for async functions and methods (import std.Task).
+//
+// An `async` function or method runs its body on its own worker thread
+// when called; the call expression evaluates to a Task. `join()` blocks
+// until the worker finishes and returns the value the function returned
+// (0 for a void function).
+//
+// At most 32 tasks may be in flight at once; spawning a 33rd waits for
+// a slot to free.
+//
+// Usage:
+//   import std.Task;
+//   Task t = worker(5);      // worker is an `async int` function
+//   printi(t.join());        // the value worker returned
+package std;
+class Task {
+    // The thread id of the worker (set by the compiler on the call).
+    int id;
+
+    // Block until the worker finishes; return its value (0 if void).
+    int join() {
+        return sys.threadJoin(this.id);
+    }
+}

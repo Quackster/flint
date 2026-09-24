@@ -86,6 +86,7 @@ pub enum Tok {
     Try,
     Catch,
     Finally,
+    Async,
     // type keywords
     KwByte,
     KwShort,
