@@ -1,0 +1,62 @@
+// events: += event-handler registration (C#-style), on its own - no
+// window involved. Declare an interface for the event, register handler
+// objects with +=, and dispatch by calling through the field. Each event
+// slot holds one handler; += registers it (or replaces the current one,
+// releasing the old). Build:
+//   flintc examples/events.flint -o events
+interface OnLog {
+    void log(int level, string msg);
+}
+
+// A handler that prints to stdout.
+class Console implements OnLog {
+    void log(int level, string msg) {
+        printi(level);
+        print(": ");
+        print(msg);
+        print("\n");
+    }
+}
+
+// A handler that counts events.
+class Counter implements OnLog {
+    int n;
+    void log(int level, string msg) {
+        this.n = this.n + 1;
+    }
+}
+
+// The owner of the event: a field typed as the interface.
+class App {
+    OnLog onLog;
+    void App() {
+        this.onLog = null;
+    }
+    // Dispatch through the registered handler (guard the null slot).
+    void emit(int level, string msg) {
+        if (this.onLog != null) {
+            this.onLog.log(level, msg);
+        }
+    }
+}
+
+int main() {
+    App app = new App();
+    Console console = new Console();
+    Counter counter = new Counter();
+
+    // Nothing registered yet: emit is a no-op.
+    app.emit(0, "silent");
+
+    // += registers the handler for the event.
+    app.onLog += console;
+    app.emit(0, "hello");
+    app.emit(1, "world");
+
+    // += again replaces the current handler (the old one is released).
+    app.onLog += counter;
+    app.emit(2, "counted");
+    printi(counter.n);
+    print("\n");
+    return 0;
+}

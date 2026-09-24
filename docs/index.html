@@ -14,7 +14,7 @@
 <input class="search" id="nav-search" type="search" placeholder="Filter sections…" aria-label="Filter sections">
 <div class="nav-section"><div class="nav-title">Getting started</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#index">Overview</a></li><li><a href="#getting-started">Getting started</a></li><li><a href="#compiler">The toolchain</a></li><li><a href="#modules">Modules & multi-file</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#exceptions">Exceptions</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#event-handlers">Event handlers (+=)</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#collections">Collections overview</a></li><li><a href="#coll-list">list</a></li><li><a href="#coll-queue">queue</a></li><li><a href="#coll-hashset">hashset</a></li><li><a href="#coll-hashmap">hashmap</a></li><li><a href="#coll-dictionary">dictionary</a></li><li><a href="#coll-typed">Typed elements</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li><li><a href="#std-window">Window</a></li><li><a href="#std-app">App</a></li><li><a href="#std-widget">Widget</a></li></ul></div>
@@ -1272,6 +1272,104 @@ int main() {
 takes the interface type and calls <code>s.speak()</code> virtually.</li>
 <li><b><code>instanceof</code></b> works with both the concrete type
 (<code>Robot</code>) and the interface name (<code>Speaker</code>).</li>
+</ul>
+</section>
+<section id="event-handlers" class="doc-section" data-label="Event handlers (+=)">
+<div class="page-head"><h1>Event handlers (<code>+=</code>)</h1>
+<p class="lede">Flint has no first-class functions, so C#-style delegate
+events are approximated with an <code>interface</code> for the event and
+an <code>+=</code> on an interface-typed field to register a handler
+object. The field is the event slot; the handler is a class that
+<code>implements</code> the interface; dispatch is a virtual call
+through the field.</p></div>
+
+<p>A field is an event slot when its type is an interface
+(<code>OnLog onLog;</code>). <code>slot += handler;</code> requires
+<code>handler</code> to be an object implementing that interface: it
+retains the new handler, releases the one currently registered (if any),
+and stores the new one. Each slot holds <b>one</b> handler, so a second
+<code>+=</code> <b>replaces</b> the current handler (this is the
+single-slot approximation of a C# multi-handler delegate list).
+Dispatch is <code>slot.method(...)</code>, called virtually through the
+interface; guard the slot with a <code>!= null</code> check when it may
+be unregistered. (The standard library's
+<a href="#std-app">App</a> and
+<a href="#std-widget">Gui</a> event loop uses exactly this mechanism for
+<code>OnDraw</code>, <code>OnKey</code> and the other window/widget
+events.)</p>
+
+<h2>Example</h2>
+<div class="code"><div class="head"><span>examples/events.flint</span></div>
+<pre><code class="flint">interface OnLog {
+    void log(int level, string msg);
+}
+
+// A handler that prints to stdout.
+class Console implements OnLog {
+    void log(int level, string msg) {
+        printi(level);
+        print(": ");
+        print(msg);
+        print("\n");
+    }
+}
+
+// A handler that counts events.
+class Counter implements OnLog {
+    int n;
+    void log(int level, string msg) {
+        this.n = this.n + 1;
+    }
+}
+
+// The owner of the event: a field typed as the interface.
+class App {
+    OnLog onLog;
+    void App() {
+        this.onLog = null;
+    }
+    // Dispatch through the registered handler (guard the null slot).
+    void emit(int level, string msg) {
+        if (this.onLog != null) {
+            this.onLog.log(level, msg);
+        }
+    }
+}
+
+int main() {
+    App app = new App();
+    Console console = new Console();
+    Counter counter = new Counter();
+
+    // Nothing registered yet: emit is a no-op.
+    app.emit(0, "silent");
+
+    // += registers the handler for the event.
+    app.onLog += console;
+    app.emit(0, "hello");
+    app.emit(1, "world");
+
+    // += again replaces the current handler (the old one is released).
+    app.onLog += counter;
+    app.emit(2, "counted");
+    printi(counter.n);
+    print("\n");
+    return 0;
+}</code></pre></div>
+<div class="output"><span class="lbl">output</span>0: hello
+1: world
+1</div>
+<ul>
+<li><b>Event slot</b>: an interface-typed field
+(<code>OnLog onLog;</code>) is the slot; <code>+=</code> registers a
+handler into it.</li>
+<li><b>Single slot, replace + release</b>: a second <code>+=</code>
+replaces the current handler and releases it (so after
+<code>app.onLog += counter</code>, only <code>Counter</code> sees
+events and <code>counter.n</code> is <code>1</code>).</li>
+<li><b>Dispatch</b>: <code>this.onLog.log(...)</code> calls the registered
+handler virtually through the interface; guard with
+<code>!= null</code> when the slot may be empty.</li>
 </ul>
 </section>
 <section id="enums" class="doc-section" data-label="Enums">

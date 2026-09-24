@@ -187,6 +187,8 @@ int main() {
 - Inheritance: `class Dog extends Animal`, `super(...)`, `super.method()`, overriding.
 - Abstract classes: `abstract class Shape`, `abstract int area();`.
 - Interfaces: `interface Speaker`, `class Robot implements Speaker`.
+- Event handlers: C#-style `+=` on an interface-typed field registers a
+  handler object (`app.onLog += c;`, dispatch via `app.onLog.log(...)`).
 - `instanceof` test and casts: `Dog d = (Dog) a;`, `a instanceof Dog`.
 - Static fields: `static int n;` accessed as `Counter.n`; static methods
   called as `Math.abs(7)`.
@@ -936,6 +938,65 @@ int main() {
 - `interface` declares a method set; `class ... implements Speaker` fulfils it.
 - `a instanceof Dog` tests the dynamic type (also true for `interface`).
 - Casts: `Dog d = (Dog) a;` narrows a reference; the runtime layout matches.
+</details>
+
+<details>
+<summary>Event handlers (+=)</summary>
+
+Flint has no first-class functions, so C#-style delegate events are
+approximated with an `interface` for the event and an `+=` on an
+interface-typed field to register a handler object. The field is the
+event slot; the handler is a class that `implements` the interface;
+dispatch is a virtual call through the field. Each slot holds **one**
+handler, so a second `+=` **replaces** the current handler (releasing
+the old one) — the single-slot approximation of a C# multi-handler
+delegate list.
+
+```java
+interface OnLog {
+    int log(int level);
+}
+
+class Counter implements OnLog {
+    int n;
+    int log(int level) {
+        this.n = this.n + 1;
+        return this.n;
+    }
+}
+
+class App {
+    OnLog onLog;
+    void App() { this.onLog = null; }
+    void emit(int level) {
+        if (this.onLog != null) {
+            this.onLog.log(level);   // dispatch through the interface
+        }
+    }
+}
+
+int main() {
+    App app = new App();
+    Counter c = new Counter();
+    app.onLog += c;         // register the handler
+    app.emit(1);
+    app.emit(2);
+    printi(c.n);           // 2
+    return 0;
+}
+```
+
+- An **event slot** is an interface-typed field (`OnLog onLog;`);
+  `slot += handler;` registers a handler (the handler must
+  `implements` the interface).
+- **Single slot, replace + release**: a second `+=` replaces the current
+  handler and releases it.
+- **Dispatch** is `slot.method(...)` through the interface; guard the
+  slot with `!= null` when it may be unregistered.
+- `std.App` / `std.Gui` use this exact mechanism for `OnDraw`, `OnKey`
+  and the other window/widget events (see `examples/events.flint` for
+  the window-free form, and the `App`/`Widget` sections for the GUI
+  form).
 </details>
 
 <details>
