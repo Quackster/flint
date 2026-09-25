@@ -1,17 +1,20 @@
-// std/coll — the collections as ordinary classes over raw 8-byte slot
-// arrays: `Collection` (the base), `List`, `Queue`, `Hashset`, `Hashmap`.
+// std/coll — the collections as ordinary generic classes over raw 8-byte
+// slot arrays: `Collection` (the base), `List<T>`, `Queue<T>`,
+// `HashSet<T>`, and `HashMap<K, V>`.
 //
 // Every collection stores its elements in a `Mem.intArray` of 8-byte
 // slots that it manipulates itself: `List` grows by doubling and
 // copying, `Queue` is a FIFO ring over its slots, and the hash family
 // uses open addressing (linear probing, tombstones) over slot pairs.
 //
-// `kind` pins the element flavour (set before use):
-//   0 = int       compared/hashed by value
-//   1 = string    compared by content, hashed FNV-1a
-//   2 = object    class objects: refcounted — retained on store,
-//                 released on clear/destroy; compared/hashed by pointer
-// A `Hashmap` carries `kkind`/`vkind` for its keys and values.
+// The element flavour is fixed by the type parameter (the compiler bakes
+// it into the `kind` field when the class is monomorphized):
+//   int / bool / enum / pointer / array   -> 0  compared/hashed by value
+//   string                                -> 1  compared by content, FNV-1a
+//   a class type                          -> 2  refcounted — retained on
+//                                              store, released on
+//                                              clear/destroy; by pointer
+// A `HashMap<K, V>` carries `kkind`/`vkind` for its keys and values.
 //
 // Common API: `size()`, `isEmpty()`, `clear()`. `destroy()` runs when
 // the last reference drops (it drops the element references and frees
@@ -19,13 +22,13 @@
 //
 // Usage:
 //   import std.List;
-//   import std.Hashmap;
-//   List xs = new List();
+//   import std.HashMap;
+//   List<int> xs = new List<int>();
 //   xs.add(41);
 //   printi(xs.get(0));
-//   Hashmap m = new Hashmap();
-//   m.put(1, 100);
-//   printi(m.get(1));
+//   HashMap<string, int> m = new HashMap<string, int>();
+//   m.put("a", 1);
+//   printi(m.get("a"));
 package std;
 abstract class Collection {
     *int slots;
@@ -107,9 +110,10 @@ abstract class Collection {
         Mem.freeInt(this.slots);
     }
 }
-class List extends Collection {
+class List<T> extends Collection {
     public List() {
         super();
+        this.kind = 0; // baked by the compiler from T
     }
     void add(int v) {
         if (this.count >= this.cap) {
@@ -238,10 +242,11 @@ class List extends Collection {
         return out;
     }
 }
-class Queue extends Collection {
+class Queue<T> extends Collection {
     int head;
     public Queue() {
         super();
+        this.kind = 0; // baked by the compiler from T
         this.head = 0;
     }
     void push(int v) {
@@ -288,11 +293,12 @@ class Queue extends Collection {
         this.head = 0;
     }
 }
-class Hashset extends Collection {
+class HashSet<T> extends Collection {
     // 2 slots per bucket: [value, flag]; flag 0 empty, 1 occupied,
     // 2 tombstone. Bucket count is a power of two; rehash at load 0.5.
-    public Hashset() {
+    public HashSet() {
         super();
+        this.kind = 0; // baked by the compiler from T
         this.slots = Mem.intArray(32);
     }
     // 1 inserted, 0 already present.
@@ -389,15 +395,15 @@ class Hashset extends Collection {
         Mem.freeInt(old);
     }
 }
-class Hashmap extends Collection {
+class HashMap<K, V> extends Collection {
     int kkind;
     int vkind;
     // 3 slots per entry: [key, flag, value]; flag 0 empty, 1 occupied,
     // 2 tombstone. Entry count is a power of two; rehash at load 0.5.
-    public Hashmap() {
+    public HashMap() {
         super();
-        this.kkind = 0;
-        this.vkind = 0;
+        this.kkind = 0; // baked by the compiler from K
+        this.vkind = 0; // baked by the compiler from V
         this.slots = Mem.intArray(48);
     }
     // 1 inserted, 0 updated (the old value reference is dropped).
@@ -510,10 +516,9 @@ class Hashmap extends Collection {
         }
         this.count = 0;
     }
-    // The stored keys (insertion order) as a fresh List.
-    List keys() {
-        List out = new List();
-        out.kind = this.kkind;
+    // The stored keys (insertion order) as a fresh List<K>.
+    List<K> keys() {
+        List<K> out = new List<K>();
         int i = 0;
         while (i < this.cap) {
             if (this.slots[3 * i + 1] == 1) {
@@ -523,10 +528,9 @@ class Hashmap extends Collection {
         }
         return out;
     }
-    // The stored values (insertion order) as a fresh List.
-    List values() {
-        List out = new List();
-        out.kind = this.vkind;
+    // The stored values (insertion order) as a fresh List<V>.
+    List<V> values() {
+        List<V> out = new List<V>();
         int i = 0;
         while (i < this.cap) {
             if (this.slots[3 * i + 1] == 1) {

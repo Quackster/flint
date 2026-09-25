@@ -1,14 +1,14 @@
-// Each collection pins its element flavour in a `kind` field (0 int,
-// 1 string, 2 object; Hashmap has `kkind`/`vkind`). This test drives
-// string sets, string-keyed maps, string-valued maps, and the
-// keys()/values() accessors.
+// Each collection pins its element flavour in its type parameter (the
+// compiler bakes it into the `kind` field: 0 int, 1 string, 2 object;
+// HashMap has `kkind`/`vkind`). This test drives string sets,
+// string-keyed maps, string-valued maps, and the keys()/values()
+// accessors.
 import std.List;
-import std.Hashset;
-import std.Hashmap;
+import std.HashSet;
+import std.HashMap;
 int main() {
     // hashset with string elements (kind = 1)
-    Hashset s = new Hashset();
-    s.kind = 1;
+    HashSet<string> s = new HashSet<string>();
     s.add("hello"); s.add("world"); s.add("hello");
     printi(s.size()); print(" ");
     printi(s.contains("world")); print(" ");
@@ -17,7 +17,7 @@ int main() {
     printi(s.contains("world")); print("\n");
 
     // int-keyed map
-    Hashmap m = new Hashmap();
+    HashMap<int, int> m = new HashMap<int, int>();
     m.put(1, 10);
     m.put(2, 20);
     printi(m.size()); print(" ");
@@ -27,8 +27,7 @@ int main() {
     printi(m.contains(1)); print("\n");
 
     // string values (vkind = 1); get() returns the raw slot value
-    Hashmap d = new Hashmap();
-    d.vkind = 1;
+    HashMap<int, string> d = new HashMap<int, string>();
     d.put(1, "one");
     d.put(2, "two");
     string w = d.get(2);
@@ -37,29 +36,28 @@ int main() {
     printi(missing); print("\n");
 
     // {...} equivalent: build a set of ints
-    Hashset ls = new Hashset();
+    HashSet<int> ls = new HashSet<int>();
     ls.add(3); ls.add(4); ls.add(5);
     printi(ls.size()); print(" ");
     printi(ls.contains(4)); print("\n");
 
     // build a string-keyed map (int values)
-    Hashmap lm = new Hashmap();
-    lm.kkind = 1;
+    HashMap<string, int> lm = new HashMap<string, int>();
     lm.put("seven", 7); lm.put("eight", 8);
     printi(lm.size()); print(" ");
     printi(lm.get("eight")); print(" ");
     printi(lm.get("seven")); print("\n");
 
     // [...] equivalent: build a list of ints
-    List li = new List();
+    List<int> li = new List<int>();
     li.add(10); li.add(20); li.add(30);
     printi(li.size()); print(" ");
     printi(li.get(2)); print("\n");
 
     // keys() / values() return a fresh List
-    List ks = m.keys();
+    List<int> ks = m.keys();
     printi(ks.size()); print("\n");
-    List vs = m.values();
+    List<int> vs = m.values();
     printi(vs.size()); print("\n");
     return 0;
 }

@@ -78,8 +78,10 @@ like ordinary application code, **not** like a systems-programming demo:
 - `src/intrinsics.s` — the freestanding runtime (raw syscalls, heap,
   refcounting, threads, sockets, print helpers, the `destroy()` hook).
   There is no separate collection runtime: the collections are ordinary
-  stdlib classes in `src/stdlib/coll.flint` (`Collection`, `List`, `Queue`,
-  `Hashset`, `Hashmap`), keyed by a `kind` field (0 int, 1 string, 2 object).
+  generic stdlib classes in `src/stdlib/coll.flint` (`Collection`,
+  `List<T>`, `Queue<T>`, `HashSet<T>`, `HashMap<K, V>`). The element
+  flavour (0 int, 1 string, 2 object) is baked into the constructor by the
+  monomorphizer from the concrete type argument (no manual `kind` field).
 - `src/prelude/*.flint` — builtin reference docs (`mem`, `str`, `sys`, `io`,
   `conv`); these illustrate always-available builtins.
 - `src/stdlib/*.flint` — the `std` library (each file declares `package std;`).

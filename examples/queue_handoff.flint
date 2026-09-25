@@ -3,13 +3,13 @@
 // return the front value, or 0 when empty.
 // Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/queue_handoff.flint -o queue_handoff
 import std.Queue;
-int next_cmd(Queue q) {
+int next_cmd(Queue<int> q) {
     return q.pop();
 }
 
 int main() {
     // built up with push()
-    Queue q = new Queue();
+    Queue<int> q = new Queue<int>();
     q.push(10); q.push(20); q.push(30);
     printi(q.size());             // 3
     print("\n");
@@ -35,7 +35,7 @@ int main() {
     printi(q.peek());           // 0 (empty)
     print("\n");
     // a producer/consumer hand-off through a function
-    Queue jobs = new Queue();
+    Queue<int> jobs = new Queue<int>();
     jobs.push(111);
     jobs.push(222);
     printi(next_cmd(jobs));   // 111 (consumed in FIFO order)
@@ -43,8 +43,7 @@ int main() {
     printi(next_cmd(jobs));   // 222
     print("\n");
     // string elements (kind = 1)
-    Queue names = new Queue();
-    names.kind = 1;
+    Queue<string> names = new Queue<string>();
     names.push("in");
     names.push("out");
     string n1 = names.pop();

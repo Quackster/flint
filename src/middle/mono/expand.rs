@@ -7,6 +7,8 @@ use super::Mono;
 impl<'a> Mono<'a> {
     pub(crate) fn expand_struct(&mut self, ni: usize, ti: usize, args: &[Ty]) -> CompileResult<()> {
         let template = self.prog.structs[ti].clone();
+        let tname = template.name.clone();
+        let tpkg = template.package.clone();
         let subst = self.make_subst(&template.type_params, args);
         let name = self.class_names[&ni].clone();
         let mut c = template;
@@ -49,8 +51,89 @@ impl<'a> Mono<'a> {
             self.cur_locals = locals;
             m.body = self.resolve_block(&m.body, &subst)?;
         }
+        // Bake the element `kind` (0 int / 1 string / 2 object) into the
+        // stdlib collection constructors from the concrete type argument, so
+        // `List<string>` hashes/compares by content and `List<Foo>`
+        // refcounts its elements without a manual `kind` field set.
+        if tpkg == "std" {
+            let fields: Vec<(&str, i64)> = match (tname.as_str(), args) {
+                ("List" | "Queue" | "HashSet", [a]) => vec![("kind", Self::kind_of(a))],
+                ("HashMap", [a, b]) => vec![
+                    ("kkind", Self::kind_of(a)),
+                    ("vkind", Self::kind_of(b)),
+                ],
+                _ => Vec::new(),
+            };
+            if !fields.is_empty() {
+                self.bake_kinds(&mut c, &fields);
+            }
+        }
         self.out.structs[ni] = c;
         Ok(())
+    }
+
+    /// The element flavour for a concrete type: 0 for integer-ish values
+    /// (int/bool/enum/pointer/array), 1 for string, 2 for class objects.
+    fn kind_of(t: &Ty) -> i64 {
+        match t {
+            Ty::Str => 1,
+            Ty::Struct(_) | Ty::Inst(_, _) => 2,
+            _ => 0,
+        }
+    }
+
+    /// Rewrite `this.<field> = <int>` in the constructor to the baked value.
+    fn bake_kinds(&self, c: &mut ClassDef, fields: &[(&str, i64)]) {
+        let Some(ctor) = c.methods.iter_mut().find(|m| m.is_ctor) else {
+            return;
+        };
+        for f in fields {
+            let (fname, fval) = *f;
+            self.bake_in_block(&mut ctor.body, fname, fval);
+        }
+    }
+
+    fn bake_in_block(&self, block: &mut Block, fname: &str, fval: i64) {
+        for s in block.stmts.iter_mut() {
+            if let Stmt::Assign { target, value, .. } = s {
+                if let Expr::Field { base, name, .. } = target {
+                    if name == fname
+                        && matches!(&**base, Expr::This { .. })
+                        && matches!(value, Expr::Int { .. })
+                    {
+                        if let Expr::Int { span, .. } = value {
+                            *value = Expr::Int { span: *span, value: fval };
+                        }
+                        continue;
+                    }
+                }
+            }
+            // Recurse into nested blocks so the assignment is found wherever it
+            // lives in the constructor body.
+            match s {
+                Stmt::If { then, else_opt, .. } => {
+                    self.bake_in_block(then, fname, fval);
+                    if let Some(e) = else_opt {
+                        self.bake_in_block(e, fname, fval);
+                    }
+                }
+                Stmt::While { body, .. } => self.bake_in_block(body, fname, fval),
+                Stmt::For { body, .. } => self.bake_in_block(body, fname, fval),
+                Stmt::TryCatch {
+                    try_block,
+                    catch_block,
+                    finally,
+                    ..
+                } => {
+                    self.bake_in_block(try_block, fname, fval);
+                    self.bake_in_block(catch_block, fname, fval);
+                    if let Some(f) = finally {
+                        self.bake_in_block(f, fname, fval);
+                    }
+                }
+                _ => {}
+            }
+        }
     }
 
     pub(crate) fn expand_func(&mut self, ni: usize, ti: usize, args: &[Ty]) -> CompileResult<()> {

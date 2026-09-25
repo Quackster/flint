@@ -5,7 +5,7 @@ import std.List;
 
 class Stats {
     // Sum of a list of ints.
-    static int sum(List xs) {
+    static int sum(List<int> xs) {
         int s = 0;
         int i = 0;
         while (i < xs.size()) {
@@ -15,7 +15,7 @@ class Stats {
         return s;
     }
     // Largest value (0 for an empty list).
-    static int max(List xs) {
+    static int max(List<int> xs) {
         if (xs.size() == 0) {
             return 0;
         }
@@ -30,7 +30,7 @@ class Stats {
         return m;
     }
     // Mean (integer division; 0 for an empty list).
-    static int mean(List xs) {
+    static int mean(List<int> xs) {
         if (xs.size() == 0) {
             return 0;
         }

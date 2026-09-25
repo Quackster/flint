@@ -4,7 +4,7 @@ import demo.stats.Stats;
 import std.List;
 
 int main() {
-    List xs = new List();
+    List<int> xs = new List<int>();
     xs.add(4);
     xs.add(9);
     xs.add(1);

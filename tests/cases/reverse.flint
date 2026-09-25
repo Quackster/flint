@@ -2,7 +2,7 @@
 // back-edge that left even-length lists' middle pair unswapped.
 import std.List;
 int main() {
-    List l = new List();
+    List<int> l = new List<int>();
     l.add(1); l.add(2); l.add(3); l.add(4);
     l.reverse();
     printi(l.get(0)); print(" ");
@@ -11,7 +11,7 @@ int main() {
     printi(l.get(3)); print("\n");
 
     // odd length still works
-    List o = new List();
+    List<int> o = new List<int>();
     o.add(1); o.add(2); o.add(3);
     o.reverse();
     printi(o.get(0)); print(" ");
@@ -19,7 +19,7 @@ int main() {
     printi(o.get(2)); print("\n");
 
     // single element: no-op
-    List s = new List();
+    List<int> s = new List<int>();
     s.add(9);
     s.reverse();
     printi(s.get(0)); print("\n");

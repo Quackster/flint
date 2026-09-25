@@ -94,10 +94,15 @@ impl Ctx<'_> {
         if let Some(i) = self.struct_idx.get(name) {
             return Some(*i);
         }
+        // A short name may refer to a package-qualified class whose mangled
+        // name is `<pkg>_<name>`. Pick the shortest such key: a generic
+        // instantiation (e.g. `std_List_std_Box`) also ends in `_Box`, but
+        // the plain class (`std_Box`) is the shorter, intended target.
         let suffix = format!("_{}", name);
         self.struct_idx
             .iter()
-            .find(|(k, _)| k.as_str().ends_with(&suffix))
+            .filter(|(k, _)| k.as_str().ends_with(&suffix))
+            .min_by_key(|(k, _)| (k.len(), k.as_str()))
             .map(|(_, v)| *v)
     }
 

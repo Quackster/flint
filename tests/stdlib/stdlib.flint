@@ -67,7 +67,7 @@ int main() {
     printi(Path.isAbsolute("/a/b")); print(" ");
     printi(Path.isAbsolute("a/b")); print(" ");
     print(Path.normalize("a/./b/../c")); print(" ");
-    List pp = Path.split("x/y/z");
+    List<string> pp = Path.split("x/y/z");
     printi(pp.size()); print("\n");
 
     // ---- File (temp file) ----
@@ -104,7 +104,7 @@ int main() {
     printi(Str.endsWith("hello", "lo")); print(" ");
     print(Str.replaceAll("a-b-a", "a", "z")); print(" ");
     print(Str.repeat("ab", 3)); print("\n");
-    List sp = Str.split("a,b,c", ",");
+    List<string> sp = Str.split("a,b,c", ",");
     print(Str.join(sp, "-")); print(" ");
     print(Str.ljust("ab", 5, 32)); print(" ");
     print(Str.rjust("ab", 5, 32)); print("\n");

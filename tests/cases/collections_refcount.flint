@@ -2,7 +2,7 @@
 // releases. While a Box is also held by a local, the collections that
 // retain it can be dropped without destroying the Box.
 import std.List;
-import std.Hashmap;
+import std.HashMap;
 import std.Queue;
 class Box {
     static int destroyed;
@@ -15,16 +15,13 @@ int main() {
     Box a = new Box(10);
     Box b = new Box(20);
     if (1) {
-        List l = new List();
-        l.kind = 2;
+        List<Box> l = new List<Box>();
         l.add(a);
         l.set(0, a);
         l.remove(0);
-        Hashmap m = new Hashmap();
-        m.vkind = 2;
+        HashMap<int, Box> m = new HashMap<int, Box>();
         m.put(1, a);
-        Queue q = new Queue();
-        q.kind = 2;
+        Queue<Box> q = new Queue<Box>();
         q.push(b);
     }
     printi(a.id());

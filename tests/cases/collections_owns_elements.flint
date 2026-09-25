@@ -3,7 +3,7 @@
 // destruction of the collection(s) that retained it, so its destroy()
 // hook (refcount zero) must not have fired.
 import std.List;
-import std.Hashmap;
+import std.HashMap;
 class Box {
     static int destroyed;
     int id;
@@ -14,8 +14,7 @@ class Box {
 int main() {
     Box a = new Box(1);
     if (1) {
-        List l = new List();
-        l.kind = 2;
+        List<Box> l = new List<Box>();
         l.add(a);                 // retains a
     }
     printi(a.id());
@@ -23,10 +22,9 @@ int main() {
     printi(Box.destroyed);
     print("\n");                   // 0: a is still referenced, not destroyed
     if (1) {
-        Hashmap m = new Hashmap();
-        m.vkind = 2;
+        HashMap<int, Box> m = new HashMap<int, Box>();
         m.put(1, a);
-        List v = m.values();      // values() retains a
+        List<Box> v = m.values(); // values() retains a
     }
     printi(a.id());
     print("\n");                   // 1: a survived m's and v's destruction

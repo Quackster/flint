@@ -1,17 +1,16 @@
-// wordfreq: Hashmap as a frequency counter. put inserts or updates;
+// wordfreq: HashMap as a frequency counter. put inserts or updates;
 // get returns the stored value (0 when absent); keys() / values()
 // return fresh Lists in insertion order.
 // Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/wordfreq.flint -o wordfreq
-import std.Hashmap;
+import std.HashMap;
 import std.List;
-int bump(Hashmap m, string k) {
+int bump(HashMap<string, int> m, string k) {
     int c = m.get(k);
     m.put(k, c + 1);
 }
 
 int main() {
-    Hashmap m = new Hashmap();
-    m.kkind = 1;
+    HashMap<string, int> m = new HashMap<string, int>();
     bump(m, "the");
     bump(m, "quick");
     bump(m, "fox");
@@ -30,12 +29,12 @@ int main() {
     printi(m.contains("the"));     // 1
     print("\n");
     // keys() / values(): fresh Lists, insertion order
-    List k = m.keys();
-    List v = m.values();
+    List<string> k = m.keys();
+    List<int> v = m.values();
     printi(k.size() + v.size());        // 6
     print("\n");
-    // int keys too (a map holds one flavour per entry)
-    Hashmap n = new Hashmap();
+    // int keys and int values
+    HashMap<int, int> n = new HashMap<int, int>();
     n.put(1, 100);
     n.put(2, 200);
     n.put(1, 150);                 // update, not insert
@@ -51,8 +50,7 @@ int main() {
     printi(n.size());             // 1
     print("\n");
     // built up with put() (no literals in the stdlib world)
-    Hashmap lit = new Hashmap();
-    lit.vkind = 1;
+    HashMap<int, string> lit = new HashMap<int, string>();
     lit.put(1, "a");
     lit.put(2, "b");
     printi(lit.size());            // 2

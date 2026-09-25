@@ -1,11 +1,11 @@
-// wordset: Hashset deduplicates a stream of values. add returns 1 when
+// wordset: HashSet deduplicates a stream of values. add returns 1 when
 // inserted and 0 when already present; contains matches by value
 // (string content compare); remove leaves a tombstone; the bucket array
 // rehashes (doubles) when the load factor is reached.
 // Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/wordset.flint -o wordset
-import std.Hashset;
+import std.HashSet;
 int main() {
-    Hashset s = new Hashset();
+    HashSet<int> s = new HashSet<int>();
     // int elements: duplicates collapse
     printi(s.add(5));        // 1 (inserted)
     print("\n");
@@ -32,9 +32,8 @@ int main() {
     print("\n");
     printi(s.size());       // 3
     print("\n");
-    // string elements (kind = 1): content dedup of a word stream
-    Hashset words = new Hashset();
-    words.kind = 1;
+    // string elements: content dedup of a word stream
+    HashSet<string> words = new HashSet<string>();
     words.add("the");
     words.add("quick");
     words.add("brown");
@@ -48,7 +47,7 @@ int main() {
     printi(words.contains("dog")); // 0
     print("\n");
     // built up with add() (no literals in the stdlib world)
-    Hashset lit = new Hashset();
+    HashSet<int> lit = new HashSet<int>();
     lit.add(3);
     lit.add(4);
     printi(lit.size());        // 2

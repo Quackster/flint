@@ -214,9 +214,8 @@ class Str {
         return out;
     }
     // Split s on sep into a list of segments.
-    static List split(string s, string sep) {
-        List out = new List();
-        out.kind = 1;
+    static List<string> split(string s, string sep) {
+        List<string> out = new List<string>();
         int nsep = strlen(sep);
         int n = strlen(s);
         if (nsep == 0) {
@@ -245,7 +244,7 @@ class Str {
         return out;
     }
     // Join the elements of a string list with sep.
-    static string join(List l, string sep) { return l.join(sep); }
+    static string join(List<string> l, string sep) { return l.join(sep); }
     // Pad s on the right with ch up to width w.
     static string ljust(string s, int w, int ch) {
         int ns = strlen(s);

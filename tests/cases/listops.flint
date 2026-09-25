@@ -1,6 +1,6 @@
 import std.List;
 int main() {
-    List l = new List();
+    List<int> l = new List<int>();
     l.add(3); l.add(1); l.add(2);
     l.sort();
     printi(l.get(0)); print("\n");
@@ -16,8 +16,7 @@ int main() {
     printi(l.get(2)); print("\n");
     string j = l.join("-");
     print(j); print("\n");
-    List s = new List();
-    s.kind = 1;
+    List<string> s = new List<string>();
     s.add("b"); s.add("a"); s.add("c");
     string sj = s.join("+");
     print(sj); print("\n");

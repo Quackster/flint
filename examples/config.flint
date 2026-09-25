@@ -1,13 +1,11 @@
-// config: a Hashmap as a settings table — string keys mapped to
-// string values (kkind/vkind = 1), the usual configuration shape.
+// config: a HashMap as a settings table — string keys mapped to
+// string values, the usual configuration shape.
 // Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/config.flint -o config
-import std.Hashmap;
+import std.HashMap;
 class Config {
-    Hashmap table;
+    HashMap<string, string> table;
     public Config() {
-        this.table = new Hashmap();
-        this.table.kkind = 1;
-        this.table.vkind = 1;
+        this.table = new HashMap<string, string>();
     }
     public string get(string key, string dflt) {
         string v = this.table.getStr(key);

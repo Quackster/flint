@@ -1,15 +1,16 @@
-// typed_coll: stdlib collections pin the element flavour in a field
-// (kind on List/Queue/Hashset, kkind/vkind on Hashmap): 0 int,
-// 1 string, 2 object. The flavour drives hashing, compare, sort and
-// join, and the retain/release of object elements.
+// typed_coll: stdlib collections are generic — the element flavour
+// (0 int, 1 string, 2 object) is derived from the type argument
+// (List<string>, HashMap<string, int>, ...). The flavour drives
+// hashing, compare, sort and join, and the retain/release of object
+// elements.
 // Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/typed_coll.flint -o typed_coll
 import std.List;
 import std.Queue;
-import std.Hashset;
-import std.Hashmap;
+import std.HashSet;
+import std.HashMap;
 int main() {
     // int list
-    List t = new List();
+    List<int> t = new List<int>();
     t.add(7); t.add(8); t.add(9);
     printi(t.size());             // 3
     print("\n");
@@ -18,9 +19,8 @@ int main() {
     t.add(10);
     printi(t.get(3));           // 10
     print("\n");
-    // string list (kind = 1)
-    List names = new List();
-    names.kind = 1;
+    // string list
+    List<string> names = new List<string>();
     names.add("flint");
     names.add("c");
     names.add("rust");
@@ -28,23 +28,21 @@ int main() {
     print(names.join(","));       // c,flint,rust
     print("\n");
     // int set
-    Hashset seen = new Hashset();
+    HashSet<int> seen = new HashSet<int>();
     printi(seen.add(5));        // 1
     print("\n");
     printi(seen.add(5));        // 0 (duplicate)
     print("\n");
     printi(seen.size());        // 1
     print("\n");
-    // string queue (kind = 1)
-    Queue q = new Queue();
-    q.kind = 1;
+    // string queue
+    Queue<string> q = new Queue<string>();
     q.push("a");
     q.push("b");
     print(q.pop());            // a (FIFO)
     print("\n");
     // map: string key, int value
-    Hashmap scores = new Hashmap();
-    scores.kkind = 1;
+    HashMap<string, int> scores = new HashMap<string, int>();
     scores.put("a", 15);
     scores.put("b", 20);
     printi(scores.get("b"));   // 20

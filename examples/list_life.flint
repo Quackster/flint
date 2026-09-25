@@ -5,9 +5,9 @@
 import std.List;
 int main() {
     // construction: add() one at a time
-    List l = new List();
+    List<int> l = new List<int>();
     l.add(10); l.add(20); l.add(30);
-    List e = new List();
+    List<int> e = new List<int>();
     printi(e.size());             // 0
     print("\n");
     // add / get / set / size
@@ -56,8 +56,7 @@ int main() {
     printi(l.size());         // 0
     print("\n");
     // string elements (kind = 1): sort by content, join verbatim
-    List s = new List();
-    s.kind = 1;
+    List<string> s = new List<string>();
     s.add("b");
     s.add("a");
     s.add("c");
@@ -69,7 +68,7 @@ int main() {
     print(s.join("|"));       // a|b|c
     print("\n");
     // int list
-    List t = new List();
+    List<int> t = new List<int>();
     t.add(7); t.add(8); t.add(9);
     printi(t.size());         // 3
     print("\n");
