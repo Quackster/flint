@@ -1,4 +1,4 @@
-use crate::ast::{BinOp, CollKind, CollItem, Expr, Ty, UnOp};
+use crate::ast::{BinOp, Expr, Ty, UnOp};
 use crate::error::{CompileError, CompileResult};
 use crate::backend::escape::LocalKind;
 use crate::backend::layout;
@@ -293,26 +293,6 @@ impl Ctx<'_> {
             Expr::Index { base, idx, .. } => {
                 let bty = self.gen_expr_ro(base, frame)?;
                 self.gen_expr_ro(idx, frame)?;
-                if bty.coll_kind() == Some(CollKind::List) {
-                    // list[i]: the element flavour follows the collection type
-                    // when typed, else the receiver's declared type
-                    self.emit("\tpop %rsi"); // index
-                    self.emit("\tpop %rdi"); // list
-                    self.emit("\tcall flint_list_get");
-                    if matches!(
-                        self.coll_expect,
-                        Some(Ty::Struct(_)) | Some(Ty::Interface(_))
-                    ) {
-                        self.emit("\tmov %rax, %rdi");
-                        self.emit("\tcall flint_retain"); // caller owns a reference
-                    }
-                    self.emit("\tpush %rax");
-                    let want_str = match self.coll_flags(&bty) {
-                        Some((_, v)) => v == 2,
-                        None => matches!(self.coll_expect, Some(Ty::Str) | Some(Ty::Ptr)),
-                    };
-                    return Ok(if want_str { Ty::Str } else { Ty::Int });
-                }
                 if !matches!(bty, Ty::Ptr | Ty::Str | Ty::Array) {
                     return Err(CompileError::new(
                         e_span(e),
@@ -510,40 +490,6 @@ impl Ctx<'_> {
                 // base is already on the stack — it is the result
                 let _ = span;
                 Ok(Ty::Array)
-            }
-            Expr::CollLit { span, kind, items, .. } => {
-                // outside a typed declaration the kind is inferred: pairs or
-                // an empty {} read as a hashmap, bare elements as a hashset
-                let k = kind.unwrap_or_else(|| {
-                    if items.is_empty()
-                        || items.iter().any(|it| matches!(it, CollItem::Pair(_, _)))
-                    {
-                        CollKind::Map
-                    } else {
-                        CollKind::Set
-                    }
-                });
-                // collection elements share the literal (read-only flavour)
-                let saved = self.str_copy;
-                self.str_copy = false;
-                // infer the element (value, for maps) type from the first item
-                // so the collection owns its object elements (sets elem_release);
-                // unknown / non-object element types fall back to borrowing
-                let ety = match k {
-                    CollKind::Map => items
-                        .iter()
-                        .find_map(|it| if let CollItem::Pair(_, v) = it { Some(v) } else { None }),
-                    _ => items
-                        .iter()
-                        .find_map(|it| if let CollItem::Elem(e) = it { Some(e) } else { None }),
-                }
-                .and_then(|e| self.expr_struct_type(e, frame).ok())
-                .flatten()
-                .map(|i| Ty::Struct(i));
-                let t = self.gen_colllit(k, items, ety, frame)?;
-                self.str_copy = saved;
-                let _ = span;
-                Ok(t)
             }
             Expr::SuperBase { span, .. } => {
                 let c = frame

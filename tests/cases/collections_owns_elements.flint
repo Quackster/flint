@@ -1,28 +1,36 @@
+// Object-element collections (kind = 2) retain on store and release on
+// clear/destroy. A Box that is also held by a local survives the
+// destruction of the collection(s) that retained it, so its destroy()
+// hook (refcount zero) must not have fired.
+import std.List;
+import std.Hashmap;
 class Box {
+    static int destroyed;
     int id;
-    public Box(int i) {
-        this.id = i;
-    }
-
-    public int id() {
-        return this.id;
-    }
+    public Box(int i) { this.id = i; }
+    public int id() { return this.id; }
+    void destroy() { Box.destroyed = Box.destroyed + 1; }
 }
-
 int main() {
     Box a = new Box(1);
     if (1) {
-        list<Box> l = [a];         // standalone literal retains a
-        list<Box> f = [new Box(2)]; // fresh-only object: owned + freed
+        List l = new List();
+        l.kind = 2;
+        l.add(a);                 // retains a
     }
     printi(a.id());
     print("\n");                   // 1: a survived l's destruction
+    printi(Box.destroyed);
+    print("\n");                   // 0: a is still referenced, not destroyed
     if (1) {
-        hashmap<int, Box> m = new hashmap<int, Box>();
+        Hashmap m = new Hashmap();
+        m.vkind = 2;
         m.put(1, a);
-        list v = m.values();       // values() retains a
+        List v = m.values();      // values() retains a
     }
     printi(a.id());
     print("\n");                   // 1: a survived m's and v's destruction
+    printi(Box.destroyed);
+    print("\n");                   // 0: still referenced by main
     return 0;
 }

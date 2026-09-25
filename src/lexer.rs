@@ -171,11 +171,6 @@ impl<'a> Lexer<'a> {
             "char" => Tok::KwChar,
             "boolean" => Tok::KwBoolean,
             "string" => Tok::KwString,
-            "list" => Tok::KwList,
-            "queue" => Tok::KwQueue,
-            "hashmap" => Tok::KwHashMap,
-            "hashset" => Tok::KwHashSet,
-            "dictionary" => Tok::KwDict,
             _ => Tok::Ident(text.to_string()),
         }
     }

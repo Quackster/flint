@@ -44,13 +44,6 @@ impl<'a> Mono<'a> {
                     Ok(Ty::Struct(self.struct_new[idx]))
                 }
             }
-            Ty::Coll(k, args) => {
-                let resolved: Vec<Ty> = args
-                    .iter()
-                    .map(|a| self.resolve_type(a, subst))
-                    .collect::<CompileResult<_>>()?;
-                Ok(Ty::Coll(*k, resolved))
-            }
             other => Ok(other.clone()),
         }
     }

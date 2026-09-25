@@ -1,48 +1,51 @@
-// list_life: the full list lifecycle. Every operation, both flavours
-// (int and string elements), plus construction forms and typed lists.
-// Layout: [rc][len][cap][data ptr][elem_release]; cap grows by doubling.
+// list_life: the full List lifecycle. Every operation, both flavours
+// (int and string elements), built up with add() (the stdlib has no
+// literals — a collection is grown one element at a time).
+// Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/list_life.flint -o list_life
+import std.List;
 int main() {
-    // construction: [] literal and new list()
-    list l = [10, 20, 30];
-    list e = new list();
-    printi(len(e));              // 0
+    // construction: add() one at a time
+    List l = new List();
+    l.add(10); l.add(20); l.add(30);
+    List e = new List();
+    printi(e.size());             // 0
     print("\n");
-    // add / get / index / size
+    // add / get / set / size
     l.add(40);
-    printi(len(l));            // 4
+    printi(l.size());            // 4
     print("\n");
-    printi(l.get(1));         // 20
+    printi(l.get(1));           // 20
     print("\n");
-    l[0] = 99;
-    printi(l[0]);             // 99
+    l.set(0, 99);
+    printi(l.get(0));           // 99
     print("\n");
     // contains: int compare; string content compare
-    printi(l.contains(20));   // 1
+    printi(l.contains(20));     // 1
     print("\n");
-    printi(l.contains(77));   // 0
+    printi(l.contains(77));     // 0
     print("\n");
-    // insert at an index (tail shifts right; i >= len appends)
+    // insert at an index (tail shifts right; i >= size appends)
     l.insert(1, 5);
-    printi(len(l));          // 5
+    printi(l.size());          // 5
     print("\n");
-    printi(l.get(1));       // 5
+    printi(l.get(1));         // 5
     print("\n");
-    printi(l.get(2));       // 20 (was shifted)
+    printi(l.get(2));         // 20 (was shifted)
     print("\n");
-    // remove(i): tail shifts left; no-op when i >= len
+    // remove(i): tail shifts left; no-op when i >= size
     l.remove(0);
-    printi(l.get(0));       // 5
+    printi(l.get(0));         // 5
     print("\n");
-    printi(len(l));         // 4
+    printi(l.size());         // 4
     print("\n");
     // sort (signed int ascending) and reverse
     l.sort();
-    printi(l.get(0));       // 5
+    printi(l.get(0));         // 5
     print("\n");
-    printi(l.get(3));       // 40
+    printi(l.get(3));         // 40
     print("\n");
     l.reverse();
-    printi(l.get(0));       // 40
+    printi(l.get(0));         // 40
     print("\n");
     // join: ints via itoa, strings verbatim
     string j = l.join("-");
@@ -50,10 +53,11 @@ int main() {
     print("\n");
     // clear
     l.clear();
-    printi(len(l));         // 0
+    printi(l.size());         // 0
     print("\n");
-    // string elements: sort by content, join verbatim
-    list<string> s = new list<string>();
+    // string elements (kind = 1): sort by content, join verbatim
+    List s = new List();
+    s.kind = 1;
     s.add("b");
     s.add("a");
     s.add("c");
@@ -64,9 +68,10 @@ int main() {
     s.sort();
     print(s.join("|"));       // a|b|c
     print("\n");
-    // typed list with a constructor seed
-    list<int> t = new list<int>(7, 8, 9);
-    printi(len(t));          // 3
+    // int list
+    List t = new List();
+    t.add(7); t.add(8); t.add(9);
+    printi(t.size());         // 3
     print("\n");
     printi(t.get(2));       // 9
     print("\n");

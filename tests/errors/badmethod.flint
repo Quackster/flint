@@ -1,0 +1,9 @@
+class Box {
+    public Box() {}
+    int id() { return 1; }
+}
+int main() {
+    Box b = new Box();
+    b.nope();
+    return 0;
+}

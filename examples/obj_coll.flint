@@ -1,7 +1,11 @@
-// obj_coll: collections holding class objects refcount their elements
-// (the collection layout carries an elem_release slot). Storing an
-// object retains a reference; destroying the collection releases it,
-// but an object referenced elsewhere survives.
+// obj_coll: collections holding class objects (kind = 2) refcount
+// their elements. Storing an object retains a reference; clearing or
+// destroying the collection releases it, but an object referenced
+// elsewhere survives.
+// Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/obj_coll.flint -o obj_coll
+import std.List;
+import std.Hashmap;
+import std.Queue;
 class Box {
     int n;
     public Box(int x) {
@@ -11,43 +15,46 @@ class Box {
 
 int main() {
     // a list of objects
-    list b = new list();
+    List b = new List();
+    b.kind = 2;
     Box a = new Box(1);
     Box b2 = new Box(2);
     b.add(a);
     b.add(b2);
-    printi(len(b));                 // 2
+    printi(b.size());             // 2
     print("\n");
     // reading back: the collection's reference keeps the object alive
     Box r1 = b.get(0);
-    printi(r1.n);               // 1
+    printi(r1.n);              // 1
     print("\n");
     Box r2 = b.get(1);
-    printi(r2.n);               // 2
+    printi(r2.n);              // 2
     print("\n");
     // the original references still work alongside the collection's
-    printi(a.n);               // 1
+    printi(a.n);              // 1
     print("\n");
-    printi(b2.n);              // 2
+    printi(b2.n);             // 2
     print("\n");
     // a map of objects, keyed by int
-    hashmap m = new hashmap();
+    Hashmap m = new Hashmap();
+    m.vkind = 2;
     m.put(10, new Box(3));
     m.put(20, new Box(4));
-    printi(len(m));                 // 2
+    printi(m.size());             // 2
     print("\n");
     Box v = m.get(20);
-    printi(v.n);               // 4
+    printi(v.n);              // 4
     print("\n");
     // a queue of objects
-    queue q = new queue();
+    Queue q = new Queue();
+    q.kind = 2;
     q.push(new Box(5));
     q.push(new Box(6));
     Box f = q.pop();
-    printi(f.n);               // 5 (FIFO)
+    printi(f.n);              // 5 (FIFO)
     print("\n");
     Box s = q.pop();
-    printi(s.n);               // 6
+    printi(s.n);              // 6
     print("\n");
     return 0;
 }

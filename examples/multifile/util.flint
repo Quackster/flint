@@ -1,26 +1,27 @@
 // multifile/util.flint — a small stats utility in its own package.
 // Compiled together with main.flint (see flint.toml).
 package demo.stats;
+import std.List;
 
 class Stats {
     // Sum of a list of ints.
-    static int sum(list<int> xs) {
+    static int sum(List xs) {
         int s = 0;
         int i = 0;
-        while (i < len(xs)) {
+        while (i < xs.size()) {
             s = s + xs.get(i);
             i = i + 1;
         }
         return s;
     }
     // Largest value (0 for an empty list).
-    static int max(list<int> xs) {
-        if (len(xs) == 0) {
+    static int max(List xs) {
+        if (xs.size() == 0) {
             return 0;
         }
         int m = xs.get(0);
         int i = 1;
-        while (i < len(xs)) {
+        while (i < xs.size()) {
             if (xs.get(i) > m) {
                 m = xs.get(i);
             }
@@ -29,10 +30,10 @@ class Stats {
         return m;
     }
     // Mean (integer division; 0 for an empty list).
-    static int mean(list<int> xs) {
-        if (len(xs) == 0) {
+    static int mean(List xs) {
+        if (xs.size() == 0) {
             return 0;
         }
-        return Stats.sum(xs) / len(xs);
+        return Stats.sum(xs) / xs.size();
     }
 }

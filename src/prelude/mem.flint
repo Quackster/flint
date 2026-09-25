@@ -4,6 +4,8 @@
 //   free(p)          release p (no-op in v1; the process reclaims it at exit)
 //   memcpy(d, s, n)  copy n bytes from s to d
 //   strlen(s) -> int  byte length of a NUL-terminated string
+//   mem.retain(o) -> int  bump the refcount of a class object (o)
+//   mem.release(o)       drop one reference (a plain refcount decrement)
 //
 // Pointers are 64-bit; a buffer from `alloc` is indexed as 8-byte elements:
 //   buf[i]  loads/stores the int at byte offset i*8.

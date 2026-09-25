@@ -1,20 +1,23 @@
-// wordfreq: hashmap as a frequency counter. put inserts or updates;
-// get returns the stored value (0 when absent, or when the value
-// flavour does not match); keys() / values() return fresh lists in
-// insertion order; {k: v} is the map literal.
-int bump(hashmap m, string k) {
+// wordfreq: Hashmap as a frequency counter. put inserts or updates;
+// get returns the stored value (0 when absent); keys() / values()
+// return fresh Lists in insertion order.
+// Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/wordfreq.flint -o wordfreq
+import std.Hashmap;
+import std.List;
+int bump(Hashmap m, string k) {
     int c = m.get(k);
     m.put(k, c + 1);
 }
 
 int main() {
-    hashmap m = new hashmap();
+    Hashmap m = new Hashmap();
+    m.kkind = 1;
     bump(m, "the");
     bump(m, "quick");
     bump(m, "fox");
     bump(m, "the");
     bump(m, "the");
-    printi(len(m));                 // 3 (unique keys)
+    printi(m.size());                 // 3 (unique keys)
     print("\n");
     printi(m.get("the"));          // 3
     print("\n");
@@ -26,17 +29,17 @@ int main() {
     print("\n");
     printi(m.contains("the"));     // 1
     print("\n");
-    // keys() / values(): fresh lists, insertion order
-    list k = m.keys();
-    list v = m.values();
-    printi(len(k) + len(v));        // 6
+    // keys() / values(): fresh Lists, insertion order
+    List k = m.keys();
+    List v = m.values();
+    printi(k.size() + v.size());        // 6
     print("\n");
     // int keys too (a map holds one flavour per entry)
-    hashmap n = new hashmap();
+    Hashmap n = new Hashmap();
     n.put(1, 100);
     n.put(2, 200);
     n.put(1, 150);                 // update, not insert
-    printi(len(n));               // 2
+    printi(n.size());             // 2
     print("\n");
     printi(n.get(1));             // 150
     print("\n");
@@ -45,17 +48,20 @@ int main() {
     n.remove(1);
     printi(n.get(1));             // 0 (removed)
     print("\n");
-    printi(len(n));               // 1
+    printi(n.size());             // 1
     print("\n");
-    // map literal construction
-    hashmap lit = {1: "a", 2: "b"};
-    printi(len(lit));            // 2
+    // built up with put() (no literals in the stdlib world)
+    Hashmap lit = new Hashmap();
+    lit.vkind = 1;
+    lit.put(1, "a");
+    lit.put(2, "b");
+    printi(lit.size());            // 2
     print("\n");
-    print(lit.get(2));            // b
+    print(lit.getStr(2));          // b
     print("\n");
     // clear
     n.clear();
-    printi(len(n));               // 0
+    printi(n.size());             // 0
     print("\n");
     return 0;
 }

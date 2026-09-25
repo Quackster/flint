@@ -15,9 +15,9 @@
 <div class="nav-section"><div class="nav-title">Getting started</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#index">Overview</a></li><li><a href="#getting-started">Getting started</a></li><li><a href="#compiler">The toolchain</a></li><li><a href="#modules">Modules & multi-file</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#exceptions">Exceptions</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#event-handlers">Event handlers (+=)</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#collections">Collections overview</a></li><li><a href="#coll-list">list</a></li><li><a href="#coll-queue">queue</a></li><li><a href="#coll-hashset">hashset</a></li><li><a href="#coll-hashmap">hashmap</a></li><li><a href="#coll-dictionary">dictionary</a></li><li><a href="#coll-typed">Typed elements</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#std-coll">Collections (stdlib)</a></li><li><a href="#coll-list">List</a></li><li><a href="#coll-queue">Queue</a></li><li><a href="#coll-hashset">Hashset</a></li><li><a href="#coll-hashmap">Hashmap</a></li><li><a href="#coll-flavour">The kind field</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-task">Task</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li><li><a href="#std-window">Window</a></li><li><a href="#std-app">App</a></li><li><a href="#std-widget">Widget</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Standard library</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#std-math">Math</a></li><li><a href="#std-sort">Sort</a></li><li><a href="#std-bit">Bit</a></li><li><a href="#std-num">Num</a></li><li><a href="#std-file">File</a></li><li><a href="#std-path">Path</a></li><li><a href="#std-checksum">Checksum</a></li><li><a href="#std-rand">Rand</a></li><li><a href="#std-str">Str</a></li><li><a href="#std-time">Time</a></li><li><a href="#std-image">Image</a></li><li><a href="#std-thread">Thread</a></li><li><a href="#std-task">Task</a></li><li><a href="#std-socket">Socket</a></li><li><a href="#std-sync">Sync</a></li><li><a href="#std-mem">Mem</a></li><li><a href="#std-coll">Collection</a></li><li><a href="#std-window">Window</a></li><li><a href="#std-app">App</a></li><li><a href="#std-widget">Widget</a></li></ul></div>
 </nav>
 <main class="main">
 <section id="index" class="doc-section" data-label="Overview">
@@ -51,10 +51,10 @@ properties, statics, and enums.</p></div>
 <div class="card"><a class="title" href="generics.html">Generics</a>
 <p>Generic classes with type inference and explicit instantiation
 (<code>Vessel&lt;Pair&lt;int,int&gt;&gt;</code>).</p></div>
-<div class="card"><a class="title" href="collections.html">Collections</a>
-<p>Generic <code>list</code>, <code>queue</code>, <code>hashset</code>,
-<code>hashmap</code>, and <code>dictionary</code> with int, string, and object
-elements.</p></div>
+<div class="card"><a class="title" href="std-coll.html">Collections</a>
+<p>Stdlib classes <code>List</code>, <code>Queue</code>,
+<code>Hashset</code>, and <code>Hashmap</code> over a shared
+<code>Collection</code> base, with int, string, and object elements.</p></div>
 <div class="card"><a class="title" href="memory.html">Raw memory</a>
 <p>Escape analysis, <code>alloc</code>/<code>free</code>, raw pointers,
 sized load/store, and direct syscalls.</p></div>
@@ -155,34 +155,33 @@ four stages, then the system assembler and linker finish the job:</p>
 <li><b>lexer</b> — tokens (keywords, literals, operators, labels).</li>
 <li><b>parser</b> — an AST of types, classes, and statements.</li>
 <li><b>monomorphize</b> — instantiates generic classes for each concrete
-type argument (this is how <code>list&lt;int&gt;</code> and
-<code>list&lt;string&gt;</code> become distinct code).</li>
+type argument (this is how <code>Vessel&lt;int&gt;</code> and
+<code>Vessel&lt;string&gt;</code> become distinct code).</li>
 <li><b>codegen</b> — emits x86-64 assembly plus the runtime.</li>
 </ul>
 
 <h2>Assemble &amp; link</h2>
-<p>Codegen writes a <code>.s</code> file that is <em>concatenated</em> with two
-assembled runtime objects and linked into a freestanding binary. The entry point
+<p>Codegen writes a <code>.s</code> file that is <em>concatenated</em> with one
+assembled runtime object and linked into a freestanding binary. The entry point
 is forced to <code>_start</code> (there is no C runtime):</p>
 <div class="code"><div class="head"><span>under the hood</span></div>
 <pre><code class="flint">user.s      (your program + generated code)
 intrinsic.s (the Flint runtime: memory, syscalls, objects)
-collection.s (the collection runtime: list, queue, hashset, hashmap)
         │
         ├── as user.s      -o user.o
         ├── as intrinsic.s -o intrinsic.o
-        ├── as collection.s -o collection.o
-        └── ld -e _start user.o intrinsic.o collection.o -o out
+        └── ld -e _start user.o intrinsic.o -o out
 </code></pre></div>
 
 <h2>The runtime</h2>
-<p>Two flat-assembly files are linked into every binary:</p>
+<p>One flat-assembly file is linked into every binary:</p>
 <ul>
 <li><b><code>intrinsic.s</code></b> — <code>alloc</code>/<code>free</code>,
-retain/release, <code>memcpy</code>, the syscall bridge, per-class object
-destructors, and thread/mutex primitives.</li>
-<li><b><code>collection.s</code></b> — the runtime for the generic collections
-(list, queue, hashset, hashmap) including their element-release hooks.</li>
+retain/release (<code>mem.retain</code> / <code>mem.release</code>),
+<code>memcpy</code>, the syscall bridge, per-class object destructors
+(including the <code>destroy()</code> hook), and thread/mutex primitives.
+There is no separate collection runtime: the stdlib collections are ordinary
+classes compiled from <code>src/stdlib/coll.flint</code>.</li>
 </ul>
 <p>Because the runtime is static and small, a "hello world" binary is fully
 self-contained: no shared libraries, no interpreter, no install step.</p>
@@ -205,12 +204,13 @@ with <code>main</code>) has <em>no</em> package header. A file in another
 package is pulled in with <code>import</code> of the fully-qualified class:</p>
 <div class="code"><div class="head"><span>util.flint</span></div>
 <pre><code class="flint">package demo.stats;
+import std.List;
 
 class Stats {
-    static int sum(list&lt;int&gt; xs) {
+    static int sum(List xs) {
         int s = 0;
         int i = 0;
-        while (i &lt; len(xs)) {
+        while (i &lt; xs.size()) {
             s = s + xs.get(i);
             i = i + 1;
         }
@@ -219,9 +219,10 @@ class Stats {
 }</code></pre></div>
 <div class="code"><div class="head"><span>main.flint</span></div>
 <pre><code class="flint">import demo.stats.Stats;
+import std.List;
 
 int main() {
-    list&lt;int&gt; xs = new list&lt;int&gt;();
+    List xs = new List();
     xs.add(4);
     xs.add(9);
     printi(Stats.sum(xs));
@@ -248,12 +249,16 @@ $ flintc --dir myproject -o app
 
 <h2>Worked example</h2>
 <p>The <code>examples/multifile</code> project — a <code>Stats</code> class in
-<code>package demo.stats</code> plus an entry point that imports it:</p>
+<code>package demo.stats</code> plus an entry point that imports it. Both files
+use <code>std.List</code>, so the stdlib sources are part of the build (the
+<code>flint.toml</code> manifest lists them as
+<code>../../src/stdlib/*.flint</code>):</p>
 <div class="code"><div class="head"><span>examples/multifile/main.flint</span></div>
 <pre><code class="flint">import demo.stats.Stats;
+import std.List;
 
 int main() {
-    list&lt;int&gt; xs = new list&lt;int&gt;();
+    List xs = new List();
     xs.add(4);
     xs.add(9);
     xs.add(1);
@@ -263,7 +268,7 @@ int main() {
     printi(Stats.mean(xs)); print("\n"); // 5
     return 0;
 }</code></pre></div>
-<div class="output"><span class="lbl">output (dir, manifest — identical)</span>21 9 5</div>
+<div class="output"><span class="lbl">output (positional, manifest — identical)</span>21 9 5</div>
 </section>
 <section id="types" class="doc-section" data-label="Types & literals">
 <div class="page-head"><h1>Types &amp; literals</h1>
@@ -1482,9 +1487,11 @@ hi
 <code>Vessel&lt;Pair&lt;int, int&gt;&gt;</code> — a generic holding another
 generic instance.</li>
 </ul>
-<p>The same mechanism drives the generic
-<a href="collections.html">collections</a>
-(<code>list&lt;int&gt;</code>, <code>list&lt;string&gt;</code>, etc.).</p>
+<p>The stdlib collections are <em>not</em> generic: rather than being
+monomorphized per element type, <code>List</code> / <code>Queue</code> /
+<code>Hashset</code> / <code>Hashmap</code> store raw 8-byte slots and
+select the flavour at runtime via the <code>kind</code> field — see
+<a href="#std-coll">Collections</a>.</p>
 </section>
 <section id="memory" class="doc-section" data-label="Memory model">
 <div class="page-head"><h1>Memory model</h1>
@@ -1847,112 +1854,116 @@ format; <code>math.ftoi</code> lowers it (rounding half-up).
 builds on these builtins (<code>fround</code>, <code>fceil</code>,
 <code>ffloor</code>, <code>fsqrt</code>, …).</p>
 </section>
-<section id="collections" class="doc-section" data-label="Collections overview">
-<div class="page-head"><h1>Collections overview</h1>
-<p class="lede">Five generic collections, each monomorphized per element
-type: <code>list</code>, <code>queue</code>, <code>hashset</code>,
-<code>hashmap</code>, and <code>dictionary</code> (an alias of
-<code>hashmap</code>).</p></div>
+<section id="std-coll" class="doc-section" data-label="Collections (std)">
+<div class="page-head"><h1>Standard library: collections</h1>
+<p class="lede">Four stdlib classes — <code>List</code>,
+<code>Queue</code>, <code>Hashset</code>, and <code>Hashmap</code> —
+over a shared <code>abstract class Collection</code>. Each collection
+pins its element flavour in a <code>kind</code> field
+(<code>Hashmap</code> has <code>kkind</code> / <code>vkind</code>), so
+there are no built-in collection types: a collection is just a class you
+<code>import</code> and grow one element at a time.</p></div>
 
 <h2>The family</h2>
 <table>
-<tr><th>Type</th><th>Shape</th><th>Element types</th></tr>
-<tr><td><code>list&lt;T&gt;</code></td><td>growable ordered sequence</td>
-<td>int, string, object</td></tr>
-<tr><td><code>queue&lt;T&gt;</code></td><td>FIFO ring buffer</td>
-<td>int, string, object</td></tr>
-<tr><td><code>hashset&lt;T&gt;</code></td><td>unique set</td>
-<td>int, string, object</td></tr>
-<tr><td><code>hashmap&lt;K, V&gt;</code></td><td>key → value</td>
-<td>int/string keys; int/string values</td></tr>
-<tr><td><code>dictionary&lt;K, V&gt;</code></td><td>key → value (alias of
-hashmap)</td><td>as hashmap</td></tr>
+<tr><th>Class</th><th>Shape</th><th>Flavour field(s)</th></tr>
+<tr><td><code>List</code></td><td>growable ordered sequence</td>
+<td><code>kind</code></td></tr>
+<tr><td><code>Queue</code></td><td>FIFO ring buffer</td>
+<td><code>kind</code></td></tr>
+<tr><td><code>Hashset</code></td><td>unique set</td>
+<td><code>kind</code></td></tr>
+<tr><td><code>Hashmap</code></td><td>key → value</td>
+<td><code>kkind</code>, <code>vkind</code></td></tr>
 </table>
 
-<h2>Two flavours</h2>
-<ul>
-<li><b>Untyped</b> (e.g. <code>list l = [1,2,3]</code>,
-<code>new hashmap()</code>): the element flavour is inferred from usage.
-<code>len(x)</code> gives the size; <code>get</code> returns the stored
-flavour, or <code>0</code>/<code>null</code> on a mismatch/absent key.</li>
-<li><b>Typed</b> (e.g. <code>list&lt;int&gt;</code>,
-<code>hashmap&lt;string, int&gt;</code>): the element flavour is pinned at
-the type. A mismatched read returns <code>0</code>. See
-<a href="coll-typed.html">Typed elements</a>.</li>
-</ul>
+<h2>One flavour per collection</h2>
+<p>Each collection stores raw 8-byte slots. The <code>kind</code> field
+(0 = int, 1 = string, 2 = object) is set once after
+<code>new</code> and drives hashing, compare, sort, <code>join</code>,
+and the retain/release of object elements. <code>get</code> /
+<code>pop</code> return the raw slot value (an <code>int</code>); use the
+<code>getStr</code> accessor when the slots hold strings. Object
+elements are refcounted — storing retains, clearing / destroying
+releases — see <a href="#coll-objects">Object elements</a>.</p>
 
 <h2>Common API</h2>
-<p>All collections support <code>len(x)</code> (size), <code>clear()</code>,
-and <code>contains(…)</code>. Construction is by
-<code>new T()</code>, a literal (<code>[1,2,3]</code>, <code>{1:"a"}</code>,
-<code>{3,4}</code>), or a seeded
-<code>new T(a, b, c)</code>. Objects stored in collections are
-refcounted — see <a href="coll-objects.html">Object elements</a>.</p>
+<p>Every collection inherits <code>size()</code> and <code>clear()</code>
+from <code>Collection</code>, and most support <code>contains(…)</code>.
+There are no literals: build a collection with
+<code>new T()</code> and then <code>add</code> / <code>put</code> /
+<code>push</code> one element at a time.</p>
 <p>Per-type pages:
-<a href="coll-list.html">list</a> ·
-<a href="coll-queue.html">queue</a> ·
-<a href="coll-hashset.html">hashset</a> ·
-<a href="coll-hashmap.html">hashmap</a> ·
-<a href="coll-dictionary.html">dictionary</a> ·
-<a href="coll-typed.html">typed elements</a> ·
-<a href="coll-objects.html">object elements</a></p>
+<a href="#coll-list">List</a> ·
+<a href="#coll-queue">Queue</a> ·
+<a href="#coll-hashset">Hashset</a> ·
+<a href="#coll-hashmap">Hashmap</a> ·
+<a href="#coll-objects">object elements</a></p>
 </section>
-<section id="coll-list" class="doc-section" data-label="list">
-<div class="page-head"><h1><code>list</code></h1>
-<p class="lede">A growable ordered sequence. Layout:
-<code>[rc][len][cap][data ptr][elem_release]</code>; <code>cap</code> grows
-by doubling.</p></div>
+<section id="coll-list" class="doc-section" data-label="List">
+<div class="page-head"><h1><code>List</code></h1>
+<p class="lede">A growable ordered sequence. <code>cap</code> grows by
+doubling. The element flavour is <code>kind</code> (0 int, 1 string,
+2 object).</p></div>
 
 <h2>API</h2>
 <table>
 <tr><th>Method</th><th>Behaviour</th></tr>
 <tr><td><code>add(v)</code></td><td>append</td></tr>
-<tr><td><code>get(i)</code> / <code>x[i]</code></td><td>read (and write, for
-<code>x[i]</code>) by index</td></tr>
+<tr><td><code>get(i)</code></td><td>read the slot by index (raw value;
+object elements get a retained reference)</td></tr>
+<tr><td><code>getStr(i)</code></td><td>read the slot as a
+<code>string</code> (for <code>kind == 1</code>)</td></tr>
+<tr><td><code>set(i, v)</code></td><td>write a slot (releases the
+displaced element, retains <code>v</code>)</td></tr>
 <tr><td><code>contains(v)</code></td><td>int compare; string content
 compare</td></tr>
 <tr><td><code>insert(i, v)</code></td><td>insert at index (tail shifts
-right; <code>i &gt;= len</code> appends)</td></tr>
+right; <code>i &gt;= size</code> appends)</td></tr>
 <tr><td><code>remove(i)</code></td><td>remove at index (tail shifts left;
-no-op when <code>i &gt;= len</code>)</td></tr>
+no-op when <code>i &gt;= size</code>)</td></tr>
 <tr><td><code>sort()</code></td><td>signed int ascending (string by
 content)</td></tr>
 <tr><td><code>reverse()</code></td><td>reverse in place</td></tr>
 <tr><td><code>join(sep)</code></td><td>ints via itoa, strings verbatim</td></tr>
-<tr><td><code>clear()</code></td><td>empty the list</td></tr>
+<tr><td><code>size()</code> / <code>clear()</code></td><td>length / empty
+the list</td></tr>
 </table>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/list_life.flint (selected)</span></div>
-<pre><code class="flint">int main() {
-    list l = [10, 20, 30];        // literal construction
-    list e = new list();
-    printi(len(e));              // 0
+<pre><code class="flint">import std.List;
+int main() {
+    List l = new List();
+    l.add(10); l.add(20); l.add(30);
+    List e = new List();
+    printi(e.size());             // 0
     l.add(40);
-    printi(len(l));            // 4
-    printi(l.get(1));         // 20
-    l[0] = 99;
-    printi(l[0]);             // 99
-    printi(l.contains(20));   // 1
-    printi(l.contains(77));   // 0
+    printi(l.size());            // 4
+    printi(l.get(1));           // 20
+    l.set(0, 99);
+    printi(l.get(0));           // 99
+    printi(l.contains(20));     // 1
+    printi(l.contains(77));     // 0
     l.insert(1, 5);
-    printi(len(l));          // 5
-    printi(l.get(1));       // 5
-    printi(l.get(2));       // 20 (was shifted)
+    printi(l.size());          // 5
+    printi(l.get(1));         // 5
+    printi(l.get(2));         // 20 (was shifted)
     l.remove(0);
-    printi(l.get(0));       // 5
-    printi(len(l));         // 4
+    printi(l.get(0));         // 5
+    printi(l.size());         // 4
     l.sort();
-    printi(l.get(0));       // 5
-    printi(l.get(3));       // 40
+    printi(l.get(0));         // 5
+    printi(l.get(3));         // 40
     l.reverse();
-    printi(l.get(0));       // 40
+    printi(l.get(0));         // 40
     string j = l.join("-");
     print(j);               // 40-30-20-5
     l.clear();
-    printi(len(l));         // 0
-    // string elements: sort by content, join verbatim
-    list&lt;string&gt; s = new list&lt;string&gt;();
+    printi(l.size());         // 0
+    // string elements (kind = 1): sort by content, join verbatim
+    List s = new List();
+    s.kind = 1;
     s.add("b");
     s.add("a");
     s.add("c");
@@ -1960,9 +1971,9 @@ content)</td></tr>
     printi(s.contains("z"));   // 0
     s.sort();
     print(s.join("|"));       // a|b|c
-    // typed list with a constructor seed
-    list&lt;int&gt; t = new list&lt;int&gt;(7, 8, 9);
-    printi(len(t));          // 3
+    List t = new List();
+    t.add(7); t.add(8); t.add(9);
+    printi(t.size());         // 3
     printi(t.get(2));       // 9
     return 0;
 }</code></pre></div>
@@ -1988,10 +1999,11 @@ a|b|c
 3
 9</div>
 </section>
-<section id="coll-queue" class="doc-section" data-label="queue">
-<div class="page-head"><h1><code>queue</code></h1>
-<p class="lede">A FIFO ring buffer (head / cap-mask layout).
-<code>push</code> enqueues at the tail (doubling when full);
+<section id="coll-queue" class="doc-section" data-label="Queue">
+<div class="page-head"><h1><code>Queue</code></h1>
+<p class="lede">A FIFO ring buffer over a growable slot array
+(<code>kind</code> selects the element flavour). <code>push</code>
+enqueues at the tail (doubling when full);
 <code>pop</code>/<code>peek</code> return the front value, or
 <code>0</code> when empty.</p></div>
 
@@ -2003,39 +2015,42 @@ a|b|c
 (<code>0</code> when empty)</td></tr>
 <tr><td><code>peek()</code></td><td>return the front without removing
 (<code>0</code> when empty)</td></tr>
+<tr><td><code>size()</code></td><td>number of queued elements</td></tr>
 <tr><td><code>clear()</code></td><td>empty the queue</td></tr>
-<tr><td><code>len(q)</code></td><td>size</td></tr>
 </table>
-<p>Construction: <code>new queue()</code> or
-<code>new queue(a, b, c)</code> with initial elements.</p>
+<p>Construction: <code>new Queue()</code>, then <code>push</code> one
+element at a time.</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/queue_handoff.flint (selected)</span></div>
-<pre><code class="flint">int next_cmd(queue q) {
+<pre><code class="flint">import std.Queue;
+int next_cmd(Queue q) {
     return q.pop();
 }
 
 int main() {
-    queue q = new queue(10, 20, 30);
-    printi(len(q));             // 3
-    printi(q.peek());         // 10
-    printi(q.pop());          // 10
-    printi(q.pop());          // 20
+    Queue q = new Queue();
+    q.push(10); q.push(20); q.push(30);
+    printi(q.size());             // 3
+    printi(q.peek());           // 10
+    printi(q.pop());           // 10
+    printi(q.pop());           // 20
     q.push(40);
-    printi(q.peek());         // 30
-    printi(len(q));          // 2
-    q.pop();                  // 30
-    q.pop();                  // 40
-    printi(q.pop());         // 0 (empty)
-    printi(q.peek());         // 0 (empty)
+    printi(q.peek());           // 30
+    printi(q.size());          // 2
+    q.pop();                   // 30
+    q.pop();                   // 40
+    printi(q.pop());           // 0 (empty)
+    printi(q.peek());           // 0 (empty)
     // a producer/consumer hand-off through a function
-    queue jobs = new queue();
+    Queue jobs = new Queue();
     jobs.push(111);
     jobs.push(222);
     printi(next_cmd(jobs));   // 111 (consumed in FIFO order)
     printi(next_cmd(jobs));   // 222
-    // string elements
-    queue&lt;string&gt; names = new queue&lt;string&gt;();
+    // string elements (kind = 1)
+    Queue names = new Queue();
+    names.kind = 1;
     names.push("in");
     names.push("out");
     string n1 = names.pop();
@@ -2044,7 +2059,7 @@ int main() {
     print(" ");
     print(n2);               // out
     jobs.clear();
-    printi(len(jobs));       // 0
+    printi(jobs.size());     // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>3
@@ -2060,13 +2075,13 @@ int main() {
 in out
 0</div>
 </section>
-<section id="coll-hashset" class="doc-section" data-label="hashset">
-<div class="page-head"><h1><code>hashset</code></h1>
-<p class="lede">A unique set. <code>add</code> returns <code>1</code> when
-inserted and <code>0</code> when already present; <code>contains</code>
-matches by value (string content compare); <code>remove</code> leaves a
-tombstone; the bucket array rehashes (doubles) when
-<code>count*2 &gt;= cap</code>.</p></div>
+<section id="coll-hashset" class="doc-section" data-label="Hashset">
+<div class="page-head"><h1><code>Hashset</code></h1>
+<p class="lede">A unique set (<code>kind</code> selects the element
+flavour). <code>add</code> returns <code>1</code> when inserted and
+<code>0</code> when already present; <code>contains</code> matches by
+value (string content compare); <code>remove</code> leaves a tombstone;
+the bucket array rehashes (doubles) when the load factor is reached.</p></div>
 
 <h2>API</h2>
 <table>
@@ -2075,47 +2090,52 @@ tombstone; the bucket array rehashes (doubles) when
 <code>0</code> if present</td></tr>
 <tr><td><code>contains(v)</code></td><td>value (or content) match</td></tr>
 <tr><td><code>remove(v)</code></td><td>remove; leaves a tombstone</td></tr>
-<tr><td><code>len(s)</code></td><td>size</td></tr>
+<tr><td><code>size()</code></td><td>number of distinct elements</td></tr>
 <tr><td><code>clear()</code></td><td>empty the set</td></tr>
 </table>
-<p>Construction: <code>new hashset()</code> or a literal
-<code>{3, 4}</code>.</p>
+<p>Construction: <code>new Hashset()</code>, then <code>add</code> one
+element at a time (set <code>kind = 1</code> for strings,
+<code>kind = 2</code> for objects).</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/wordset.flint (selected)</span></div>
-<pre><code class="flint">int main() {
-    hashset s = new hashset();
+<pre><code class="flint">import std.Hashset;
+int main() {
+    Hashset s = new Hashset();
     printi(s.add(5));        // 1 (inserted)
     printi(s.add(10));      // 1
     printi(s.add(15));      // 1
     printi(s.add(10));      // 0 (already present)
-    printi(len(s));        // 3
-    printi(s.contains(10));  // 1
-    printi(s.contains(99));  // 0
+    printi(s.size());       // 3
+    printi(s.contains(10)); // 1
+    printi(s.contains(99)); // 0
     // remove (tombstone) then re-add
     printi(s.remove(10));   // 1 (removed)
-    printi(s.contains(10));  // 0
-    printi(len(s));        // 2
+    printi(s.contains(10)); // 0
+    printi(s.size());       // 2
     printi(s.add(10));      // 1 (re-inserted over the tombstone slot)
-    printi(len(s));        // 3
-    // string elements: content dedup of a word stream
-    hashset&lt;string&gt; words = new hashset&lt;string&gt;();
+    printi(s.size());       // 3
+    // string elements (kind = 1): content dedup of a word stream
+    Hashset words = new Hashset();
+    words.kind = 1;
     words.add("the");
     words.add("quick");
     words.add("brown");
     words.add("fox");
-    words.add("the");         // duplicate
-    words.add("quick");       // duplicate
-    printi(len(words));       // 4 (unique)
-    printi(words.contains("fox"));    // 1
-    printi(words.contains("dog"));    // 0
-    // literal construction
-    hashset lit = {3, 4};
-    printi(len(lit));        // 2
+    words.add("the");        // duplicate
+    words.add("quick");      // duplicate
+    printi(words.size());     // 4 (unique)
+    printi(words.contains("fox")); // 1
+    printi(words.contains("dog")); // 0
+    // built up with add() (no literals in the stdlib world)
+    Hashset lit = new Hashset();
+    lit.add(3);
+    lit.add(4);
+    printi(lit.size());        // 2
     printi(lit.contains(4));  // 1
     s.clear();
     words.clear();
-    printi(len(s) + len(words));  // 0
+    printi(s.size() + words.size()); // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>1
@@ -2137,70 +2157,81 @@ tombstone; the bucket array rehashes (doubles) when
 1
 0</div>
 </section>
-<section id="coll-hashmap" class="doc-section" data-label="hashmap">
-<div class="page-head"><h1><code>hashmap</code></h1>
-<p class="lede">A key → value map. <code>put</code> inserts or updates;
-<code>get</code> returns the stored value (<code>0</code> when absent, or
-when the value flavour does not match); <code>keys()</code> /
-<code>values()</code> return fresh lists in insertion order;
-<code>{k: v}</code> is the map literal.</p></div>
+<section id="coll-hashmap" class="doc-section" data-label="Hashmap">
+<div class="page-head"><h1><code>Hashmap</code></h1>
+<p class="lede">A key → value map. <code>kkind</code> and
+<code>vkind</code> pin the key and value flavours (0 int, 1 string,
+2 object). <code>put</code> inserts or updates; <code>get</code>
+returns the raw stored value (<code>0</code> when absent) — use
+<code>getStr</code> for string values; <code>keys()</code> /
+<code>values()</code> return fresh <code>List</code>s in insertion
+order.</p></div>
 
 <h2>API</h2>
 <table>
 <tr><th>Method</th><th>Behaviour</th></tr>
 <tr><td><code>put(k, v)</code></td><td>insert or update</td></tr>
-<tr><td><code>get(k)</code></td><td>stored value; <code>0</code>/<code>null</code>
-when absent or flavour-mismatched</td></tr>
+<tr><td><code>get(k)</code></td><td>raw stored value; <code>0</code> when
+absent</td></tr>
+<tr><td><code>getStr(k)</code></td><td>stored value as a
+<code>string</code> (for <code>vkind == 1</code>)</td></tr>
 <tr><td><code>contains(k)</code></td><td>key present</td></tr>
 <tr><td><code>remove(k)</code></td><td>remove a key</td></tr>
-<tr><td><code>keys()</code> / <code>values()</code></td><td>fresh lists,
-insertion order</td></tr>
-<tr><td><code>len(m)</code> / <code>clear()</code></td><td>size / empty</td></tr>
+<tr><td><code>keys()</code> / <code>values()</code></td><td>fresh
+<code>List</code>s, insertion order</td></tr>
+<tr><td><code>size()</code> / <code>clear()</code></td><td>size / empty</td></tr>
 </table>
-<p>Construction: <code>new hashmap()</code> or a literal
-<code>{1: "a", 2: "b"}</code>. A map holds one flavour per entry.</p>
+<p>Construction: <code>new Hashmap()</code>; set <code>kkind</code> /
+<code>vkind</code> before use, then <code>put</code> one entry at a
+time. A map holds one flavour per key and one per value.</p>
 
 <h2>Example — frequency counter</h2>
 <div class="code"><div class="head"><span>examples/wordfreq.flint (selected)</span></div>
-<pre><code class="flint">int bump(hashmap m, string k) {
+<pre><code class="flint">import std.Hashmap;
+import std.List;
+int bump(Hashmap m, string k) {
     int c = m.get(k);
     m.put(k, c + 1);
 }
 
 int main() {
-    hashmap m = new hashmap();
+    Hashmap m = new Hashmap();
+    m.kkind = 1;
     bump(m, "the");
     bump(m, "quick");
     bump(m, "fox");
     bump(m, "the");
     bump(m, "the");
-    printi(len(m));                 // 3 (unique keys)
+    printi(m.size());                 // 3 (unique keys)
     printi(m.get("the"));          // 3
     printi(m.get("quick"));        // 1
     printi(m.get("fox"));          // 1
     printi(m.get("dog"));          // 0 (absent)
     printi(m.contains("the"));     // 1
-    // keys() / values(): fresh lists, insertion order
-    list k = m.keys();
-    list v = m.values();
-    printi(len(k) + len(v));        // 6
+    // keys() / values(): fresh Lists, insertion order
+    List k = m.keys();
+    List v = m.values();
+    printi(k.size() + v.size());        // 6
     // int keys too (a map holds one flavour per entry)
-    hashmap n = new hashmap();
+    Hashmap n = new Hashmap();
     n.put(1, 100);
     n.put(2, 200);
     n.put(1, 150);                 // update, not insert
-    printi(len(n));               // 2
+    printi(n.size());             // 2
     printi(n.get(1));             // 150
     printi(n.get(2));             // 200
     n.remove(1);
     printi(n.get(1));             // 0 (removed)
-    printi(len(n));               // 1
-    // map literal construction
-    hashmap lit = {1: "a", 2: "b"};
-    printi(len(lit));            // 2
-    print(lit.get(2));            // b
+    printi(n.size());             // 1
+    // built up with put() (no literals in the stdlib world)
+    Hashmap lit = new Hashmap();
+    lit.vkind = 1;
+    lit.put(1, "a");
+    lit.put(2, "b");
+    printi(lit.size());            // 2
+    print(lit.getStr(2));          // b
     n.clear();
-    printi(len(n));               // 0
+    printi(n.size());             // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>3
@@ -2219,107 +2250,74 @@ int main() {
 b
 0</div>
 </section>
-<section id="coll-dictionary" class="doc-section" data-label="dictionary">
-<div class="page-head"><h1><code>dictionary</code></h1>
-<p class="lede"><code>dictionary</code> is an alias of
-<code>hashmap</code> — same API, different name. The usual
-settings-table shape is string keys mapped to string values.</p></div>
+<section id="coll-flavour" class="doc-section" data-label="The kind field">
+<div class="page-head"><h1>The <code>kind</code> field</h1>
+<p class="lede">A stdlib collection has one flavour per collection,
+selected by a field: <code>kind</code> on <code>List</code> /
+<code>Queue</code> / <code>Hashset</code>, and <code>kkind</code> /
+<code>vkind</code> on <code>Hashmap</code>. Set it once right after
+<code>new</code> — it is read on every <code>add</code> /
+<code>put</code> / <code>sort</code> / <code>join</code> /
+<code>contains</code>.</p></div>
 
-<h2>Example</h2>
-<div class="code"><div class="head"><span>examples/config.flint</span></div>
-<pre><code class="flint">class Config {
-    dictionary table;
-    public Config() {
-        this.table = new dictionary();
-    }
-    public string get(string key, string dflt) {
-        string v = this.table.get(key);
-        if (v == null) {
-            return dflt;
-        }
-        return v;
-    }
-    public void set(string key, string v) {
-        this.table.put(key, v);
-    }
-}
+<table>
+<tr><th><code>kind</code></th><th>Slot holds</th><th>Hash / compare</th>
+<th>Join</th></tr>
+<tr><td><code>0</code></td><td>an int</td><td>int</td><td>itoa</td></tr>
+<tr><td><code>1</code></td><td>a NUL-terminated string pointer</td>
+<td>string content</td><td>verbatim</td></tr>
+<tr><td><code>2</code></td><td>an object reference (retained)</td>
+<td>object identity</td><td>—</td></tr>
+</table>
 
-int main() {
-    Config c = new Config();
-    c.set("host", "localhost");
-    c.set("port", "8080");
-    c.set("debug", "1");
-    printi(len(c.table));         // 3
-    print(c.get("host", "?"));   // localhost
-    print(c.get("port", "?"));   // 8080
-    print(c.get("missing", "dflt"));  // dflt (get returns 0 -&gt; default)
-    c.set("debug", "0");        // update over an existing key
-    print(c.get("debug", "?"));  // 0
-    printi(c.table.contains("port"));   // 1
-    c.table.remove("host");
-    printi(c.table.contains("host"));   // 0
-    printi(len(c.table));         // 2
-    return 0;
-}</code></pre></div>
-<div class="output"><span class="lbl">output</span>3
-localhost
-8080
-dflt
-0
-1
-0
-2</div>
-<p>Because <code>dictionary.get</code> returns <code>null</code> for an absent
-key (string flavour), the wrapper falls back to a default
-(<code>"dflt"</code>). Note the update-over-existing-key
-(<code>c.set("debug","0")</code>), the <code>contains</code> check, and
-<code>remove</code> shrinking the size to <code>2</code>.</p>
-</section>
-<section id="coll-typed" class="doc-section" data-label="Typed elements">
-<div class="page-head"><h1>Typed elements</h1>
-<p class="lede">Typed collections pin the element flavour at the type:
-<code>list&lt;int&gt;</code>, <code>list&lt;string&gt;</code>,
-<code>hashmap&lt;K, V&gt;</code>, <code>hashset&lt;T&gt;</code>,
-<code>queue&lt;T&gt;</code>. A typed read uses the type's flavour; a
-mismatched <code>get</code> returns <code>0</code>.</p></div>
+<p>Because <code>get</code> / <code>pop</code> return the raw slot as an
+<code>int</code>, the flavour does not gate a read: store strings with
+<code>kind = 1</code> and read them back through <code>getStr</code> (or
+assign the <code>int</code> to a <code>string</code> variable and use it
+directly). Object elements (<code>kind = 2</code>) are retained on store
+and released on <code>clear</code> / destroy — see
+<a href="#coll-objects">Object elements</a>.</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/typed_coll.flint</span></div>
-<pre><code class="flint">int main() {
-    // seeded typed list
-    list&lt;int&gt; t = new list&lt;int&gt;(7, 8, 9);
-    printi(len(t));                // 3
+<pre><code class="flint">import std.List;
+import std.Queue;
+import std.Hashset;
+import std.Hashmap;
+int main() {
+    // int list (kind defaults to 0)
+    List t = new List();
+    t.add(7); t.add(8); t.add(9);
+    printi(t.size());             // 3
     printi(t.get(2));            // 9
     t.add(10);
     printi(t.get(3));           // 10
-    // typed string list
-    list&lt;string&gt; names = new list&lt;string&gt;();
+    // string list (kind = 1)
+    List names = new List();
+    names.kind = 1;
     names.add("flint");
     names.add("c");
     names.add("rust");
     names.sort();
     print(names.join(","));       // c,flint,rust
-    // typed set
-    hashset&lt;int&gt; seen = new hashset&lt;int&gt;();
+    // int set
+    Hashset seen = new Hashset();
     printi(seen.add(5));        // 1
     printi(seen.add(5));        // 0 (duplicate)
-    printi(len(seen));         // 1
-    // typed queue
-    queue&lt;string&gt; q = new queue&lt;string&gt;();
+    printi(seen.size());        // 1
+    // string queue (kind = 1)
+    Queue q = new Queue();
+    q.kind = 1;
     q.push("a");
     q.push("b");
     print(q.pop());            // a (FIFO)
-    // typed map: string key, int value
-    hashmap&lt;string, int&gt; scores = new hashmap&lt;string, int&gt;();
+    // map: string key, int value
+    Hashmap scores = new Hashmap();
+    scores.kkind = 1;
     scores.put("a", 15);
     scores.put("b", 20);
     printi(scores.get("b"));   // 20
-    printi(len(scores));       // 2
-    // a flavour mismatch on an untyped map returns 0
-    hashmap m = new hashmap();
-    m.put(1, 100);             // stored as an int value
-    string s = m.get(1);       // want a string -&gt; 0
-    printi(s == null ? 1 : 0); // 1
+    printi(scores.size());     // 2
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>3
@@ -2331,27 +2329,29 @@ c,flint,rust
 1
 a
 20
-2
-1</div>
+2</div>
 <ul>
-<li><b>Seeded construction:</b> <code>new list&lt;int&gt;(7, 8, 9)</code>.</li>
-<li><b>Each typed flavour</b> works: int list, string list, int set,
+<li><b>One flavour per collection:</b> set <code>kind</code> /
+<code>kkind</code> / <code>vkind</code> once, before use.</li>
+<li><b>Each flavour</b> works: int list, string list, int set,
 string queue, string-keyed int map.</li>
-<li><b>Flavour mismatch</b> on an untyped map
-(<code>m.get(1)</code> wanting a string, when the value is an int)
-returns <code>null</code> → <code>1</code>.</li>
+<li><b>String values</b> come back through <code>getStr</code> or by
+assigning the raw <code>int</code> to a <code>string</code>.</li>
 </ul>
 </section>
 <section id="coll-objects" class="doc-section" data-label="Object elements">
 <div class="page-head"><h1>Object elements</h1>
-<p class="lede">Collections holding class objects refcount their elements (the
-collection layout carries an <code>elem_release</code> slot). Storing an
-object retains a reference; destroying the collection releases it, but an
-object referenced elsewhere survives.</p></div>
+<p class="lede">Collections holding class objects (<code>kind = 2</code>)
+refcount their elements. Storing an object retains a reference; clearing
+or destroying the collection releases it, but an object referenced
+elsewhere survives.</p></div>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/obj_coll.flint</span></div>
-<pre><code class="flint">class Box {
+<pre><code class="flint">import std.List;
+import std.Hashmap;
+import std.Queue;
+class Box {
     int n;
     public Box(int x) {
         this.n = x;
@@ -2359,36 +2359,39 @@ object referenced elsewhere survives.</p></div>
 }
 
 int main() {
-    // a list of objects
-    list b = new list();
+    // a list of objects (kind = 2)
+    List b = new List();
+    b.kind = 2;
     Box a = new Box(1);
     Box b2 = new Box(2);
     b.add(a);
     b.add(b2);
-    printi(len(b));                 // 2
+    printi(b.size());             // 2
     // reading back: the collection's reference keeps the object alive
     Box r1 = b.get(0);
-    printi(r1.n);               // 1
+    printi(r1.n);              // 1
     Box r2 = b.get(1);
-    printi(r2.n);               // 2
+    printi(r2.n);              // 2
     // the original references still work alongside the collection's
-    printi(a.n);               // 1
-    printi(b2.n);              // 2
-    // a map of objects, keyed by int
-    hashmap m = new hashmap();
+    printi(a.n);              // 1
+    printi(b2.n);             // 2
+    // a map of objects, keyed by int (vkind = 2)
+    Hashmap m = new Hashmap();
+    m.vkind = 2;
     m.put(10, new Box(3));
     m.put(20, new Box(4));
-    printi(len(m));                 // 2
+    printi(m.size());             // 2
     Box v = m.get(20);
-    printi(v.n);               // 4
-    // a queue of objects
-    queue q = new queue();
+    printi(v.n);              // 4
+    // a queue of objects (kind = 2)
+    Queue q = new Queue();
+    q.kind = 2;
     q.push(new Box(5));
     q.push(new Box(6));
     Box f = q.pop();
-    printi(f.n);               // 5 (FIFO)
+    printi(f.n);              // 5 (FIFO)
     Box s = q.pop();
-    printi(s.n);               // 6
+    printi(s.n);              // 6
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>2
@@ -2407,16 +2410,18 @@ int main() {
 yields a reference the collection's own reference keeps alive.</li>
 <li><b>The original references</b> (<code>a</code>, <code>b2</code>) work
 alongside the collection's — they refer to the same objects.</li>
-<li>Works across <code>list</code>, <code>hashmap</code> (object values),
-and <code>queue</code>.</li>
+<li>Works across <code>List</code>, <code>Hashmap</code> (object values),
+and <code>Queue</code>.</li>
 </ul>
-<div class="note"><b>v1 limitation.</b> Index writes to object collections
-(<code>l[i] = obj</code>) use borrow semantics — they store the pointer
-without retaining, and do not release the displaced element. Prefer
-<code>add</code>/<code>put</code> for object elements; a program that mixes
-<code>add</code> with index-overwrites of the same slot can leak or double-free
-the displaced object. <code>threadJoin</code> is a separate known
-limitation — see <a href="concurrency.html">Concurrency</a>.</div>
+<div class="note"><b>v1 limitation.</b> A freshly constructed object stored
+with no other live reference (e.g. <code>m.put(10, new Box(3))</code>) is
+retained on store; if the collection is then cleared or destroyed, that
+final release is the object's last, but the v1 release path leaves such a
+freshly-stored object at a residual reference count of 1 (a known,
+tolerated leak — the design is never crash, occasionally leak). Prefer
+holding the object in a local first, then <code>add</code>/<code>put</code>
+it. <code>threadJoin</code> is a separate known limitation — see
+<a href="#concurrency">Concurrency</a>.</div>
 </section>
 <section id="concurrency" class="doc-section" data-label="Concurrency">
 <div class="page-head"><h1>Concurrency</h1>

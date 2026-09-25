@@ -1,9 +1,9 @@
-use crate::ast::{Block, CollKind, Expr, Stmt, Ty};
+use crate::ast::{Block, Expr, Stmt, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 
 use crate::backend::escape::LocalKind;
-use super::{Ctx, Frame, Local, struct_idx_of, coll_release_name};
+use super::{Ctx, Frame, Local, struct_idx_of};
 
 impl Ctx<'_> {
     pub(crate) fn gen_block(&mut self, block: &Block, frame: &mut Frame) -> CompileResult<()> {
@@ -33,7 +33,7 @@ impl Ctx<'_> {
                 } else if let Some(sidx) = frame.this_class {
                     // implicit this field (bare field name in a method)
                     self.struct_field_type(sidx, name)
-                        .map_or(false, |t| t.coll_kind().is_some() || matches!(t, Ty::Struct(_) | Ty::Interface(_)))
+                        .map_or(false, |t| matches!(t, Ty::Struct(_) | Ty::Interface(_)))
                 } else {
                     false
                 }
@@ -45,7 +45,7 @@ impl Ctx<'_> {
                     .ok()
                     .flatten()
                     .and_then(|s| self.struct_field_type(s, name).ok())
-                    .map_or(false, |t| t.coll_kind().is_some() || matches!(t, Ty::Struct(_) | Ty::Interface(_)))
+                    .map_or(false, |t| matches!(t, Ty::Struct(_) | Ty::Interface(_)))
             }
             Expr::Cast { e, .. } => self.should_retain(e, frame),
             _ => false,
@@ -126,32 +126,6 @@ impl Ctx<'_> {
         }
     }
 
-    /// Collection kind when an assignment target holds a collection value.
-    pub(crate) fn assign_target_coll(&self, target: &Expr, frame: &Frame) -> CompileResult<Option<CollKind>> {
-        match target {
-            Expr::Ident { name, .. } => {
-                if let Some(l) = frame.find(name) {
-                    if l.kind == LocalKind::Heap {
-                        return Ok(l.ty.coll_kind());
-                    }
-                }
-                Ok(None)
-            }
-            Expr::This { .. } => Ok(None),
-            Expr::Field { base, name, .. } => {
-                if let Some(sidx) = self.is_class_name(base) {
-                    if self.is_static_field(sidx, name) {
-                        return Ok(None);
-                    }
-                }
-                let s = self.base_struct_idx(base, frame)?;
-                let ft = self.struct_field_type(s, name)?;
-                Ok(ft.coll_kind())
-            }
-            _ => Ok(None),
-        }
-    }
-
     pub(crate) fn gen_stmt(&mut self, stmt: &Stmt, frame: &mut Frame) -> CompileResult<()> {
         match stmt {
             Stmt::Decl { name, value, .. } => {
@@ -166,30 +140,21 @@ impl Ctx<'_> {
                     let ns = self.prog.structs[s].fields.len() + 1;
                     self.stack_region = Some((roff, ns));
                 }
-                // the declared flavour guides collection reads (get, pop, l[i])
-                self.coll_expect = match lty {
-                    Ty::Str | Ty::Ptr => Some(Ty::Str),
-                    Ty::Int | Ty::Bool => Some(Ty::Int),
-                    Ty::Struct(_) | Ty::Interface(_) => Some(lty.clone()),
-                    _ => None,
-                };
                 // a `string` slot stores a fresh writable copy of a literal
                 let saved = self.str_copy;
                 if matches!(lty, Ty::Str) {
                     self.str_copy = true;
                 }
                 self.gen_expr(value, frame)?;
-                self.coll_expect = None;
                 self.str_copy = saved;
                 self.maybe_retain(value, frame);
                 let is_iface = matches!(lty, Ty::Interface(_));
                 if lkind == LocalKind::Heap || is_iface {
                     // overwrite: release the old reference, then store
-                    let rel: Option<String> = match (lsidx, lty.coll_kind(), is_iface) {
-                        (Some(s), _, _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
-                        (None, Some(k), _) => Some(coll_release_name(k).to_string()),
-                        (None, None, true) => Some("flint_release".to_string()),
-                        (None, None, false) => None,
+                    let rel: Option<String> = match (lsidx, is_iface) {
+                        (Some(s), _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
+                        (None, true) => Some("flint_release".to_string()),
+                        (None, false) => None,
                     };
                     self.emit("\tpop %r10");
                     if let Some(rel) = rel {
@@ -227,66 +192,12 @@ impl Ctx<'_> {
                     self.emit("\tpop %rax");
                     self.emit("\tmov %rax, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
-                } else if let Some(k) = t.coll_kind() {
-                    // a collection value used as a statement: drop the reference
-                    self.emit("\tpop %rax");
-                    self.emit("\tmov %rax, %rdi");
-                    self.emit(&format!("\tcall {}", coll_release_name(k)));
                 } else {
                     self.emit("\tpop %rax"); // discard
                 }
                 Ok(())
             }
             Stmt::Assign { target, value, .. } => {
-                // collection initializers: `l = [1, 2]`, `m = {1: "a"}`, `s = {3}`
-                if let Some(tty) = self.coll_type_of(target, frame)? {
-                    let tkind = tty.coll_kind().unwrap();
-                    match value {
-                        Expr::ArrayLit { elems, span: vspan, .. }
-                            if tkind == CollKind::List || tkind == CollKind::Queue =>
-                        {
-                            self.gen_coll_from_elems(
-                                tkind,
-                                elems,
-                                self.coll_elem_type(&tty, false),
-                                frame,
-                            )?;
-                            self.store_coll(target, frame)?;
-                            return Ok(());
-                        }
-                        Expr::ArrayLit { span: vspan, .. } => {
-                            return Err(CompileError::new(
-                                *vspan,
-                                format!(
-                                    "[...] literals initialize a list or queue, not a {}",
-                                    tkind.name()
-                                ),
-                            ));
-                        }
-                        Expr::CollLit { kind: k0, items, span: vspan, .. } => {
-                            let k = k0.unwrap_or(tkind);
-                            if k != tkind {
-                                return Err(CompileError::new(
-                                    *vspan,
-                                    format!(
-                                        "cannot assign a {} literal to a {}",
-                                        k.name(),
-                                        tkind.name()
-                                    ),
-                                ));
-                            }
-                            self.gen_colllit(
-                                k,
-                                items,
-                                self.coll_elem_type(&tty, tkind == CollKind::Map),
-                                frame,
-                            )?;
-                            self.store_coll(target, frame)?;
-                            return Ok(());
-                        }
-                        _ => {}
-                    }
-                }
                 // a `string` target stores a fresh writable copy of a literal
                 let saved = self.str_copy;
                 if self.assign_target_is_str(target, frame)? {
@@ -295,9 +206,8 @@ impl Ctx<'_> {
                 let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
                 self.maybe_retain(value, frame);
-                // class/collection target: release the old reference before storing
+                // class target: release the old reference before storing
                 let target_class = self.assign_target_class(target, frame)?;
-                let target_coll = self.assign_target_coll(target, frame)?;
                 let target_iface = !self.is_static_target(target)
                     && self.expr_interface_type(target, frame)?.is_some();
                 self.emit("\tpop %r10"); // value -> r10 (caller-saved temp)
@@ -310,10 +220,6 @@ impl Ctx<'_> {
                     self.emit("\tmovq (%rdx), %r11");
                     self.emit("\tmov %r11, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
-                } else if let Some(k) = target_coll {
-                    self.emit("\tmovq (%rdx), %r11");
-                    self.emit("\tmov %r11, %rdi");
-                    self.emit(&format!("\tcall {}", coll_release_name(k)));
                 } else if target_iface {
                     // interface target: release the old reference (the generic
                     // release has no null check and is a v1 no-op at refcount
@@ -638,20 +544,12 @@ impl Ctx<'_> {
             }
             Stmt::Return { value, .. } => match value {
                 Some(v) => {
-                    // the return type flavours collection reads
-                    self.coll_expect = match frame.ret_type {
-                        Some(Ty::Str) | Some(Ty::Ptr) => Some(Ty::Str),
-                        Some(Ty::Int) | Some(Ty::Bool) => Some(Ty::Int),
-                        Some(Ty::Struct(_)) | Some(Ty::Interface(_)) => frame.ret_type.clone(),
-                        _ => None,
-                    };
                     // a `string` return stores a fresh writable copy of a literal
                     let saved = self.str_copy;
                     if frame.ret_type == Some(Ty::Str) {
                         self.str_copy = true;
                     }
                     self.gen_expr(v, frame)?;
-                    self.coll_expect = None;
                     self.str_copy = saved;
                     self.maybe_retain(v, frame);
                     // a `finally` block must run before the return takes effect

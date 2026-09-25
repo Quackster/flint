@@ -1,12 +1,20 @@
+// The stdlib collections carry a per-collection flavour: `kind` (and
+// `kkind`/`vkind` on Hashmap) is set before use — 0 int, 1 string,
+// 2 object. This test exercises each flavour explicitly.
+import std.List;
+import std.Queue;
+import std.Hashset;
+import std.Hashmap;
 int main() {
-    // ---- typed list<int> ----
-    list<int> li = new list<int>(10, 20, 30);
-    printi(len(li)); print(" ");
+    // ---- List of ints ----
+    List li = new List();
+    li.add(10); li.add(20); li.add(30);
+    printi(li.size()); print(" ");
     printi(li.get(1)); print(" ");
     li.add(40);
     printi(li.size()); print(" ");
-    li[0] = 99;
-    printi(li[0]); print(" ");
+    li.set(0, 99);
+    printi(li.get(0)); print(" ");
     printi(li.contains(20)); print(" ");
     printi(li.contains(77)); print(" ");
     li.remove(1);
@@ -14,58 +22,73 @@ int main() {
     li.clear();
     printi(li.size()); print("\n");
 
-    // ---- typed list<string> ----
-    list<string> ls = new list<string>();
+    // ---- List of strings ----
+    List ls = new List();
+    ls.kind = 1;
     ls.add("a"); ls.add("b"); ls.add("a");
-    printi(len(ls)); print(" ");
+    printi(ls.size()); print(" ");
     printi(ls.contains("a")); print(" ");
     printi(ls.contains("z")); print(" ");
     print(ls.get(1)); print("\n");
 
-    // ---- typed hashmap<int, int> ----
-    hashmap<int, int> m = new hashmap<int, int>();
+    // ---- Hashmap int -> int ----
+    Hashmap m = new Hashmap();
     m.put(1, 100); m.put(2, 200); m.put(1, 150);
-    printi(len(m)); print(" ");
+    printi(m.size()); print(" ");
     printi(m.get(1)); print(" ");
     printi(m.get(2)); print(" ");
     printi(m.get(3)); print(" ");
     printi(m.contains(2)); print(" ");
     printi(m.contains(9)); print(" ");
     m.remove(1);
-    printi(len(m)); print("\n");
+    printi(m.size()); print("\n");
     m.clear();
-    printi(len(m)); print("\n");
+    printi(m.size()); print("\n");
 
-    // ---- typed hashmap<string, int> ----
-    hashmap<string, int> d = new hashmap<string, int>();
+    // ---- Hashmap string -> int ----
+    Hashmap d = new Hashmap();
+    d.kkind = 1;
     d.put("apple", 1); d.put("banana", 2); d.put("cherry", 3);
-    printi(len(d)); print(" ");
+    printi(d.size()); print(" ");
     printi(d.get("banana")); print(" ");
     printi(d.get("apple")); print(" ");
     printi(d.get("grape")); print(" ");
     printi(d.contains("cherry")); print(" ");
     d.remove("banana");
     printi(d.contains("banana")); print(" ");
-    printi(len(d)); print("\n");
+    printi(d.size()); print("\n");
     d.clear();
-    printi(len(d)); print("\n");
+    printi(d.size()); print("\n");
 
-    // ---- typed hashset<int> ----
-    hashset<int> s = new hashset<int>();
+    // ---- Hashset of ints ----
+    Hashset s = new Hashset();
     s.add(5); s.add(10); s.add(15); s.add(10);
-    printi(len(s)); print(" ");
+    printi(s.size()); print(" ");
     printi(s.contains(10)); print(" ");
     printi(s.contains(99)); print(" ");
     s.remove(10);
     printi(s.contains(10)); print(" ");
-    printi(len(s)); print("\n");
+    printi(s.size()); print("\n");
     s.clear();
-    printi(len(s)); print("\n");
+    printi(s.size()); print("\n");
 
-    // ---- typed queue<int> ----
-    queue<int> q = new queue<int>();
+    // ---- Hashset of strings ----
+    Hashset ss = new Hashset();
+    ss.kind = 1;
+    ss.add("one"); ss.add("two"); ss.add("one");
+    printi(ss.size()); print(" ");
+    printi(ss.contains("two")); print(" ");
+    printi(ss.contains("nine")); print(" ");
+    ss.remove("two");
+    printi(ss.contains("two")); print(" ");
+    printi(ss.size()); print("\n");
+    ss.clear();
+    printi(ss.size()); print("\n");
+
+    // ---- Queue of ints ----
+    Queue q = new Queue();
     q.push(1); q.push(2); q.push(3);
-    printi(len(q)); print(" ");
+    printi(q.size()); print(" ");
     printi(q.peek()); print(" ");
     printi(q.pop()); print(" ");
     printi(q.pop()); print(" ");

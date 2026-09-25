@@ -1,0 +1,559 @@
+// std/coll — the collections as ordinary classes over raw 8-byte slot
+// arrays: `Collection` (the base), `List`, `Queue`, `Hashset`, `Hashmap`.
+//
+// Every collection stores its elements in a `Mem.intArray` of 8-byte
+// slots that it manipulates itself: `List` grows by doubling and
+// copying, `Queue` is a FIFO ring over its slots, and the hash family
+// uses open addressing (linear probing, tombstones) over slot pairs.
+//
+// `kind` pins the element flavour (set before use):
+//   0 = int       compared/hashed by value
+//   1 = string    compared by content, hashed FNV-1a
+//   2 = object    class objects: refcounted — retained on store,
+//                 released on clear/destroy; compared/hashed by pointer
+// A `Hashmap` carries `kkind`/`vkind` for its keys and values.
+//
+// Common API: `size()`, `isEmpty()`, `clear()`. `destroy()` runs when
+// the last reference drops (it drops the element references and frees
+// the slot array) — do not call it manually.
+//
+// Usage:
+//   import std.List;
+//   import std.Hashmap;
+//   List xs = new List();
+//   xs.add(41);
+//   printi(xs.get(0));
+//   Hashmap m = new Hashmap();
+//   m.put(1, 100);
+//   printi(m.get(1));
+package std;
+abstract class Collection {
+    *int slots;
+    int cap;
+    int count;
+    int kind;
+    public Collection() {
+        this.kind = 0;
+        this.cap = 16;
+        this.count = 0;
+        this.slots = Mem.intArray(16);
+    }
+    int size() {
+        return this.count;
+    }
+    boolean isEmpty() {
+        return this.count == 0;
+    }
+    // Swap in a fresh slot array; the old one is released.
+    void replaceSlots(*int ns, int newCap) {
+        Mem.freeInt(this.slots);
+        this.slots = ns;
+        this.cap = newCap;
+    }
+    // splitmix64 finalizer for int keys.
+    static int hashInt(int v) {
+        int h = v + 0x9E3779B97F4A7C15;
+        h = (h ^ (h >> 30)) * 0xBF58476D1CE4E5B9;
+        h = (h ^ (h >> 27)) * 0x94D049BB133111EB;
+        return h ^ (h >> 31);
+    }
+    // FNV-1a 64 over the string's bytes.
+    static int hashStr(string s) {
+        int h = 0xcbf29ce484222325;
+        int n = strlen(s);
+        int i = 0;
+        while (i < n) {
+            h = (h ^ sys.byteLoad(s + i)) * 0x100000001b3;
+            i = i + 1;
+        }
+        return h;
+    }
+    static int hash(int kind, int v) {
+        if (kind == 1) {
+            return Collection.hashStr(v);
+        }
+        return Collection.hashInt(v);
+    }
+    // Equality by flavour: strings by content, ints and objects by value.
+    static int eq(int kind, int a, int b) {
+        if (kind == 1) {
+            return strcmp(a, b) == 0;
+        }
+        return a == b;
+    }
+    // Signed less-than by flavour (sort order).
+    static int lt(int kind, int a, int b) {
+        if (kind == 1) {
+            return strcmp(a, b) < 0;
+        }
+        return a < b;
+    }
+    // Retain / release an element reference (no-op for non-object kinds).
+    static void retainElem(int kind, int v) {
+        if (kind == 2 && v != 0) {
+            Mem.retain(v);
+        }
+    }
+    static void releaseElem(int kind, int v) {
+        if (kind == 2 && v != 0) {
+            Mem.release(v);
+        }
+    }
+    abstract void clear();
+    // destroy(): the compiler calls this when the last reference drops.
+    // Drops the elements' references and releases the slot array.
+    void destroy() {
+        this.clear();
+        Mem.freeInt(this.slots);
+    }
+}
+class List extends Collection {
+    public List() {
+        super();
+    }
+    void add(int v) {
+        if (this.count >= this.cap) {
+            *int ns = Mem.intArray(this.cap * 2);
+            Mem.copy(ns, this.slots, this.count * 8);
+            this.replaceSlots(ns, this.cap * 2);
+        }
+        Collection.retainElem(this.kind, v);
+        this.slots[this.count] = v;
+        this.count = this.count + 1;
+    }
+    int get(int i) {
+        int v = this.slots[i];
+        Collection.retainElem(this.kind, v);
+        return v;
+    }
+    // The slot as a string (for `kind == 1` lists; the stored value is
+    // already a NUL-terminated string pointer).
+    string getStr(int i) {
+        int v = this.slots[i];
+        return v;
+    }
+    void set(int i, int v) {
+        Collection.releaseElem(this.kind, this.slots[i]);
+        Collection.retainElem(this.kind, v);
+        this.slots[i] = v;
+    }
+    // Insert at i (the tail shifts right; i >= size appends).
+    void insert(int i, int v) {
+        if (i >= this.count) {
+            i = this.count;
+        }
+        if (this.count + 1 > this.cap) {
+            *int ns = Mem.intArray(this.cap * 2);
+            Mem.copy(ns, this.slots, this.count * 8);
+            this.replaceSlots(ns, this.cap * 2);
+        }
+        int j = this.count - 1;
+        while (j >= i) {
+            this.slots[j + 1] = this.slots[j];
+            j = j - 1;
+        }
+        Collection.retainElem(this.kind, v);
+        this.slots[i] = v;
+        this.count = this.count + 1;
+    }
+    // 1 removed, 0 when i >= size. The removed reference is dropped.
+    int remove(int i) {
+        if (i >= this.count) {
+            return 0;
+        }
+        int v = this.slots[i];
+        int j = i + 1;
+        while (j < this.count) {
+            this.slots[j - 1] = this.slots[j];
+            j = j + 1;
+        }
+        this.count = this.count - 1;
+        Collection.releaseElem(this.kind, v);
+        return 1;
+    }
+    int contains(int v) {
+        int i = 0;
+        while (i < this.count) {
+            if (Collection.eq(this.kind, this.slots[i], v) == 1) {
+                return 1;
+            }
+            i = i + 1;
+        }
+        return 0;
+    }
+    void clear() {
+        int i = 0;
+        while (i < this.count) {
+            Collection.releaseElem(this.kind, this.slots[i]);
+            i = i + 1;
+        }
+        this.count = 0;
+    }
+    // Insertion sort: ints signed ascending, strings by content.
+    void sort() {
+        int i = 1;
+        while (i < this.count) {
+            int j = i - 1;
+            while (j >= 0) {
+                int a = this.slots[j];
+                int b = this.slots[j + 1];
+                if (Collection.lt(this.kind, a, b) == 1) {
+                    j = j - 1;
+                } else {
+                    this.slots[j + 1] = a;
+                    this.slots[j] = b;
+                    j = j - 1;
+                }
+            }
+            i = i + 1;
+        }
+    }
+    void reverse() {
+        int i = 0;
+        int j = this.count - 1;
+        while (i < j) {
+            int t = this.slots[i];
+            this.slots[i] = this.slots[j];
+            this.slots[j] = t;
+            i = i + 1;
+            j = j - 1;
+        }
+    }
+    // Elements joined by sep: strings verbatim, the rest via itoa.
+    string join(string sep) {
+        string out = "";
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[i];
+            if (i > 0) {
+                out = str.concat(out, sep);
+            }
+            if (this.kind == 1) {
+                out = str.concat(out, v);
+            } else {
+                out = str.concat(out, str.itoa(v));
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+}
+class Queue extends Collection {
+    int head;
+    public Queue() {
+        super();
+        this.head = 0;
+    }
+    void push(int v) {
+        if (this.count >= this.cap) {
+            int i = 0;
+            while (i < this.count) {
+                this.slots[i] = this.slots[(this.head + i) % this.cap];
+                i = i + 1;
+            }
+            this.head = 0;
+            *int ns = Mem.intArray(this.cap * 2);
+            Mem.copy(ns, this.slots, this.count * 8);
+            this.replaceSlots(ns, this.cap * 2);
+        }
+        Collection.retainElem(this.kind, v);
+        this.slots[(this.head + this.count) % this.cap] = v;
+        this.count = this.count + 1;
+    }
+    // 0 when empty; the stored reference transfers to the caller.
+    int pop() {
+        if (this.count == 0) {
+            return 0;
+        }
+        int v = this.slots[this.head % this.cap];
+        this.head = (this.head + 1) % this.cap;
+        this.count = this.count - 1;
+        return v;
+    }
+    int peek() {
+        if (this.count == 0) {
+            return 0;
+        }
+        int v = this.slots[this.head % this.cap];
+        Collection.retainElem(this.kind, v);
+        return v;
+    }
+    void clear() {
+        int i = 0;
+        while (i < this.count) {
+            Collection.releaseElem(this.kind, this.slots[(this.head + i) % this.cap]);
+            i = i + 1;
+        }
+        this.count = 0;
+        this.head = 0;
+    }
+}
+class Hashset extends Collection {
+    // 2 slots per bucket: [value, flag]; flag 0 empty, 1 occupied,
+    // 2 tombstone. Bucket count is a power of two; rehash at load 0.5.
+    public Hashset() {
+        super();
+        this.slots = Mem.intArray(32);
+    }
+    // 1 inserted, 0 already present.
+    int add(int v) {
+        if (this.count * 2 >= this.cap) {
+            this.rehash();
+        }
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kind, v) & mask;
+        int tries = 0;
+        while (true) {
+            int flag = this.slots[2 * i + 1];
+            if (flag == 0) {
+                this.slots[2 * i] = v;
+                this.slots[2 * i + 1] = 1;
+                Collection.retainElem(this.kind, v);
+                this.count = this.count + 1;
+                return 1;
+            }
+            if (flag == 1 && Collection.eq(this.kind, this.slots[2 * i], v) == 1) {
+                return 0;
+            }
+            tries = tries + 1;
+            if (tries == this.cap) {
+                this.rehash();
+                mask = this.cap - 1;
+                i = Collection.hash(this.kind, v) & mask;
+                tries = 0;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    int contains(int v) {
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kind, v) & mask;
+        while (true) {
+            int flag = this.slots[2 * i + 1];
+            if (flag == 0) {
+                return 0;
+            }
+            if (flag == 1 && Collection.eq(this.kind, this.slots[2 * i], v) == 1) {
+                return 1;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    // 1 removed, 0 absent (the bucket becomes a tombstone).
+    int remove(int v) {
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kind, v) & mask;
+        while (true) {
+            int flag = this.slots[2 * i + 1];
+            if (flag == 0) {
+                return 0;
+            }
+            if (flag == 1 && Collection.eq(this.kind, this.slots[2 * i], v) == 1) {
+                Collection.releaseElem(this.kind, this.slots[2 * i]);
+                this.slots[2 * i + 1] = 2;
+                this.count = this.count - 1;
+                return 1;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    void clear() {
+        int i = 0;
+        while (i < this.cap) {
+            if (this.slots[2 * i + 1] == 1) {
+                Collection.releaseElem(this.kind, this.slots[2 * i]);
+            }
+            this.slots[2 * i + 1] = 0;
+            i = i + 1;
+        }
+        this.count = 0;
+    }
+    void rehash() {
+        int oldCap = this.cap;
+        *int old = this.slots;
+        // size the new cap so the re-adds cannot trigger further rehashes
+        int newCap = this.cap * 2;
+        while (this.count * 2 >= newCap) {
+            newCap = newCap * 2;
+        }
+        this.cap = newCap;
+        this.slots = Mem.intArray(this.cap * 2);
+        this.count = 0;
+        int i = 0;
+        while (i < oldCap) {
+            if (old[2 * i + 1] == 1) {
+                this.add(old[2 * i]);
+            }
+            i = i + 1;
+        }
+        Mem.freeInt(old);
+    }
+}
+class Hashmap extends Collection {
+    int kkind;
+    int vkind;
+    // 3 slots per entry: [key, flag, value]; flag 0 empty, 1 occupied,
+    // 2 tombstone. Entry count is a power of two; rehash at load 0.5.
+    public Hashmap() {
+        super();
+        this.kkind = 0;
+        this.vkind = 0;
+        this.slots = Mem.intArray(48);
+    }
+    // 1 inserted, 0 updated (the old value reference is dropped).
+    int put(int k, int v) {
+        if (this.count * 2 >= this.cap) {
+            this.rehash();
+        }
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kkind, k) & mask;
+        int tries = 0;
+        while (true) {
+            int flag = this.slots[3 * i + 1];
+            if (flag == 0) {
+                this.slots[3 * i] = k;
+                this.slots[3 * i + 1] = 1;
+                this.slots[3 * i + 2] = v;
+                Collection.retainElem(this.vkind, v);
+                this.count = this.count + 1;
+                return 1;
+            }
+            if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
+                Collection.releaseElem(this.vkind, this.slots[3 * i + 2]);
+                this.slots[3 * i + 2] = v;
+                Collection.retainElem(this.vkind, v);
+                return 0;
+            }
+            tries = tries + 1;
+            if (tries == this.cap) {
+                this.rehash();
+                mask = this.cap - 1;
+                i = Collection.hash(this.kkind, k) & mask;
+                tries = 0;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    // 0 when absent; object values get a fresh reference.
+    int get(int k) {
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kkind, k) & mask;
+        while (true) {
+            int flag = this.slots[3 * i + 1];
+            if (flag == 0) {
+                return 0;
+            }
+            if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
+                int v = this.slots[3 * i + 2];
+                Collection.retainElem(this.vkind, v);
+                return v;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    // The stored value as a string (for `vkind == 1` maps; the slot
+    // already holds a NUL-terminated string pointer). 0 when absent.
+    string getStr(int k) {
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kkind, k) & mask;
+        while (true) {
+            int flag = this.slots[3 * i + 1];
+            if (flag == 0) {
+                return 0;
+            }
+            if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
+                return this.slots[3 * i + 2];
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    int contains(int k) {
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kkind, k) & mask;
+        while (true) {
+            int flag = this.slots[3 * i + 1];
+            if (flag == 0) {
+                return 0;
+            }
+            if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
+                return 1;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    // 1 removed, 0 absent (the entry becomes a tombstone).
+    int remove(int k) {
+        int mask = this.cap - 1;
+        int i = Collection.hash(this.kkind, k) & mask;
+        while (true) {
+            int flag = this.slots[3 * i + 1];
+            if (flag == 0) {
+                return 0;
+            }
+            if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
+                Collection.releaseElem(this.vkind, this.slots[3 * i + 2]);
+                this.slots[3 * i + 1] = 2;
+                this.count = this.count - 1;
+                return 1;
+            }
+            i = (i + 1) & mask;
+        }
+    }
+    void clear() {
+        int i = 0;
+        while (i < this.cap) {
+            if (this.slots[3 * i + 1] == 1) {
+                Collection.releaseElem(this.vkind, this.slots[3 * i + 2]);
+            }
+            this.slots[3 * i + 1] = 0;
+            i = i + 1;
+        }
+        this.count = 0;
+    }
+    // The stored keys (insertion order) as a fresh List.
+    List keys() {
+        List out = new List();
+        out.kind = this.kkind;
+        int i = 0;
+        while (i < this.cap) {
+            if (this.slots[3 * i + 1] == 1) {
+                out.add(this.slots[3 * i]);
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+    // The stored values (insertion order) as a fresh List.
+    List values() {
+        List out = new List();
+        out.kind = this.vkind;
+        int i = 0;
+        while (i < this.cap) {
+            if (this.slots[3 * i + 1] == 1) {
+                out.add(this.slots[3 * i + 2]);
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+    void rehash() {
+        int oldCap = this.cap;
+        *int old = this.slots;
+        // size the new cap so the re-puts cannot trigger further rehashes
+        int newCap = this.cap * 2;
+        while (this.count * 2 >= newCap) {
+            newCap = newCap * 2;
+        }
+        this.cap = newCap;
+        this.slots = Mem.intArray(this.cap * 3);
+        this.count = 0;
+        int i = 0;
+        while (i < oldCap) {
+            if (old[3 * i + 1] == 1) {
+                this.put(old[3 * i], old[3 * i + 2]);
+            }
+            i = i + 1;
+        }
+        Mem.freeInt(old);
+    }
+}

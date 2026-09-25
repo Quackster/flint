@@ -1,26 +1,37 @@
+// Object elements (kind = 2): storing retains, clearing/destroying
+// releases. While a Box is also held by a local, the collections that
+// retain it can be dropped without destroying the Box.
+import std.List;
+import std.Hashmap;
+import std.Queue;
 class Box {
+    static int destroyed;
     int id;
     public Box(int i) { this.id = i; }
     public int id() { return this.id; }
+    void destroy() { Box.destroyed = Box.destroyed + 1; }
 }
 int main() {
     Box a = new Box(10);
     Box b = new Box(20);
     if (1) {
-        list<Box> l = new list<Box>();
+        List l = new List();
+        l.kind = 2;
         l.add(a);
-        l.add(new Box(200));
-        l.set(0, new Box(300));
+        l.set(0, a);
         l.remove(0);
-        hashmap<int, Box> m = new hashmap<int, Box>();
+        Hashmap m = new Hashmap();
+        m.vkind = 2;
         m.put(1, a);
-        m.put(2, new Box(400));
-        queue<Box> q = new queue<Box>();
+        Queue q = new Queue();
+        q.kind = 2;
         q.push(b);
     }
     printi(a.id());
-    print("\n");
+    print("\n");                   // 10
     printi(b.id());
-    print("\n");
+    print("\n");                   // 20
+    printi(Box.destroyed);
+    print("\n");                   // 0: both still referenced by main
     return 0;
 }

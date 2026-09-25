@@ -15,7 +15,7 @@
     "super":1,"break":1,"continue":1,"null":1,"true":1,"false":1,
     "throw":1,"try":1,"catch":1,"finally":1,"instanceof":1,"switch":1,
     "case":1,"default":1,"extends":1,"implements":1,"get":1,"set":1,
-    "getset":1,"list":1,"queue":1,"hashmap":1,"hashset":1,"dictionary":1
+    "getset":1
   };
 
   // Token kinds are recognised with a single regex pass. Order matters:

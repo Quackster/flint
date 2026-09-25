@@ -1,9 +1,10 @@
 // multifile/main.flint — uses the Stats class from util.flint.
 // This file has no `package` clause (it is the entry point).
 import demo.stats.Stats;
+import std.List;
 
 int main() {
-    list<int> xs = new list<int>();
+    List xs = new List();
     xs.add(4);
     xs.add(9);
     xs.add(1);

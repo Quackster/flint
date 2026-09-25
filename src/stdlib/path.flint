@@ -68,8 +68,9 @@ class Path {
         return strlen(p) > 0 && sys.byteLoad(p) == 47 ? 1 : 0;
     }
     // Split p into its slash-separated parts.
-    static list<string> split(string p) {
-        list<string> out = new list<string>();
+    static List split(string p) {
+        List out = new List();
+        out.kind = 1;
         int n = strlen(p);
         int start = 0;
         int i = 0;
@@ -87,16 +88,17 @@ class Path {
     }
     // Collapse ".", ".." and repeated slashes (returns the relative form).
     static string normalize(string p) {
-        list<string> parts = Path.split(p);
-        list<string> stack = new list<string>();
+        List parts = Path.split(p);
+        List stack = new List();
+        stack.kind = 1;
         int i = 0;
-        int n = len(parts);
+        int n = parts.size();
         while (i < n) {
-            string s = parts.get(i);
+            string s = parts.getStr(i);
             if (str.cmp(s, ".") != 0 && str.cmp(s, "") != 0) {
                 if (str.cmp(s, "..") == 0) {
-                    if (len(stack) > 0) {
-                        stack.remove(len(stack) - 1);
+                    if (stack.size() > 0) {
+                        stack.remove(stack.size() - 1);
                     }
                 } else {
                     stack.add(s);
@@ -104,17 +106,17 @@ class Path {
             }
             i = i + 1;
         }
-        if (len(stack) == 0) {
+        if (stack.size() == 0) {
             return ".";
         }
         string out = "";
         int j = 0;
-        int ns = len(stack);
+        int ns = stack.size();
         while (j < ns) {
             if (j > 0) {
                 out = out + "/";
             }
-            out = out + stack.get(j);
+            out = out + stack.getStr(j);
             j = j + 1;
         }
         return out;

@@ -1,27 +1,34 @@
-int geti(hashmap m) { return m.get(1); }
-string gets(hashmap m) { return m.get(2); }
+// Each collection pins its element flavour in a `kind` field (0 int,
+// 1 string, 2 object; Hashmap has `kkind`/`vkind`). This test drives
+// string sets, string-keyed maps, string-valued maps, and the
+// keys()/values() accessors.
+import std.List;
+import std.Hashset;
+import std.Hashmap;
 int main() {
-    // hashset with string elements (flavour inferred from usage)
-    hashset s = new hashset();
+    // hashset with string elements (kind = 1)
+    Hashset s = new Hashset();
+    s.kind = 1;
     s.add("hello"); s.add("world"); s.add("hello");
-    printi(len(s)); print(" ");
+    printi(s.size()); print(" ");
     printi(s.contains("world")); print(" ");
     printi(s.contains("nope")); print(" ");
     s.remove("world");
     printi(s.contains("world")); print("\n");
 
-    // one map holding int keys AND string keys (both supported)
-    hashmap m = new hashmap();
+    // int-keyed map
+    Hashmap m = new Hashmap();
     m.put(1, 10);
-    m.put("a", 20);
-    printi(len(m)); print(" ");
+    m.put(2, 20);
+    printi(m.size()); print(" ");
     printi(m.get(1)); print(" ");
-    printi(m.get("a")); print(" ");
-    printi(m.contains("a")); print(" ");
+    printi(m.get(2)); print(" ");
+    printi(m.contains(2)); print(" ");
     printi(m.contains(1)); print("\n");
 
-    // string values; get() flavour inferred from the declared variable
-    hashmap d = new hashmap();
+    // string values (vkind = 1); get() returns the raw slot value
+    Hashmap d = new Hashmap();
+    d.vkind = 1;
     d.put(1, "one");
     d.put(2, "two");
     string w = d.get(2);
@@ -29,32 +36,30 @@ int main() {
     int missing = d.get(9);
     printi(missing); print("\n");
 
-    // get() flavour inferred from the function return type
-    printi(geti(m)); print(" ");
-    string g = gets(d);
-    print(g); print("\n");
-
-    // {...} literals (kind inferred: pairs -> map, bare -> set)
-    hashset ls = {3, 4, 5};
-    printi(len(ls)); print(" ");
+    // {...} equivalent: build a set of ints
+    Hashset ls = new Hashset();
+    ls.add(3); ls.add(4); ls.add(5);
+    printi(ls.size()); print(" ");
     printi(ls.contains(4)); print("\n");
-    hashmap lm = {7: "seven", 8: "eight"};
-    printi(len(lm)); print(" ");
-    string v = lm.get(8);
-    print(v); print("\n");
 
-    // [...] literals and new C(...) with initial items
-    list li = [10, 20, 30];
-    printi(len(li)); print(" ");
+    // build a string-keyed map (int values)
+    Hashmap lm = new Hashmap();
+    lm.kkind = 1;
+    lm.put("seven", 7); lm.put("eight", 8);
+    printi(lm.size()); print(" ");
+    printi(lm.get("eight")); print(" ");
+    printi(lm.get("seven")); print("\n");
+
+    // [...] equivalent: build a list of ints
+    List li = new List();
+    li.add(10); li.add(20); li.add(30);
+    printi(li.size()); print(" ");
     printi(li.get(2)); print("\n");
-    queue lq = new queue(1, 2, 3);
-    printi(len(lq)); print(" ");
-    printi(lq.pop()); print("\n");
 
-    // keys() / values() return a list
-    list ks = m.keys();
-    printi(len(ks)); print("\n");
-    list vs = m.values();
-    printi(len(vs)); print("\n");
+    // keys() / values() return a fresh List
+    List ks = m.keys();
+    printi(ks.size()); print("\n");
+    List vs = m.values();
+    printi(vs.size()); print("\n");
     return 0;
 }

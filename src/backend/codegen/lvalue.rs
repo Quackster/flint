@@ -1,4 +1,4 @@
-use crate::ast::{CollKind, Expr, FieldDef, MethodDef, Ty, Vis};
+use crate::ast::{Expr, FieldDef, MethodDef, Ty, Vis};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 use crate::backend::layout;
@@ -46,13 +46,6 @@ impl Ctx<'_> {
             Expr::Index { base, idx, .. } => {
                 let bty = self.gen_expr(base, frame)?; // ptr
                 self.gen_expr(idx, frame)?; // idx
-                if bty.coll_kind() == Some(CollKind::List) {
-                    self.emit("\tpop %rsi"); // index
-                    self.emit("\tpop %rdi"); // list
-                    self.emit("\tcall flint_list_addr");
-                    self.emit("\tpush %rax");
-                    return Ok(());
-                }
                 self.emit("\tpop %rdx"); // idx
                 self.emit("\tpop %rax"); // base ptr
                 // arrays carry a length header in slot 0; raw pointers do not

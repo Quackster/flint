@@ -90,23 +90,11 @@ impl<'a> Mono<'a> {
             Ty::Str => "string".to_string(),
             Ty::Array => "array".to_string(),
             Ty::Void => "void".to_string(),
-            Ty::List => "list".to_string(),
-            Ty::Queue => "queue".to_string(),
-            Ty::HashMap => "hashmap".to_string(),
-            Ty::HashSet => "hashset".to_string(),
             Ty::Struct(idx) => self
                 .class_names
                 .get(idx)
                 .cloned()
                 .unwrap_or_else(|| "struct".to_string()),
-            Ty::Coll(k, args) => {
-                if args.is_empty() {
-                    k.name().to_string()
-                } else {
-                    let frag: Vec<String> = args.iter().map(|a| self.mangle_ty(a)).collect();
-                    format!("{}_{}", k.name(), frag.join("_"))
-                }
-            }
             Ty::Enum(idx) => self
                 .prog
                 .enums

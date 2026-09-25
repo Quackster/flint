@@ -95,12 +95,6 @@ pub enum Tok {
     KwChar,
     KwBoolean,
     KwString,
-    // built-in collection types
-    KwList,
-    KwQueue,
-    KwHashMap,
-    KwHashSet,
-    KwDict, // alias of hashmap
 
     Eof,
 }

@@ -263,20 +263,6 @@ impl<'p> Analyzer<'p> {
             }
             Expr::StructLit { name, .. } => self.struct_idx.get(name).map(|&i| Ty::Struct(i)),
             Expr::Null { .. } => Some(Ty::Ptr),
-            Expr::CollLit { kind, items, .. } => {
-                let k = kind.unwrap_or_else(|| {
-                    if items.is_empty()
-                        || items
-                            .iter()
-                            .any(|it| matches!(it, CollItem::Pair(_, _)))
-                    {
-                        CollKind::Map
-                    } else {
-                        CollKind::Set
-                    }
-                });
-                Some(k.to_ty())
-            }
             _ => None,
         }
     }
@@ -342,17 +328,6 @@ impl<'p> Analyzer<'p> {
             Expr::ArrayLit { elems, .. } => {
                 for v in elems {
                     self.mark_expr(v);
-                }
-            }
-            Expr::CollLit { items, .. } => {
-                for it in items {
-                    match it {
-                        CollItem::Elem(e) => self.mark_expr(e),
-                        CollItem::Pair(k, v) => {
-                            self.mark_expr(k);
-                            self.mark_expr(v);
-                        }
-                    }
                 }
             }
             Expr::Cond { cond, then, els, .. } => {
@@ -622,7 +597,6 @@ pub fn plan_func(
         let ty = pty.clone();
         let kind = match ty.as_ref() {
             Some(Ty::Struct(_)) => LocalKind::Heap,
-            Some(t) if t.coll_kind().is_some() => LocalKind::Heap,
             _ => LocalKind::Plain,
         };
         a.vars.push(Var {
@@ -686,45 +660,35 @@ pub fn plan_func(
             param_kinds.push(v.kind);
             continue;
         }
-        let (kind, sidx, nslots) = if v
-            .ty
-            .as_ref()
-            .map_or(false, |t| t.coll_kind().is_some())
-        {
-            // Collections are always heap reference values (refcounted, freed
-            // at zero); there is no class index for them.
-            (LocalKind::Heap, None, None)
-        } else {
-            match v.ty {
-                Some(Ty::Struct(s)) => {
-                    let esc = v.obj.map_or(false, |o| obj_esc.contains(&o));
-                    if v.creator {
-                        if esc || v.depth > 0 {
-                            (LocalKind::Heap, Some(s), None)
-                        } else {
-                            (
-                                LocalKind::StackOwner,
-                                Some(s),
-                                Some(layout::nslots(prog, s)),
-                            )
-                        }
-                    } else if v.obj.is_some() {
-                        // alias of another local's object
-                        (
-                            if esc {
-                                LocalKind::Heap
-                            } else {
-                                LocalKind::StackRef
-                            },
-                            Some(s),
-                            None,
-                        )
-                    } else {
+        let (kind, sidx, nslots) = match v.ty {
+            Some(Ty::Struct(s)) => {
+                let esc = v.obj.map_or(false, |o| obj_esc.contains(&o));
+                if v.creator {
+                    if esc || v.depth > 0 {
                         (LocalKind::Heap, Some(s), None)
+                    } else {
+                        (
+                            LocalKind::StackOwner,
+                            Some(s),
+                            Some(layout::nslots(prog, s)),
+                        )
                     }
+                } else if v.obj.is_some() {
+                    // alias of another local's object
+                    (
+                        if esc {
+                            LocalKind::Heap
+                        } else {
+                            LocalKind::StackRef
+                        },
+                        Some(s),
+                        None,
+                    )
+                } else {
+                    (LocalKind::Heap, Some(s), None)
                 }
-                _ => (LocalKind::Plain, None, None),
             }
+            _ => (LocalKind::Plain, None, None),
         };
         regions.push(nslots.map_or(0, |n| n * 8));
         decls.insert(

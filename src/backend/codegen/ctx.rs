@@ -15,10 +15,6 @@ pub(crate) struct Ctx<'a> {
     pub method_map: HashMap<String, HashMap<String, (usize, usize)>>,
     /// Pending stack-object region for the next `new`: (region offset, nslots).
     pub stack_region: Option<(i64, usize)>,
-    /// The type the receiver of the value currently being generated was
-    /// declared with (set for `Ty name = e;`). Collection `get`/`pop`/`peek`
-    /// and `list[i]` use it to pick the int or string result flavour.
-    pub coll_expect: Option<Ty>,
     /// True while the value being generated is STORED into a `string`-typed
     /// local/field/param/return slot: `Expr::Str` then lowers to a fresh
     /// writable `flint_strcopy` (the "retain": each store owns an

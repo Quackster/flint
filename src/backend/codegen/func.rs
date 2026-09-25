@@ -1,4 +1,4 @@
-use crate::ast::{Block, ClassDef, CollKind, FuncDef, MethodDef, Stmt, Ty};
+use crate::ast::{Block, ClassDef, FuncDef, MethodDef, Stmt, Ty};
 use crate::error::{CompileError, CompileResult};
 
 use crate::backend::escape::{self, LocalKind};
@@ -215,15 +215,6 @@ impl Ctx<'_> {
                         let cname = &self.prog.structs[s].name;
                         self.emit(&format!("\tmovq {}(%rbp), %rdi", l.off));
                         self.emit(&format!("\tcall flint_release_{}", cname));
-                    } else if let Some(k) = l.ty.coll_kind() {
-                        let rname = match k {
-                            CollKind::List => "flint_release_list",
-                            CollKind::Queue => "flint_release_queue",
-                            CollKind::Set => "flint_release_set",
-                            CollKind::Map => "flint_release_map",
-                        };
-                        self.emit(&format!("\tmovq {}(%rbp), %rdi", l.off));
-                        self.emit(&format!("\tcall {}", rname));
                     }
                 }
                 LocalKind::StackOwner => {
@@ -238,18 +229,6 @@ impl Ctx<'_> {
                                         roff + base + fi as i64 * 8
                                     ));
                                     self.emit(&format!("\tcall flint_release_{}", fname));
-                                } else if let Some(k) = fty.coll_kind() {
-                                    let rname = match k {
-                                        CollKind::List => "flint_release_list",
-                                        CollKind::Queue => "flint_release_queue",
-                                        CollKind::Set => "flint_release_set",
-                                        CollKind::Map => "flint_release_map",
-                                    };
-                                    self.emit(&format!(
-                                        "\tmovq {}(%rbp), %rdi",
-                                        roff + base + fi as i64 * 8
-                                    ));
-                                    self.emit(&format!("\tcall {}", rname));
                                 }
                             }
                         }

@@ -47,8 +47,8 @@ pub(crate) fn mangle_fqn(pkg: &str, name: &str) -> String {
 /// declarations and use sites. This pass walks the program, instantiates
 /// every generic type/function that is actually used (via a worklist, so
 /// nested instantiations like `Vessel<Pair<int, string>>` are handled), and
-/// rewrites the AST so the backend only ever sees concrete `Ty::Struct` /
-/// `Ty::Coll` types and mangled names.
+/// rewrites the AST so the backend only ever sees concrete `Ty::Struct`
+/// types and mangled names.
 pub fn monomorphize(prog: &Program) -> CompileResult<Program> {
     let mut m = Mono {
         prog,

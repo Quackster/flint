@@ -9,9 +9,10 @@ library — lives at <https://h4bbo.net/flint>.**
 
 - Source: `*.flint`
 - Pipeline: `lexer -> parser -> monomorphize -> codegen -> .s -> as -> ld -e _start`
-- Runtime: a hand-written freestanding `intrinsics.s` + `collections.s`
-  (raw `syscall`s, heap, refcount, threads, sockets, print helpers) linked in
-  by the driver.
+- Runtime: a hand-written freestanding `intrinsics.s` (raw `syscall`s, heap,
+  refcount, threads, sockets, print helpers) linked in by the driver. The
+  collections are ordinary stdlib classes (`src/stdlib/coll.flint`), not part
+  of the runtime.
 
 ## Quick start
 
@@ -53,26 +54,26 @@ Pipeline: `lexer -> parser -> monomorphize -> codegen -> .s -> as -> ld -e _star
 - **middle/**: monomorphization (`ensure`, `expand`, `infer`, `resolve`,
   `resolve_expr`): generic templates are expanded to concrete types/functions.
 - **backend/**: code generation (`codegen/`: `accessor`, `binop`, `builtin`,
-  `call`, `coll`, `ctx`, `expr`, `func`, `lvalue`, `new`, `stmt`) plus
+  `call`, `ctx`, `expr`, `func`, `lvalue`, `new`, `stmt`) plus
   `escape.rs` (stack-vs-heap escape analysis), `layout.rs`, and `release.rs`.
-- **intrinsics.s** + **collections.s**: the freestanding runtime, embedded at
-  compile time and linked into every binary.
+- **intrinsics.s**: the freestanding runtime, embedded at compile time and
+  linked into every binary.
 
 ```
 Cargo.toml  README.md
 src/
   main.rs  ast.rs  lexer.rs  parser.rs  token.rs  span.rs  error.rs
   backend/  mod.rs  codegen.rs  escape.rs  layout.rs  release.rs
-    codegen/  accessor.rs  binop.rs  builtin.rs  call.rs  coll.rs
+    codegen/  accessor.rs  binop.rs  builtin.rs  call.rs
                 ctx.rs  expr.rs  func.rs  lvalue.rs  new.rs  stmt.rs
   middle/   mod.rs  mono/  ensure.rs  expand.rs  infer.rs  mod.rs
                 resolve.rs  resolve_expr.rs
   prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
-   stdlib/   bit.flint  checksum.flint  file.flint  gui.flint
-             image.flint  math.flint  num.flint  path.flint
-             rand.flint  sort.flint  str.flint  time.flint
-             widget.flint
-  intrinsics.s  collections.s
+    stdlib/   bit.flint  checksum.flint  coll.flint  file.flint  gui.flint
+              image.flint  math.flint  mem.flint  net.flint  num.flint
+              path.flint  rand.flint  sort.flint  str.flint  sync.flint
+              task.flint  thread.flint  time.flint  widget.flint
+  intrinsics.s
 tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
 examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint
             tcp_client.flint  tcp_server.flint  gui.flint  window_gui.flint

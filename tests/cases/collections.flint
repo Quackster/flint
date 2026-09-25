@@ -1,12 +1,17 @@
+import std.List;
+import std.Queue;
+import std.Hashset;
+import std.Hashmap;
 int main() {
-    // ---- list ----
-    list l = [10, 20, 30];
-    printi(len(l)); print(" ");
+    // ---- list (int) ----
+    List l = new List();
+    l.add(10); l.add(20); l.add(30);
+    printi(l.size()); print(" ");
     printi(l.get(1)); print(" ");
     l.add(40);
     printi(l.size()); print(" ");
-    l[0] = 99;
-    printi(l[0]); print(" ");
+    l.set(0, 99);
+    printi(l.get(0)); print(" ");
     printi(l.contains(20)); print(" ");
     printi(l.contains(77)); print(" ");
     l.remove(1);
@@ -15,9 +20,9 @@ int main() {
     printi(l.size()); print("\n");
 
     // ---- queue ----
-    queue q = new queue();
+    Queue q = new Queue();
     q.push(1); q.push(2); q.push(3);
-    printi(len(q)); print(" ");
+    printi(q.size()); print(" ");
     printi(q.peek()); print(" ");
     printi(q.pop()); print(" ");
     printi(q.pop()); print(" ");
@@ -25,36 +30,37 @@ int main() {
     q.clear();
     printi(q.size()); print("\n");
 
-    // ---- hashset ----
-    hashset s = new hashset();
+    // ---- hashset (int) ----
+    Hashset s = new Hashset();
     s.add(5); s.add(10); s.add(15); s.add(10);
-    printi(len(s)); print(" ");
+    printi(s.size()); print(" ");
     printi(s.contains(10)); print(" ");
     printi(s.contains(99)); print(" ");
     s.remove(10);
     printi(s.contains(10)); print(" ");
-    printi(len(s)); print("\n");
+    printi(s.size()); print("\n");
     s.clear();
-    printi(len(s)); print("\n");
+    printi(s.size()); print("\n");
 
     // ---- hashmap (int keys) ----
-    hashmap m = new hashmap();
+    Hashmap m = new Hashmap();
     m.put(1, 100); m.put(2, 200); m.put(1, 150);
-    printi(len(m)); print(" ");
+    printi(m.size()); print(" ");
     printi(m.get(1)); print(" ");
     printi(m.get(2)); print(" ");
     printi(m.get(3)); print(" ");
     printi(m.contains(2)); print(" ");
     printi(m.contains(9)); print(" ");
     m.remove(1);
-    printi(len(m)); print("\n");
+    printi(m.size()); print("\n");
     m.clear();
-    printi(len(m)); print("\n");
+    printi(m.size()); print("\n");
 
-    // ---- dictionary (string keys) ----
-    dictionary d = new dictionary();
+    // ---- hashmap (string keys) ----
+    Hashmap d = new Hashmap();
+    d.kkind = 1;
     d.put("apple", 1); d.put("banana", 2); d.put("cherry", 3);
-    printi(len(d)); print(" ");
+    printi(d.size()); print(" ");
     printi(d.get("banana")); print(" ");
     printi(d.get("apple")); print(" ");
     printi(d.get("grape")); print(" ");
@@ -62,9 +68,9 @@ int main() {
     printi(d.contains("melon")); print(" ");
     d.remove("banana");
     printi(d.contains("banana")); print(" ");
-    printi(len(d)); print("\n");
+    printi(d.size()); print("\n");
     d.clear();
-    printi(len(d)); print("\n");
+    printi(d.size()); print("\n");
 
     return 0;
 }

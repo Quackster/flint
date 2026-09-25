@@ -1,0 +1,5 @@
+int main() {
+    int x = 5;
+    int n = len(x);
+    return 0;
+}

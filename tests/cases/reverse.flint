@@ -1,7 +1,9 @@
-// list.reverse must swap every pair; regression for the missing loop
+// List.reverse must swap every pair; regression for the missing loop
 // back-edge that left even-length lists' middle pair unswapped.
+import std.List;
 int main() {
-    list l = [1, 2, 3, 4];
+    List l = new List();
+    l.add(1); l.add(2); l.add(3); l.add(4);
     l.reverse();
     printi(l.get(0)); print(" ");
     printi(l.get(1)); print(" ");
@@ -9,14 +11,16 @@ int main() {
     printi(l.get(3)); print("\n");
 
     // odd length still works
-    list o = [1, 2, 3];
+    List o = new List();
+    o.add(1); o.add(2); o.add(3);
     o.reverse();
     printi(o.get(0)); print(" ");
     printi(o.get(1)); print(" ");
     printi(o.get(2)); print("\n");
 
     // single element: no-op
-    list s = [9];
+    List s = new List();
+    s.add(9);
     s.reverse();
     printi(s.get(0)); print("\n");
     return 0;

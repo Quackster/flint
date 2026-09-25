@@ -252,33 +252,6 @@ impl<'a> Mono<'a> {
                     .collect::<CompileResult<_>>()?;
                 Ok(Expr::ArrayLit { span: *span, elems })
             }
-            Expr::CollLit {
-                span,
-                kind,
-                type_args,
-                items,
-            } => {
-                let resolved_type_args: Vec<Ty> = type_args
-                    .iter()
-                    .map(|a| self.resolve_type(a, subst))
-                    .collect::<CompileResult<_>>()?;
-                let items: Vec<CollItem> = items
-                    .iter()
-                    .map(|it| match it {
-                        CollItem::Elem(el) => Ok(CollItem::Elem(self.resolve_expr(el, subst)?)),
-                        CollItem::Pair(k, v) => Ok(CollItem::Pair(
-                            self.resolve_expr(k, subst)?,
-                            self.resolve_expr(v, subst)?,
-                        )),
-                    })
-                    .collect::<CompileResult<_>>()?;
-                Ok(Expr::CollLit {
-                    span: *span,
-                    kind: *kind,
-                    type_args: resolved_type_args,
-                    items,
-                })
-            }
             Expr::Cond {
                 span,
                 cond,

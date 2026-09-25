@@ -18,23 +18,7 @@ fn is_type_keyword(k: &Tok) -> bool {
             | Tok::KwChar
             | Tok::KwBoolean
             | Tok::KwString
-            | Tok::KwList
-            | Tok::KwQueue
-            | Tok::KwHashMap
-            | Tok::KwHashSet
-            | Tok::KwDict
     )
-}
-
-/// The built-in collection kind a type keyword names, if any.
-fn coll_kind_of_tok(k: &Tok) -> Option<CollKind> {
-    match k {
-        Tok::KwList => Some(CollKind::List),
-        Tok::KwQueue => Some(CollKind::Queue),
-        Tok::KwHashMap | Tok::KwDict => Some(CollKind::Map),
-        Tok::KwHashSet => Some(CollKind::Set),
-        _ => None,
-    }
 }
 
 /// The fully qualified name of an item: `package.Name`, or just `Name` when
@@ -621,42 +605,6 @@ impl<'a> Parser<'a> {
             Tok::KwString => {
                 self.bump();
                 Ty::Str
-            }
-            Tok::KwList => {
-                self.bump();
-                let args = self.parse_type_args_opt()?;
-                if args.is_empty() {
-                    Ty::List
-                } else {
-                    Ty::Coll(CollKind::List, args)
-                }
-            }
-            Tok::KwQueue => {
-                self.bump();
-                let args = self.parse_type_args_opt()?;
-                if args.is_empty() {
-                    Ty::Queue
-                } else {
-                    Ty::Coll(CollKind::Queue, args)
-                }
-            }
-            Tok::KwHashMap | Tok::KwDict => {
-                self.bump();
-                let args = self.parse_type_args_opt()?;
-                if args.is_empty() {
-                    Ty::HashMap
-                } else {
-                    Ty::Coll(CollKind::Map, args)
-                }
-            }
-            Tok::KwHashSet => {
-                self.bump();
-                let args = self.parse_type_args_opt()?;
-                if args.is_empty() {
-                    Ty::HashSet
-                } else {
-                    Ty::Coll(CollKind::Set, args)
-                }
             }
             Tok::Ident(n) => {
                 if let Some(fqn) = self.resolve_class(&n) {
@@ -1420,48 +1368,7 @@ impl<'a> Parser<'a> {
         let name = self.expect_ident()?;
         let ty = self.array_suffix(ty)?;
         self.expect(&Tok::Assign, "'=' after variable name")?;
-        let mut value = self.parse_expr()?;
-        // Collection initializers: `[1, 2]` coerces to a list/queue, and a
-        // `{...}` literal takes on the declared collection kind.
-        if let Some(kind) = ty.coll_kind() {
-            if let Expr::ArrayLit { elems, .. } = value {
-                if kind == CollKind::Map || kind == CollKind::Set {
-                    return Err(CompileError::new(
-                        span,
-                        format!(
-                            "[...] literals initialize a list or queue, not a {}",
-                            kind.name()
-                        ),
-                    ));
-                }
-                value = Expr::CollLit {
-                    span,
-                    kind: Some(kind),
-                    type_args: Vec::new(),
-                    items: elems.into_iter().map(CollItem::Elem).collect(),
-                };
-            }
-            if let Expr::CollLit {
-                span: vspan,
-                items,
-                type_args,
-                ..
-            } = value
-            {
-                self.resolve_colllit(vspan, kind, &items)?;
-                value = Expr::CollLit {
-                    span: vspan,
-                    kind: Some(kind),
-                    type_args,
-                    items,
-                };
-            }
-        } else if let Expr::CollLit { span: vspan, .. } = &value {
-            return Err(CompileError::new(
-                *vspan,
-                "a {...} literal requires a list, queue, hashmap, or hashset variable",
-            ));
-        }
+        let value = self.parse_expr()?;
         if expect_semi {
             self.expect(&Tok::Semicolon, "';'")?;
         }
@@ -1471,41 +1378,6 @@ impl<'a> Parser<'a> {
             ty: Some(ty),
             value,
         })
-    }
-
-    /// Validate `{...}` literal items against the declared collection kind.
-    fn resolve_colllit(
-        &self,
-        vspan: Span,
-        declared: CollKind,
-        items: &[CollItem],
-    ) -> CompileResult<()> {
-        match declared {
-            CollKind::Map => {
-                for it in items {
-                    if let CollItem::Elem(_) = it {
-                        return Err(CompileError::new(
-                            vspan,
-                            "hashmap literal items must be 'key: value' pairs",
-                        ));
-                    }
-                }
-            }
-            _ => {
-                for it in items {
-                    if let CollItem::Pair(_, _) = it {
-                        return Err(CompileError::new(
-                            vspan,
-                            format!(
-                                "{} literals cannot contain 'key: value' pairs",
-                                declared.name()
-                            ),
-                        ));
-                    }
-                }
-            }
-        }
-        Ok(())
     }
 
     /// Parse an expression, or `expr = expr`, as a statement (no trailing ';').
@@ -2279,45 +2151,16 @@ impl<'a> Parser<'a> {
                 self.expect(&Tok::RBracket, "']'")?;
                 Ok(Expr::ArrayLit { span, elems })
             }
-            Tok::LBrace => {
-                // `{...}` collection literal (expression position only: blocks
-                // never occur here). Items are `e` (element) or `k: v` (pair).
-                self.bump();
-                let mut items = Vec::new();
-                while !self.at(&Tok::RBrace) {
-                    let k = self.parse_expr()?;
-                    if self.at(&Tok::Colon) {
-                        self.bump();
-                        let v = self.parse_expr()?;
-                        items.push(CollItem::Pair(k, v));
-                    } else {
-                        items.push(CollItem::Elem(k));
-                    }
-                    if self.at(&Tok::Comma) {
-                        self.bump();
-                    }
-                }
-                self.expect(&Tok::RBrace, "'}' in collection literal")?;
-                Ok(Expr::CollLit {
-                    span,
-                    kind: None,
-                    type_args: Vec::new(),
-                    items,
-                })
-            }
             Tok::New => {
                 self.bump();
-                let (name, coll) = if let Some(kind) = coll_kind_of_tok(&self.peek_kind()) {
-                    self.bump();
-                    (kind.name().to_string(), Some(kind))
-                } else if matches!(self.peek_kind(), Tok::Ident(_))
+                let name = if matches!(self.peek_kind(), Tok::Ident(_))
                     && self.next_kind() == Tok::Dot
                 {
                     // qualified class name: a.b.Name
                     match scan_dotted_path(self.toks, self.i) {
                         Some((path, end)) => {
                             self.i = end;
-                            (path, None)
+                            path
                         }
                         None => {
                             return Err(CompileError::new(
@@ -2327,26 +2170,8 @@ impl<'a> Parser<'a> {
                         }
                     }
                 } else {
-                    (self.expect_ident()?, None)
+                    self.expect_ident()?
                 };
-                if let Some(kind) = coll {
-                    let type_args = self.parse_type_args_opt()?;
-                    self.expect(&Tok::LParen, "'(' after collection type")?;
-                    let mut items = Vec::new();
-                    while !self.at(&Tok::RParen) {
-                        items.push(CollItem::Elem(self.parse_expr()?));
-                        if self.at(&Tok::Comma) {
-                            self.bump();
-                        }
-                    }
-                    self.expect(&Tok::RParen, "')' after collection arguments")?;
-                    return Ok(Expr::CollLit {
-                        span,
-                        kind: Some(kind),
-                        type_args,
-                        items,
-                    });
-                }
                 let class_fqn = match self.resolve_class(&name) {
                     Some(fqn) => fqn,
                     None => {
@@ -2469,7 +2294,6 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::Field { span, .. }
         | Expr::StructLit { span, .. }
         | Expr::ArrayLit { span, .. }
-        | Expr::CollLit { span, .. }
         | Expr::Null { span, .. }
         | Expr::Cond { span, .. }
         | Expr::SuperBase { span, .. }

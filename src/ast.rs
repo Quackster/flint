@@ -107,59 +107,10 @@ pub enum Ty {
                      // implementing object satisfies; used in decls, casts,
                      // and `instanceof`)
     Enum(usize), // index into Program::enums (a 64-bit integer value)
-    // built-in collections (heap pointers, slot 0 = size, not refcounted)
-    List,
-    Queue,
-    HashMap, // `dictionary` is an alias
-    HashSet,
     // generic (pre-monomorphization only; resolved to concrete types by the
     // middle/mono pass, so the backend never sees these)
     Param(String), // a type-parameter reference, e.g. `T` in `class Vessel<T>`
     Inst(usize, Vec<Ty>), // instantiated generic class: class index + type args
-    Coll(CollKind, Vec<Ty>), // typed collection, e.g. `list<int>` / `hashmap<string, int>`
-}
-
-/// Built-in collection kind (dictionary is an alias of map).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CollKind {
-    List,
-    Queue,
-    Map,
-    Set,
-}
-
-impl CollKind {
-    pub fn to_ty(self) -> Ty {
-        match self {
-            CollKind::List => Ty::List,
-            CollKind::Queue => Ty::Queue,
-            CollKind::Map => Ty::HashMap,
-            CollKind::Set => Ty::HashSet,
-        }
-    }
-
-    pub fn name(self) -> &'static str {
-        match self {
-            CollKind::List => "list",
-            CollKind::Queue => "queue",
-            CollKind::Map => "hashmap",
-            CollKind::Set => "hashset",
-        }
-    }
-}
-
-impl Ty {
-    /// The built-in collection kind when the type is one.
-    pub fn coll_kind(&self) -> Option<CollKind> {
-        match self {
-            Ty::List => Some(CollKind::List),
-            Ty::Queue => Some(CollKind::Queue),
-            Ty::HashMap => Some(CollKind::Map),
-            Ty::HashSet => Some(CollKind::Set),
-            Ty::Coll(k, _) => Some(*k),
-            _ => None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -300,14 +251,6 @@ pub enum UnOp {
     FnAddr, // @ (function address)
 }
 
-/// One entry of a collection literal: a bare element (`list`, `hashset`)
-/// or a `key: value` pair (`hashmap`/`dictionary`).
-#[derive(Debug, Clone)]
-pub enum CollItem {
-    Elem(Expr),
-    Pair(Expr, Expr),
-}
-
 #[derive(Debug, Clone)]
 pub enum Expr {
     Int {
@@ -392,17 +335,6 @@ pub enum Expr {
     ArrayLit {
         span: Span,
         elems: Vec<Expr>,
-    },
-    // `{...}` collection literal: `{1, 2}`, `{"a": 1, 2: "b"}`, `{}`.
-    // `kind` is None when the literal appears outside a typed declaration;
-    // codegen then infers it (pairs -> map, bare elements -> set).
-    // `type_args` carries explicit element types for `new list<int>()`; the
-    // declared type normally supplies the flavour.
-    CollLit {
-        span: Span,
-        kind: Option<CollKind>,
-        type_args: Vec<Ty>,
-        items: Vec<CollItem>,
     },
     Null {
         span: Span,

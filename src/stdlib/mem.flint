@@ -20,6 +20,11 @@ class Mem {
     static void freeInt(*int p) { free(p); }
     // Release a byte buffer.
     static void freeByte(*byte p) { free(p); }
+    // Bump the refcount of a class object (the caller keeps its own
+    // reference; the object now survives one extra drop).
+    static int retain(int o) { return mem.retain(o); }
+    // Drop one reference to a class object (a plain refcount decrement).
+    static void release(int o) { mem.release(o); }
     // Copy n bytes from src to dst.
     static void copy(*byte dst, *byte src, int n) { memcpy(dst, src, n); }
 }

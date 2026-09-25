@@ -1,4 +1,4 @@
-use crate::ast::{Accessor, CollKind, Expr, Ty};
+use crate::ast::{Accessor, Expr, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 use crate::backend::layout;
@@ -21,63 +21,26 @@ impl Ctx<'_> {
                     format!("{} expects {} arguments, got {}", callee.join("."), b.arity, args.len()),
                 ));
             }
-            // len() only makes sense on arrays and collections (ident args
-            // are checked; other expressions fall through untyped in v1).
-            // Collections carry their length at slot 1 (slot 0 is the
-            // refcount), so route to the per-kind size function.
+            // len() only makes sense on arrays (ident args are checked;
+            // other expressions fall through untyped in v1).
             let target = if b.target == "flint_len" {
                 if let Expr::Ident { name, span: aspan } = &args[0] {
                     if let Some(l) = frame.find(name) {
-                        if l.ty != Ty::Array && l.ty.coll_kind().is_none() {
+                        if l.ty != Ty::Array {
                             return Err(CompileError::new(
                                 *aspan,
-                                format!("len() requires an array or collection, got a {}", ty_name(&l.ty)),
+                                format!("len() requires an array, got a {}", ty_name(&l.ty)),
                             ));
                         }
-                        match l.ty.coll_kind() {
-                            Some(CollKind::List) => "flint_list_size",
-                            Some(CollKind::Queue) => "flint_queue_size",
-                            Some(CollKind::Set) => "flint_hashset_size",
-                            Some(CollKind::Map) => "flint_hashmap_size",
-                            None => "flint_len",
-                        }
-                } else {
-                    "flint_len"
+                    }
                 }
-            } else if let Expr::Field { base: fbase, name: fname, .. } = &args[0] {
-                // `len(obj.field)`: resolve the field's collection kind
-                match self.expr_struct_type(fbase, frame) {
-                    Ok(Some(sidx)) => match self.struct_field_type(sidx, fname) {
-                        Ok(t) if t.coll_kind().is_some() => match t.coll_kind() {
-                            Some(CollKind::List) => "flint_list_size",
-                            Some(CollKind::Queue) => "flint_queue_size",
-                            Some(CollKind::Set) => "flint_hashset_size",
-                            Some(CollKind::Map) => "flint_hashmap_size",
-                            _ => "flint_len",
-                        },
-                        _ => "flint_len",
-                    },
-                    _ => "flint_len",
-                }
-            } else {
                 "flint_len"
-            }
             } else {
                 b.target
             };
             // builtins read their arguments; literals stay read-only.
-            // An argument feeding a string/pointer param steers collection
-            // reads to the string flavour (e.g. `print(m.get(k))`).
-            for (i, a) in args.iter().enumerate() {
-                let saved = self.coll_expect.clone();
-                if b.params
-                    .get(i)
-                    .is_some_and(|t| matches!(t, Ty::Str | Ty::Ptr))
-                {
-                    self.coll_expect = Some(Ty::Str);
-                }
+            for a in args.iter() {
                 self.gen_expr_ro(a, frame)?;
-                self.coll_expect = saved;
             }
             self.pop_args(args.len());
             self.emit(&format!("\tcall {}", target));
@@ -127,19 +90,12 @@ impl Ctx<'_> {
         // literals for `string` params get a fresh writable copy (the
         // callee may write through its parameters).
         let saved = self.str_copy;
-        let saved_ce = self.coll_expect.clone();
         for (i, a) in args.iter().enumerate() {
             self.str_copy = f.params[i].1.as_ref() == Some(&Ty::Str);
-            if matches!(f.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
-                self.coll_expect = Some(Ty::Str);
-            } else {
-                self.coll_expect = saved_ce.clone();
-            }
             self.gen_expr(a, frame)?;
             self.maybe_retain(a, frame);
         }
         self.str_copy = saved;
-        self.coll_expect = saved_ce;
         // `async` function: the call spawns the body on a worker thread and
         // evaluates to a std.Task.
         if f.is_async {
@@ -164,10 +120,6 @@ impl Ctx<'_> {
         frame: &mut Frame,
         span: Span,
     ) -> CompileResult<Ty> {
-        // built-in collections dispatch before class methods
-        if let Some(cty) = self.coll_type_of(base, frame)? {
-            return self.gen_coll_method(base, cty, method, args, frame, span);
-        }
         // interface-typed base: dispatch through the fixed interface slot
         if let Some(i) = self.expr_interface_type(base, frame)? {
             return self.gen_iface_method_call(base, i, method, args, frame, span);
@@ -217,19 +169,12 @@ impl Ctx<'_> {
                 }
                 // The callee owns the argument references it receives.
                 let saved = self.str_copy;
-                let saved_ce = self.coll_expect.clone();
                 for (i, a) in args.iter().enumerate() {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-                    if matches!(meth.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
-                        self.coll_expect = Some(Ty::Str);
-                    } else {
-                        self.coll_expect = saved_ce.clone();
-                    }
                     self.gen_expr(a, frame)?;
                     self.maybe_retain(a, frame);
                 }
                 self.str_copy = saved;
-                self.coll_expect = saved_ce;
                 // `async` static method: runs on a worker thread; the call
                 // evaluates to a std.Task.
                 if meth.is_async {
@@ -274,19 +219,12 @@ impl Ctx<'_> {
                 self.gen_expr_ro(base, frame)?;
                 self.maybe_retain(base, frame);
                 let saved = self.str_copy;
-                let saved_ce = self.coll_expect.clone();
                 for (i, a) in args.iter().enumerate() {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-                    if matches!(meth.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
-                        self.coll_expect = Some(Ty::Str);
-                    } else {
-                        self.coll_expect = saved_ce.clone();
-                    }
                     self.gen_expr(a, frame)?;
                     self.maybe_retain(a, frame);
                 }
                 self.str_copy = saved;
-                self.coll_expect = saved_ce;
                 let total = args.len() + 1;
                 if total > 6 {
                     return Err(CompileError::new(
@@ -425,19 +363,12 @@ impl Ctx<'_> {
         self.gen_expr_ro(base, frame)?;
         self.maybe_retain(base, frame);
         let saved = self.str_copy;
-        let saved_ce = self.coll_expect.clone();
         for (i, a) in args.iter().enumerate() {
             self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-            if matches!(meth.params[i].1.as_ref(), Some(Ty::Str) | Some(Ty::Ptr)) {
-                self.coll_expect = Some(Ty::Str);
-            } else {
-                self.coll_expect = saved_ce.clone();
-            }
             self.gen_expr(a, frame)?;
             self.maybe_retain(a, frame);
         }
         self.str_copy = saved;
-        self.coll_expect = saved_ce;
         let total = args.len() + 1;
         if total > 6 {
             return Err(CompileError::new(

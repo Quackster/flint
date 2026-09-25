@@ -86,9 +86,22 @@ pub(crate) fn field_base_offset(prog: &Program, sidx: usize) -> i64 {
 pub(crate) fn vtable_slots(prog: &Program, sidx: usize) -> Vec<String> {
     let mut slots = interface_part(prog);
     let mut order: Vec<String> = Vec::new();
+    // Walk the parent chain first (root to derived), then the class's own
+    // methods: an override keeps the parent's slot position, so a call
+    // dispatched through a parent-typed variable finds the parent's slots
+    // at the same indices in every subclass vtable.
+    let mut chain: Vec<usize> = Vec::new();
     let mut cur = sidx;
     loop {
-        for m in &prog.structs[cur].methods {
+        chain.push(cur);
+        match parent_idx(prog, cur) {
+            Some(p) => cur = p,
+            None => break,
+        }
+    }
+    chain.reverse();
+    for ci in chain {
+        for m in &prog.structs[ci].methods {
             // abstract methods keep their slot (as a flint_unimplemented stub)
             // so the slot index stays aligned across the hierarchy
             if m.is_static || m.is_ctor {
@@ -97,10 +110,6 @@ pub(crate) fn vtable_slots(prog: &Program, sidx: usize) -> Vec<String> {
             if !slots.contains(&m.name) && !order.contains(&m.name) {
                 order.push(m.name.clone());
             }
-        }
-        match parent_idx(prog, cur) {
-            Some(p) => cur = p,
-            None => break,
         }
     }
     slots.extend(order);

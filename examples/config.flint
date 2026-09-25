@@ -1,13 +1,16 @@
-// config: `dictionary` is an alias of hashmap — same API, different
-// name. Here it stores string keys mapped to string values, the usual
-// settings-table shape.
+// config: a Hashmap as a settings table — string keys mapped to
+// string values (kkind/vkind = 1), the usual configuration shape.
+// Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/config.flint -o config
+import std.Hashmap;
 class Config {
-    dictionary table;
+    Hashmap table;
     public Config() {
-        this.table = new dictionary();
+        this.table = new Hashmap();
+        this.table.kkind = 1;
+        this.table.vkind = 1;
     }
     public string get(string key, string dflt) {
-        string v = this.table.get(key);
+        string v = this.table.getStr(key);
         if (v == null) {
             return dflt;
         }
@@ -23,7 +26,7 @@ int main() {
     c.set("host", "localhost");
     c.set("port", "8080");
     c.set("debug", "1");
-    printi(len(c.table));         // 3
+    printi(c.table.size());      // 3
     print("\n");
     print(c.get("host", "?"));   // localhost
     print("\n");
@@ -39,7 +42,7 @@ int main() {
     c.table.remove("host");
     printi(c.table.contains("host"));   // 0
     print("\n");
-    printi(len(c.table));         // 2
+    printi(c.table.size());      // 2
     print("\n");
     return 0;
 }

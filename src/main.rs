@@ -13,8 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 /// The freestanding runtime, embedded at compile time.
-const INTRINSICS: &str =
-    concat!(include_str!("intrinsics.s"), "\n", include_str!("collections.s"));
+const INTRINSICS: &str = include_str!("intrinsics.s");
 
 fn print_usage() {
     eprintln!(

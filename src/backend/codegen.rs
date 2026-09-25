@@ -2,7 +2,6 @@ mod accessor;
 mod binop;
 mod builtin;
 mod call;
-mod coll;
 mod ctx;
 mod expr;
 mod func;
@@ -10,7 +9,7 @@ mod lvalue;
 mod new;
 mod stmt;
 
-use crate::ast::{Accessor, BinOp, CollKind, Expr, Program, Ty};
+use crate::ast::{Accessor, BinOp, Expr, Program, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::backend::layout;
 use std::collections::HashMap;
@@ -29,17 +28,6 @@ pub(crate) fn struct_idx_of(ty: &Ty) -> Option<usize> {
         Some(*i)
     } else {
         None
-    }
-}
-
-/// Per-kind collection release function (refcount zero frees the collection and
-/// releases its object elements).
-pub(crate) fn coll_release_name(k: CollKind) -> &'static str {
-    match k {
-        CollKind::List => "flint_release_list",
-        CollKind::Queue => "flint_release_queue",
-        CollKind::Set => "flint_release_set",
-        CollKind::Map => "flint_release_map",
     }
 }
 
@@ -89,19 +77,9 @@ fn ty_name(ty: &Ty) -> &'static str {
         Ty::Void => "void",
         Ty::Struct(_) => "class",
         Ty::Interface(_) => "interface",
-        Ty::List => "list",
-        Ty::Queue => "queue",
-        Ty::HashMap => "hashmap",
-        Ty::HashSet => "hashset",
         Ty::Enum(_) => "int",
         Ty::Param(_) => "param",
         Ty::Inst(_, _) => "class",
-        Ty::Coll(k, _) => match k {
-            CollKind::List => "list",
-            CollKind::Queue => "queue",
-            CollKind::Map => "hashmap",
-            CollKind::Set => "hashset",
-        },
     }
 }
 
@@ -133,7 +111,6 @@ pub fn generate(prog: &Program) -> CompileResult<String> {
         struct_idx: HashMap::new(),
         method_map: HashMap::new(),
         stack_region: None,
-        coll_expect: None,
         str_copy: false,
     };
     for (i, f) in prog.funcs.iter().enumerate() {

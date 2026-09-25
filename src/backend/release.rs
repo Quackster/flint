@@ -4,8 +4,22 @@
 // zero, recursively releases class-typed fields and munmaps the object.
 // Cyclic structures therefore leak (each cycle edge holds a reference that
 // keeps the refcount above zero) but never crash.
-use super::codegen::{Ctx, coll_release_name, struct_idx_of};
+use crate::ast::Program;
+use super::codegen::{Ctx, struct_idx_of};
 use super::layout;
+
+/// Mangled name of the class's `destroy()` hook, when it is a concrete
+/// (non-abstract, non-static) method. `destroy()` runs with `this` in
+/// %rdi when the last reference drops, before the object's fields are
+/// released and it is unmapped.
+fn destroy_fn(prog: &Program, sidx: usize) -> Option<String> {
+    let (ci, mi) = layout::find_method_def(prog, sidx, "destroy")?;
+    let m = &prog.structs[ci].methods[mi];
+    if m.is_abstract || m.is_static || m.is_ctor {
+        return None;
+    }
+    Some(format!("{}_destroy", prog.structs[ci].name))
+}
 
 impl Ctx<'_> {
     /// Emit `flint_release_<C>` for one class.
@@ -26,6 +40,21 @@ impl Ctx<'_> {
         self.emit("\tdecq (%rdi)");
         self.emit(&format!("\tjnz .Lrc_{}_done", s.name));
         self.emit("\tmov %rdi, %rbx");
+        // destroy() hook: the user method runs while the object is still
+        // intact (this in %rdi), before field release and the munmap.
+        // Callers may hold lvalue addresses / temps across the release
+        // call (this function previously clobbered nothing but %rbx), so
+        // every caller-saved register is saved and restored around the
+        // hook.
+        if let Some(fname) = destroy_fn(self.prog, sidx) {
+            for r in ["%rax", "%rcx", "%rdx", "%rsi", "%rdi", "%r8", "%r9", "%r10", "%r11"] {
+                self.emit(&format!("\tpush {}", r));
+            }
+            self.emit(&format!("\tcall {}", fname));
+            for r in ["%r11", "%r10", "%r9", "%r8", "%rdi", "%rsi", "%rdx", "%rcx", "%rax"] {
+                self.emit(&format!("\tpop {}", r));
+            }
+        }
         let base = layout::field_base_offset(self.prog, sidx);
         for (i, (_, fty)) in layout::all_fields(self.prog, sidx).iter().enumerate() {
             let off = base + i as i64 * 8;
@@ -36,14 +65,6 @@ impl Ctx<'_> {
                 self.emit("\ttest %rdi, %rdi");
                 self.emit(&format!("\tjz .Lrc_{}_f{}", s.name, i));
                 self.emit(&format!("\tcall flint_release_{}", fname));
-                self.emit(&format!(".Lrc_{}_f{}:", s.name, i));
-            } else if let Some(k) = fty.coll_kind() {
-                // collection-typed field: release (frees the collection and its
-                // object elements)
-                self.emit(&format!("\tmovq {}(%rbx), %rdi", off));
-                self.emit("\ttest %rdi, %rdi");
-                self.emit(&format!("\tjz .Lrc_{}_f{}", s.name, i));
-                self.emit(&format!("\tcall {}", coll_release_name(k)));
                 self.emit(&format!(".Lrc_{}_f{}:", s.name, i));
             }
         }

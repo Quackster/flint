@@ -1,5 +1,0 @@
-int main() {
-    hashmap m = new hashmap();
-    m = [1, 2];
-    return 0;
-}

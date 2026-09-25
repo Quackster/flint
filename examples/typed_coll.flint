@@ -1,52 +1,55 @@
-// typed_coll: typed collections pin the element flavour at the type:
-// list<int>, list<string>, hashmap<K, V>, hashset<T>, queue<T>. A
-// typed read uses the type's flavour; a mismatched get returns 0.
-// `new list<int>(a, b, c)` seeds the collection with initial elements.
+// typed_coll: stdlib collections pin the element flavour in a field
+// (kind on List/Queue/Hashset, kkind/vkind on Hashmap): 0 int,
+// 1 string, 2 object. The flavour drives hashing, compare, sort and
+// join, and the retain/release of object elements.
+// Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/typed_coll.flint -o typed_coll
+import std.List;
+import std.Queue;
+import std.Hashset;
+import std.Hashmap;
 int main() {
-    // seeded typed list
-    list<int> t = new list<int>(7, 8, 9);
-    printi(len(t));                // 3
+    // int list
+    List t = new List();
+    t.add(7); t.add(8); t.add(9);
+    printi(t.size());             // 3
     print("\n");
     printi(t.get(2));            // 9
     print("\n");
     t.add(10);
     printi(t.get(3));           // 10
     print("\n");
-    // typed string list
-    list<string> names = new list<string>();
+    // string list (kind = 1)
+    List names = new List();
+    names.kind = 1;
     names.add("flint");
     names.add("c");
     names.add("rust");
     names.sort();
     print(names.join(","));       // c,flint,rust
     print("\n");
-    // typed set
-    hashset<int> seen = new hashset<int>();
+    // int set
+    Hashset seen = new Hashset();
     printi(seen.add(5));        // 1
     print("\n");
     printi(seen.add(5));        // 0 (duplicate)
     print("\n");
-    printi(len(seen));         // 1
+    printi(seen.size());        // 1
     print("\n");
-    // typed queue
-    queue<string> q = new queue<string>();
+    // string queue (kind = 1)
+    Queue q = new Queue();
+    q.kind = 1;
     q.push("a");
     q.push("b");
     print(q.pop());            // a (FIFO)
     print("\n");
-    // typed map: string key, int value
-    hashmap<string, int> scores = new hashmap<string, int>();
+    // map: string key, int value
+    Hashmap scores = new Hashmap();
+    scores.kkind = 1;
     scores.put("a", 15);
     scores.put("b", 20);
     printi(scores.get("b"));   // 20
     print("\n");
-    printi(len(scores));       // 2
-    print("\n");
-    // a flavour mismatch on an untyped map returns 0
-    hashmap m = new hashmap();
-    m.put(1, 100);             // stored as an int value
-    string s = m.get(1);       // want a string -> 0
-    printi(s == null ? 1 : 0); // 1
+    printi(scores.size());     // 2
     print("\n");
     return 0;
 }

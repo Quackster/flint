@@ -21,13 +21,14 @@ fi
 echo "  using $FLINTC"
 
 # ---------------------------------------------------------------- execution
+# Case tests compile with the whole stdlib so they may `import std.*`.
 echo
-echo "== execution tests (tests/cases) =="
+echo "== execution tests (tests/cases, with stdlib) =="
 for src in tests/cases/*.flint; do
     name="$(basename "$src" .flint)"
     exp="tests/cases/expected/$name.out"
     bin="$WORK/$name.bin"
-    if ! timeout 20 "$FLINTC" "$src" -o "$bin" 2> "$WORK/$name.cerr"; then
+    if ! timeout 20 "$FLINTC" src/stdlib/*.flint "$src" -o "$bin" 2> "$WORK/$name.cerr"; then
         bad "$name (compile)"; sed 's/^/      /' "$WORK/$name.cerr"; continue
     fi
     timeout 20 "$bin" > "$WORK/$name.out" 2>&1

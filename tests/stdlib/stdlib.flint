@@ -67,8 +67,8 @@ int main() {
     printi(Path.isAbsolute("/a/b")); print(" ");
     printi(Path.isAbsolute("a/b")); print(" ");
     print(Path.normalize("a/./b/../c")); print(" ");
-    list<string> pp = Path.split("x/y/z");
-    printi(len(pp)); print("\n");
+    List pp = Path.split("x/y/z");
+    printi(pp.size()); print("\n");
 
     // ---- File (temp file) ----
     File.writeAll("/tmp/flint_stdlib_t.txt", "line1\nline2\n");
@@ -104,7 +104,7 @@ int main() {
     printi(Str.endsWith("hello", "lo")); print(" ");
     print(Str.replaceAll("a-b-a", "a", "z")); print(" ");
     print(Str.repeat("ab", 3)); print("\n");
-    list<string> sp = Str.split("a,b,c", ",");
+    List sp = Str.split("a,b,c", ",");
     print(Str.join(sp, "-")); print(" ");
     print(Str.ljust("ab", 5, 32)); print(" ");
     print(Str.rjust("ab", 5, 32)); print("\n");

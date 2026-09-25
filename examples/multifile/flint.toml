@@ -1,1 +1,1 @@
-sources = ["util.flint", "main.flint"]
+sources = ["../../src/stdlib/coll.flint", "../../src/stdlib/mem.flint", "util.flint", "main.flint"]
