@@ -109,29 +109,26 @@ fn main() -> ExitCode {
         (_, _, false) => inputs.iter().map(PathBuf::from).collect(),
     };
 
-    // Concatenate the sources (each keeps its own `package` header).
-    let mut src = String::new();
+    // Read each source file (each keeps its own `package` header).
+    let mut file_sources: Vec<String> = Vec::new();
     for f in &files {
         match fs::read_to_string(f) {
-            Ok(s) => {
-                if !src.is_empty() {
-                    src.push('\n');
-                }
-                src.push_str(&s);
-            }
+            Ok(s) => file_sources.push(s),
             Err(e) => {
                 eprintln!("error: cannot read '{}': {}", f.display(), e);
                 return ExitCode::from(1);
             }
         }
     }
+    // The concatenated source is used for error reporting (global spans).
+    let src = file_sources.join("\n");
     // The default output is derived from the first source file.
     let first = files
         .first()
         .map(|f| f.to_string_lossy().to_string())
         .unwrap_or_else(|| "out".to_string());
 
-    let asm = match compile(&src) {
+    let asm = match compile_sources(&file_sources) {
         Ok(a) => a,
         Err(e) => {
             error::die(&src, &e);
@@ -164,11 +161,53 @@ fn main() -> ExitCode {
     }
 }
 
-/// Run the full pipeline: lex -> parse -> monomorphize -> codegen -> assembly.
-pub fn compile(src: &str) -> error::CompileResult<String> {
-    let toks = lexer::tokenize(src)?;
-    let prog = parser::parse(&toks)?;
-    let prog = middle::monomorphize(&prog)?;
+/// Run the full pipeline over multiple input files. The concatenated source is
+/// lexed once (so error spans are global); a single global name registry is
+/// pre-scanned with the running package reset at each file boundary (so a
+/// packageless file does not inherit the previous file's package); each file
+/// is then parsed against that registry with its own package state; the
+/// programs are merged and monomorphized; and the assembly is generated.
+pub fn compile_sources(file_sources: &[String]) -> error::CompileResult<String> {
+    let src = file_sources.join("\n");
+    let toks = lexer::tokenize(&src)?;
+    // Per-file token ranges. Each file is lexed individually for its count
+    // (minus its trailing Eof); the counts partition `toks` because the
+    // concatenated lex has no token crossing a file boundary.
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    let mut off = 0usize;
+    for fs in file_sources {
+        let n = lexer::tokenize(fs)?.len() - 1; // drop the appended Eof
+        ranges.push((off, off + n));
+        off += n;
+    }
+    debug_assert_eq!(off, toks.len() - 1, "per-file token counts must partition the stream");
+    // One global name registry, resetting the package at each file start.
+    let boundaries: std::collections::HashSet<usize> =
+        ranges.iter().map(|(s, _)| *s).collect();
+    let reg = parser::prescan(&toks, &boundaries);
+    // The parser stops at an Eof, so each file slice needs its own Eof.
+    let eof = toks[toks.len() - 1].clone();
+    // Parse each file slice with the global registry and fresh package state,
+    // then merge the programs.
+    let mut merged = ast::Program {
+        structs: Vec::new(),
+        funcs: Vec::new(),
+        interfaces: Vec::new(),
+        enums: Vec::new(),
+        imports: Vec::new(),
+    };
+    for (start, end) in &ranges {
+        let mut file_toks = toks[*start..*end].to_vec();
+        file_toks.push(eof.clone());
+        let mut p = parser::Parser::with_registry(&file_toks, &reg);
+        let mut prog = p.parse_program()?;
+        merged.structs.append(&mut prog.structs);
+        merged.funcs.append(&mut prog.funcs);
+        merged.interfaces.append(&mut prog.interfaces);
+        merged.enums.append(&mut prog.enums);
+        merged.imports.append(&mut prog.imports);
+    }
+    let prog = middle::monomorphize(&merged)?;
     backend::generate(&prog)
 }
 

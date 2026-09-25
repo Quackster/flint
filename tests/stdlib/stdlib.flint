@@ -11,6 +11,7 @@ import std.Path;
 import std.Rand;
 import std.Str;
 import std.Time;
+import std.List;
 
 int main() {
     // ---- Math ----

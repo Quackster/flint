@@ -93,6 +93,238 @@ fn skip_type(j: usize, toks: &[Token]) -> Option<usize> {
     Some(total)
 }
 
+/// The name registry built by pre-scanning the source: class/interface/enum
+/// names (by fully-qualified name) plus class field names and the import
+/// list. Built once over all input files so that any file's expressions can
+/// resolve names defined in another file.
+#[derive(Clone)]
+pub struct Prescan {
+    class_names: std::collections::HashSet<String>,
+    class_idx: std::collections::HashMap<String, usize>,
+    class_fields: std::collections::HashMap<String, Vec<String>>,
+    interface_names: std::collections::HashSet<String>,
+    interface_idx: std::collections::HashMap<String, usize>,
+    enum_names: std::collections::HashSet<String>,
+    enum_idx: std::collections::HashMap<String, usize>,
+    imports: Vec<String>,
+}
+
+/// Pre-scan for top-level definitions so expression parsing can resolve
+/// `new Name(...)` and declaration types, and so class types get a stable
+/// index (matching Program::structs). `boundaries` are token indices at which
+/// the running `package` resets to the default (one per input file), so a
+/// packageless file does not inherit the previous file's package.
+pub fn prescan(toks: &[Token], boundaries: &std::collections::HashSet<usize>) -> Prescan {
+    let mut class_names = std::collections::HashSet::new();
+    let mut class_idx = std::collections::HashMap::new();
+    let mut class_fields = std::collections::HashMap::new();
+    let mut interface_names = std::collections::HashSet::new();
+    let mut interface_idx = std::collections::HashMap::new();
+    let mut enum_names = std::collections::HashSet::new();
+    let mut enum_idx = std::collections::HashMap::new();
+    let mut current_package = String::new();
+    let mut imports = Vec::new();
+    let mut k = 0;
+    while k < toks.len() {
+        if boundaries.contains(&k) {
+            current_package = String::new();
+        }
+        // package Foo.Bar; -> update the current package for items that follow
+        if toks[k].kind == Tok::Package {
+            if let Some((pkg, _)) = scan_dotted_path(toks, k + 1) {
+                current_package = pkg;
+            }
+        }
+        // import com.other.Foo; / import com.other.*; -> record the import
+        if toks[k].kind == Tok::Import {
+            if let Some((path, _)) = scan_dotted_path(toks, k + 1) {
+                imports.push(path);
+            }
+        }
+        // interface Name -> register the interface (by full name)
+        if toks[k].kind == Tok::Interface {
+            if let Tok::Ident(n) = &toks.get(k + 1).map(|t| t.kind.clone()).unwrap_or(
+                Tok::Eof,
+            ) {
+                let fqn = full_name(&current_package, n);
+                if !interface_names.contains(&fqn) {
+                    interface_idx.insert(fqn.clone(), interface_names.len());
+                    interface_names.insert(fqn);
+                }
+            }
+        }
+        // enum Name -> register the enum (by full name)
+        if toks[k].kind == Tok::Enum {
+            if let Tok::Ident(n) = &toks.get(k + 1).map(|t| t.kind.clone()).unwrap_or(
+                Tok::Eof,
+            ) {
+                let fqn = full_name(&current_package, n);
+                if !enum_names.contains(&fqn) {
+                    enum_idx.insert(fqn.clone(), enum_names.len());
+                    enum_names.insert(fqn);
+                }
+            }
+        }
+        // class / abstract class -> register the class name
+        let ck = if toks[k].kind == Tok::Class {
+            Some(k)
+        } else if toks[k].kind == Tok::Abstract
+            && toks.get(k + 1).map(|t| &t.kind) == Some(&Tok::Class)
+        {
+            Some(k + 1)
+        } else {
+            None
+        };
+        if let Some(ck) = ck {
+            if let Tok::Ident(n) = &toks.get(ck + 1).map(|t| t.kind.clone()).unwrap_or(
+                Tok::Eof,
+            ) {
+                let fqn = full_name(&current_package, n);
+                if !class_names.contains(&fqn) {
+                    class_idx.insert(fqn.clone(), class_names.len());
+                    class_names.insert(fqn.clone());
+                    // collect field names: `class Name<T, U> { ... }`  skip methods too
+                    let mut j = ck + 2;
+                    // skip type parameters `<T, U>` between the name and `{`
+                    if j < toks.len() && toks[j].kind == Tok::Lt {
+                        while j < toks.len() && toks[j].kind != Tok::Gt {
+                            j += 1;
+                        }
+                        if j < toks.len() && toks[j].kind == Tok::Gt {
+                            j += 1;
+                        }
+                    }
+                    if j < toks.len() && toks[j].kind == Tok::LBrace {
+                        j += 1;
+                        let mut names = Vec::new();
+                        while j < toks.len() && toks[j].kind != Tok::RBrace {
+                            // skip vis/accessor/static
+                            let mut jj = j;
+                            while jj < toks.len()
+                                && matches!(
+                                    toks[jj].kind,
+                                    Tok::Private | Tok::Public | Tok::Static | Tok::Get | Tok::Set | Tok::GetSet
+                                )
+                            {
+                                jj += 1;
+                            }
+                            // check for ctor (no return type)
+                            if jj < toks.len() {
+                                if let Tok::Ident(cname) = &toks[jj].kind {
+                                    if cname == n
+                                        && jj + 1 < toks.len()
+                                        && toks[jj + 1].kind == Tok::LParen
+                                    {
+                                        // skip ctor method body
+                                        j = jj + 1;
+                                        while j < toks.len() && toks[j].kind != Tok::LBrace {
+                                            j += 1;
+                                        }
+                                        if j < toks.len() && toks[j].kind == Tok::LBrace {
+                                            let mut depth = 0;
+                                            while j < toks.len() {
+                                                if toks[j].kind == Tok::LBrace {
+                                                    depth += 1;
+                                                } else if toks[j].kind == Tok::RBrace {
+                                                    depth -= 1;
+                                                    if depth == 0 {
+                                                        j += 1;
+                                                        break;
+                                                    }
+                                                }
+                                                j += 1;
+                                            }
+                                        }
+                                        continue;
+                                    }
+                                }
+                            }
+                            // try type (including void for method)
+                            let mut len_opt = None;
+                            let mut is_void = false;
+                            if jj < toks.len() && toks[jj].kind == Tok::Void {
+                                len_opt = Some(1);
+                                is_void = true;
+                            } else if let Some(l) = skip_type(jj, toks) {
+                                len_opt = Some(l);
+                            }
+                            if let Some(len) = len_opt {
+                                let after_type = jj + len;
+                                if after_type < toks.len() {
+                                    if let Tok::Ident(fname) = &toks[after_type].kind {
+                                        // lookahead: if after fname is '(' then it's a method, not field
+                                        let after_fname = after_type + 1;
+                                        let is_method = after_fname < toks.len()
+                                            && toks[after_fname].kind == Tok::LParen;
+                                        if !is_method {
+                                            if !is_void {
+                                                names.push(fname.clone());
+                                            }
+                                            j = after_fname;
+                                            if j < toks.len() && toks[j].kind == Tok::Semicolon {
+                                                j += 1;
+                                            }
+                                            continue;
+                                        } else {
+                                            // skip method signature: consume until '{' (body)
+                                            // or ';' (abstract method, no body)
+                                            j = after_fname;
+                                            while j < toks.len()
+                                                && toks[j].kind != Tok::LBrace
+                                                && toks[j].kind != Tok::Semicolon
+                                            {
+                                                j += 1;
+                                            }
+                                            if j < toks.len() && toks[j].kind == Tok::Semicolon {
+                                                j += 1;
+                                            }
+                                            if j < toks.len() && toks[j].kind == Tok::LBrace {
+                                                let mut depth = 0;
+                                                while j < toks.len() {
+                                                    if toks[j].kind == Tok::LBrace {
+                                                        depth += 1;
+                                                    } else if toks[j].kind == Tok::RBrace {
+                                                        depth -= 1;
+                                                        if depth == 0 {
+                                                            j += 1;
+                                                            break;
+                                                        }
+                                                    }
+                                                    j += 1;
+                                                }
+                                            }
+                                            continue;
+                                        }
+                                    }
+                                }
+                                // fallback: treat as field-ish
+                                j = after_type;
+                                if j < toks.len() && toks[j].kind == Tok::Semicolon {
+                                    j += 1;
+                                }
+                            } else {
+                                j += 1;
+                            }
+                        }
+                        class_fields.insert(fqn.clone(), names);
+                    }
+                }
+            }
+        }
+        k += 1;
+    }
+    Prescan {
+        class_names,
+        class_idx,
+        class_fields,
+        interface_names,
+        interface_idx,
+        enum_names,
+        enum_idx,
+        imports,
+    }
+}
+
 pub struct Parser<'a> {
     toks: &'a [Token],
     i: usize,
@@ -122,217 +354,27 @@ pub struct Parser<'a> {
 }
 
 impl<'a> Parser<'a> {
-    pub fn new(toks: &'a [Token]) -> Self {
-        let mut class_names = std::collections::HashSet::new();
-        let mut class_idx = std::collections::HashMap::new();
-        let mut class_fields = std::collections::HashMap::new();
-        // Pre-scan for top-level class definitions so expression parsing can
-        // resolve `new Name(...)` and declaration types, and so class types
-        // get a stable index (matching Program::structs).
-        let mut interface_names = std::collections::HashSet::new();
-        let mut interface_idx = std::collections::HashMap::new();
-        let mut enum_names = std::collections::HashSet::new();
-        let mut enum_idx = std::collections::HashMap::new();
-        let mut current_package = String::new();
-        let mut imports = Vec::new();
-        let mut k = 0;
-        while k < toks.len() {
-            // package Foo.Bar; -> update the current package for items that follow
-            if toks[k].kind == Tok::Package {
-                if let Some((pkg, _)) = scan_dotted_path(toks, k + 1) {
-                    current_package = pkg;
-                }
-            }
-            // import com.other.Foo; / import com.other.*; -> record the import
-            if toks[k].kind == Tok::Import {
-                if let Some((path, _)) = scan_dotted_path(toks, k + 1) {
-                    imports.push(path);
-                }
-            }
-            // interface Name -> register the interface (by full name)
-            if toks[k].kind == Tok::Interface {
-                if let Tok::Ident(n) = &toks.get(k + 1).map(|t| t.kind.clone()).unwrap_or(
-                    Tok::Eof,
-                ) {
-                    let fqn = full_name(&current_package, n);
-                    if !interface_names.contains(&fqn) {
-                        interface_idx.insert(fqn.clone(), interface_names.len());
-                        interface_names.insert(fqn);
-                    }
-                }
-            }
-            // enum Name -> register the enum (by full name)
-            if toks[k].kind == Tok::Enum {
-                if let Tok::Ident(n) = &toks.get(k + 1).map(|t| t.kind.clone()).unwrap_or(
-                    Tok::Eof,
-                ) {
-                    let fqn = full_name(&current_package, n);
-                    if !enum_names.contains(&fqn) {
-                        enum_idx.insert(fqn.clone(), enum_names.len());
-                        enum_names.insert(fqn);
-                    }
-                }
-            }
-            // class / abstract class -> register the class name
-            let ck = if toks[k].kind == Tok::Class {
-                Some(k)
-            } else if toks[k].kind == Tok::Abstract
-                && toks.get(k + 1).map(|t| &t.kind) == Some(&Tok::Class)
-            {
-                Some(k + 1)
-            } else {
-                None
-            };
-            if let Some(ck) = ck {
-                if let Tok::Ident(n) = &toks.get(ck + 1).map(|t| t.kind.clone()).unwrap_or(
-                    Tok::Eof,
-                ) {
-                    let fqn = full_name(&current_package, n);
-                    if !class_names.contains(&fqn) {
-                        class_idx.insert(fqn.clone(), class_names.len());
-                        class_names.insert(fqn.clone());
-                        // collect field names: `class Name<T, U> { ... }`  skip methods too
-                        let mut j = ck + 2;
-                        // skip type parameters `<T, U>` between the name and `{`
-                        if j < toks.len() && toks[j].kind == Tok::Lt {
-                            while j < toks.len() && toks[j].kind != Tok::Gt {
-                                j += 1;
-                            }
-                            if j < toks.len() && toks[j].kind == Tok::Gt {
-                                j += 1;
-                            }
-                        }
-                        if j < toks.len() && toks[j].kind == Tok::LBrace {
-                            j += 1;
-                            let mut names = Vec::new();
-                            while j < toks.len() && toks[j].kind != Tok::RBrace {
-                                // skip vis/accessor/static
-                                let mut jj = j;
-                                while jj < toks.len()
-                                    && matches!(
-                                        toks[jj].kind,
-                                        Tok::Private | Tok::Public | Tok::Static | Tok::Get | Tok::Set | Tok::GetSet
-                                    )
-                                {
-                                    jj += 1;
-                                }
-                                // check for ctor (no return type)
-                                if jj < toks.len() {
-                                    if let Tok::Ident(cname) = &toks[jj].kind {
-                                        if cname == n
-                                            && jj + 1 < toks.len()
-                                            && toks[jj + 1].kind == Tok::LParen
-                                        {
-                                            // skip ctor method body
-                                            j = jj + 1;
-                                            while j < toks.len() && toks[j].kind != Tok::LBrace {
-                                                j += 1;
-                                            }
-                                            if j < toks.len() && toks[j].kind == Tok::LBrace {
-                                                let mut depth = 0;
-                                                while j < toks.len() {
-                                                    if toks[j].kind == Tok::LBrace {
-                                                        depth += 1;
-                                                    } else if toks[j].kind == Tok::RBrace {
-                                                        depth -= 1;
-                                                        if depth == 0 {
-                                                            j += 1;
-                                                            break;
-                                                        }
-                                                    }
-                                                    j += 1;
-                                                }
-                                            }
-                                            continue;
-                                        }
-                                    }
-                                }
-                                // try type (including void for method)
-                                let mut len_opt = None;
-                                let mut is_void = false;
-                                if jj < toks.len() && toks[jj].kind == Tok::Void {
-                                    len_opt = Some(1);
-                                    is_void = true;
-                                } else if let Some(l) = skip_type(jj, toks) {
-                                    len_opt = Some(l);
-                                }
-                                if let Some(len) = len_opt {
-                                    let after_type = jj + len;
-                                    if after_type < toks.len() {
-                                        if let Tok::Ident(fname) = &toks[after_type].kind {
-                                            // lookahead: if after fname is '(' then it's a method, not field
-                                            let after_fname = after_type + 1;
-                                            let is_method = after_fname < toks.len()
-                                                && toks[after_fname].kind == Tok::LParen;
-                                            if !is_method {
-                                                if !is_void {
-                                                    names.push(fname.clone());
-                                                }
-                                                j = after_fname;
-                                                if j < toks.len() && toks[j].kind == Tok::Semicolon {
-                                                    j += 1;
-                                                }
-                                                continue;
-                                            } else {
-                                                // skip method signature: consume until '{' (body)
-                                                // or ';' (abstract method, no body)
-                                                j = after_fname;
-                                                while j < toks.len()
-                                                    && toks[j].kind != Tok::LBrace
-                                                    && toks[j].kind != Tok::Semicolon
-                                                {
-                                                    j += 1;
-                                                }
-                                                if j < toks.len() && toks[j].kind == Tok::Semicolon {
-                                                    j += 1;
-                                                }
-                                                if j < toks.len() && toks[j].kind == Tok::LBrace {
-                                                    let mut depth = 0;
-                                                    while j < toks.len() {
-                                                        if toks[j].kind == Tok::LBrace {
-                                                            depth += 1;
-                                                        } else if toks[j].kind == Tok::RBrace {
-                                                            depth -= 1;
-                                                            if depth == 0 {
-                                                                j += 1;
-                                                                break;
-                                                            }
-                                                        }
-                                                        j += 1;
-                                                    }
-                                                }
-                                                continue;
-                                            }
-                                        }
-                                    }
-                                    // fallback: treat as field-ish
-                                    j = after_type;
-                                    if j < toks.len() && toks[j].kind == Tok::Semicolon {
-                                        j += 1;
-                                    }
-                                } else {
-                                    j += 1;
-                                }
-                            }
-                            class_fields.insert(fqn.clone(), names);
-                        }
-                    }
-                }
-            }
-            k += 1;
-        }
+    /// Build a parser that reuses a pre-built (global) name registry while
+    /// parsing a single file's token slice with fresh (default-package)
+    /// package state. Used for per-file parsing: the registry sees every
+    /// file, but each file's definitions get their own package.
+    pub fn with_registry(toks: &'a [Token], reg: &Prescan) -> Self {
+        Self::from_prescan(toks, reg.clone())
+    }
+
+    fn from_prescan(toks: &'a [Token], p: Prescan) -> Self {
         Self {
             toks,
             i: 0,
             current_package: String::new(),
-            imports,
-            class_names,
-            class_idx,
-            class_fields,
-            interface_names,
-            interface_idx,
-            enum_names,
-            enum_idx,
+            imports: p.imports,
+            class_names: p.class_names,
+            class_idx: p.class_idx,
+            class_fields: p.class_fields,
+            interface_names: p.interface_names,
+            interface_idx: p.interface_idx,
+            enum_names: p.enum_names,
+            enum_idx: p.enum_idx,
             type_params: Vec::new(),
             allow_type_param: false,
             pending_gt: 0,
@@ -2268,11 +2310,6 @@ impl<'a> Parser<'a> {
             )),
         }
     }
-}
-
-pub fn parse(toks: &[Token]) -> CompileResult<Program> {
-    let mut p = Parser::new(toks);
-    p.parse_program()
 }
 
 pub fn expr_span(e: &Expr) -> Span {

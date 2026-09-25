@@ -6,6 +6,19 @@
 import std.Gui;
 import std.App;
 import std.Image;
+import std.Label;
+import std.Button;
+import std.TextBox;
+import std.PasswordBox;
+import std.NumberBox;
+import std.TextArea;
+import std.Checkbox;
+import std.RadioButton;
+import std.Slider;
+import std.Dropdown;
+import std.OnSetup;
+import std.OnDraw;
+import std.OnKey;
 
 class AppH implements OnSetup, OnDraw, OnKey {
     App app;

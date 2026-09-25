@@ -173,6 +173,27 @@ impl Ctx<'_> {
                 }
             }
             Expr::Field { base, name, .. } => {
+                // Check for static field access: ClassName.staticField —
+                // a class-typed static field denotes the class of its value
+                // (a local with the class's spelling shadows it)
+                let base_is_local = match base.as_ref() {
+                    Expr::Ident { name, .. } => frame.find(name.as_str()).is_some(),
+                    _ => false,
+                };
+                if !base_is_local {
+                    if let Some(sidx) = self.is_class_name(base) {
+                        if self.is_static_field(sidx, name) {
+                            for (fname, fty) in layout::all_static_fields(self.prog, sidx) {
+                                if fname == *name {
+                                    if let Ty::Struct(idx) = fty {
+                                        return Ok(Some(idx));
+                                    }
+                                    return Ok(None);
+                                }
+                            }
+                        }
+                    }
+                }
                 let sidx = self.expr_struct_type(base, frame)?.ok_or_else(|| {
                     CompileError::new(e_span(base), "field access requires a class-typed base")
                 })?;
@@ -221,12 +242,18 @@ impl Ctx<'_> {
                     None => None,
                 },
             },
-            Expr::Field { base, name, .. } => {
-                let sidx = self.expr_struct_type(base, frame)?.ok_or_else(|| {
-                    CompileError::new(e_span(base), "field access requires a class-typed base")
-                })?;
-                self.struct_field_type(sidx, name).ok()
-            }
+            Expr::Field { base, name, .. } => match self.expr_struct_type(base, frame)? {
+                Some(sidx) => self.struct_field_type(sidx, name).ok(),
+                // static field access (ClassName.staticField) is not an
+                // interface-typed value
+                None if self.is_class_name(base).is_some() => None,
+                None => {
+                    return Err(CompileError::new(
+                        e_span(base),
+                        "field access requires a class-typed base",
+                    ))
+                }
+            },
             _ => None,
         };
         if let Some(Ty::Interface(i)) = ty {
