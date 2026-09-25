@@ -1,0 +1,46 @@
+// Several threads can sleep at different intervals simultaneously: each
+// thread pauses only for its own duration, and the whole batch finishes in
+// about the longest interval rather than the sum of the four.
+import std.Task;
+import std.Thread;
+import std.Time;
+import std.Mem;
+
+// Worker: sleep for `ms`, then record its actual elapsed time in elapsed[idx].
+async void sleeper(int elapsed, int idx, int ms) {
+    int t0 = Time.millis();
+    Thread.sleep(ms);
+    elapsed[idx] = Time.millis() - t0;
+}
+
+int main() {
+    int ms0 = 100;
+    int ms1 = 200;
+    int ms2 = 300;
+    int ms3 = 400;
+    *int elapsed = Mem.intArray(4);
+    int t0 = Time.millis();
+    Task a = sleeper(elapsed, 0, ms0);
+    Task b = sleeper(elapsed, 1, ms1);
+    Task c = sleeper(elapsed, 2, ms2);
+    Task d = sleeper(elapsed, 3, ms3);
+    a.join();
+    b.join();
+    c.join();
+    d.join();
+    int total = Time.millis() - t0;
+    // Each thread slept for (at least) its own interval.
+    printi(elapsed[0] >= ms0 - 20 ? 1 : 0);
+    print("\n");
+    printi(elapsed[1] >= ms1 - 20 ? 1 : 0);
+    print("\n");
+    printi(elapsed[2] >= ms2 - 20 ? 1 : 0);
+    print("\n");
+    printi(elapsed[3] >= ms3 - 20 ? 1 : 0);
+    print("\n");
+    // Simultaneous: the batch took ~the longest (400), not the sum (1000).
+    printi(total < 900 ? 1 : 0);
+    print("\n");
+    Mem.freeInt(elapsed);
+    return 0;
+}

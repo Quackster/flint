@@ -5,6 +5,13 @@
 // until the worker finishes and returns the value the function returned
 // (0 for a void function).
 //
+// `await` is the ergonomic form of the same thing: `await worker(5)`
+// blocks on the worker and evaluates to its return value, with no
+// handle to name. It accepts an async call (free function, instance
+// method, or static method) or a stored Task (`Task t = worker(5);
+// await t;`). An async function may await another, blocking its own
+// worker on the inner task.
+//
 // At most 32 tasks may be in flight at once; spawning a 33rd waits for
 // a slot to free.
 //
@@ -12,6 +19,7 @@
 //   import std.Task;
 //   Task t = worker(5);      // worker is an `async int` function
 //   printi(t.join());        // the value worker returned
+//   printi(await worker(5)); // same, in one step
 package std;
 class Task {
     // The thread id of the worker (set by the compiler on the call).

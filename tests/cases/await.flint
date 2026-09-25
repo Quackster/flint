@@ -1,0 +1,88 @@
+// await: `await f(args)` on an async call blocks until the worker
+// finishes and evaluates to the worker's return value. Also works on a
+// stored Task handle (`Task t = f(args); await t`) and on instance and
+// static async methods. A nested await (an async function that awaits
+// another async call) blocks the worker on the inner task.
+import std.Task;
+import std.Thread;
+import std.Time;
+
+async int add(int a, int b) {
+    return a + b;
+}
+
+async int doubleIt(int x) {
+    return x * 2;
+}
+
+async void nothing() {
+    return;
+}
+
+class Box {
+    int v;
+    Box(int v) {
+        this.v = v;
+    }
+    async int inc(int k) {
+        return this.v + k;
+    }
+    static async int mul(int a, int b) {
+        return a * b;
+    }
+}
+
+// Nested await: the worker awaits doubleIt before adding.
+async int innerPlus(int x) {
+    int d = await doubleIt(x);
+    return d + 1;
+}
+
+// A worker that sleeps before returning: `await` cannot yield its value
+// until the worker has finished sleeping and returned.
+async int slowAnswer() {
+    Thread.sleep(300);
+    return 42;
+}
+
+int main() {
+    // Direct await on a free async function.
+    printi(await add(20, 22));
+    print("\n");
+
+    // Stored Task handle, then awaited.
+    Task t = doubleIt(21);
+    printi(await t);
+    print("\n");
+
+    // Instance async method.
+    Box b = new Box(100);
+    printi(await b.inc(5));
+    print("\n");
+
+    // Static async method.
+    printi(await Box.mul(6, 7));
+    print("\n");
+
+    // Nested await (worker blocks on an inner task).
+    printi(await innerPlus(10));
+    print("\n");
+
+    // Several awaits at once; each blocks in turn.
+    printi(await add(1, 2) + await add(3, 4));
+    print("\n");
+
+    // Await on an async void function yields 0.
+    printi(await nothing());
+    print("\n");
+
+    // await blocks on a worker that is sleeping: the value cannot be in
+    // hand until the worker has slept out and returned, so the elapsed
+    // wall time must be at least the sleep duration.
+    int t0 = Time.millis();
+    printi(await slowAnswer());
+    print("\n");
+    printi(Time.millis() - t0 >= 250 ? 1 : 0);   // 1 = await really waited
+    print("\n");
+    return 0;
+}

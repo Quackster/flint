@@ -268,6 +268,13 @@ impl<'a> Mono<'a> {
                     els,
                 })
             }
+            Expr::Await { span, e: inner } => {
+                let inner = Box::new(self.resolve_expr(inner, subst)?);
+                Ok(Expr::Await {
+                    span: *span,
+                    e: inner,
+                })
+            }
             Expr::SuperBase { span } => Ok(Expr::SuperBase { span: *span }),
             Expr::SuperCall { span, args } => {
                 let args = args

@@ -346,6 +346,15 @@ pub enum Expr {
         then: Box<Expr>,
         els: Box<Expr>,
     },
+    // `await e`: block until the task finishes; evaluate to the value the
+    // task produced. `e` is a call to an `async` function/method (the call
+    // runs on a worker thread and the await waits for it) or an expression
+    // of type `std.Task` (the await blocks on its `join`). A void function
+    // yields 0; awaiting a bare `Task` yields an int.
+    Await {
+        span: Span,
+        e: Box<Expr>,
+    },
     // `super` as a receiver: `super.field` / `super.method(args)`.
     SuperBase {
         span: Span,

@@ -2008,6 +2008,15 @@ impl<'a> Parser<'a> {
                 pre: true,
             });
         }
+        if kind == Tok::Await {
+            // `await e`: e is an async call (run + wait) or a Task (wait).
+            self.bump();
+            let e = self.parse_unary()?;
+            return Ok(Expr::Await {
+                span: span.join(&expr_span(&e)),
+                e: Box::new(e),
+            });
+        }
         self.parse_postfix()
     }
 
@@ -2337,7 +2346,8 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::SuperCall { span, .. }
         | Expr::Cast { span, .. }
         | Expr::Instanceof { span, .. }
-        | Expr::EnumVariant { span, .. } => *span,
+        | Expr::EnumVariant { span, .. }
+        | Expr::Await { span, .. } => *span,
     }
 }
 

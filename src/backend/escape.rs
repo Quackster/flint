@@ -261,6 +261,24 @@ impl<'p> Analyzer<'p> {
                 }
                 None
             }
+            Expr::Await { e: inner, .. } => {
+                // `await f(...)` yields the async `f`'s return type (0 for
+                // void); a bare awaited value is an int.
+                if let Expr::Call { callee, .. } = inner.as_ref() {
+                    if callee.len() == 1 {
+                        if let Some(i) = self.func_idx.get(&callee[0]) {
+                            let f = &self.prog.funcs[*i];
+                            if f.is_async {
+                                return match &f.ret {
+                                    Some(Ty::Void) | None => Some(Ty::Int),
+                                    Some(r) => Some(r.clone()),
+                                };
+                            }
+                        }
+                    }
+                }
+                Some(Ty::Int)
+            }
             Expr::StructLit { name, .. } => self.struct_idx.get(name).map(|&i| Ty::Struct(i)),
             Expr::Null { .. } => Some(Ty::Ptr),
             _ => None,
@@ -334,6 +352,11 @@ impl<'p> Analyzer<'p> {
                 self.mark_expr(cond);
                 self.mark_expr(then);
                 self.mark_expr(els);
+            }
+            Expr::Await { e: inner, .. } => {
+                // The inner (async call arguments, or the awaited Task) is
+                // used through the await; mark it like a plain use.
+                self.mark_expr(inner);
             }
             _ => {}
         }

@@ -1,10 +1,10 @@
-use crate::ast::{Accessor, Expr, Ty};
+use crate::ast::{Accessor, Expr, Program, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 use crate::backend::layout;
 
 use super::builtin::builtin_for;
-use super::{ARGREGS, Ctx, Frame, getter_name, mangle, setter_name, ty_name};
+use super::{ARGREGS, Ctx, Frame, getter_name, mangle, setter_name, struct_idx_of, ty_name};
 
 impl Ctx<'_> {
     pub(crate) fn gen_call(
@@ -473,4 +473,188 @@ impl Ctx<'_> {
         self.emit(&format!("{}:", done));
         Ok(Ty::Struct(task_idx))
     }
+
+    /// Emit `await e`. When `e` is a call to an `async` function or method,
+    /// the call is generated as usual (it spawns the worker and leaves a
+    /// std.Task on the stack) and the task is joined immediately; the
+    /// await yields the definition's return type (0 for void). A regular
+    /// call or any other expression must produce a std.Task, which is
+    /// joined; the await yields an int.
+    pub(crate) fn gen_await(
+        &mut self,
+        e: &Expr,
+        frame: &mut Frame,
+        span: Span,
+    ) -> CompileResult<Ty> {
+        match e {
+            Expr::Call { callee, args, .. } => {
+                if callee.len() != 1 {
+                    return Err(CompileError::new(
+                        span,
+                        "await expects an async call or a Task",
+                    ));
+                }
+                let idx = self.func_idx.get(&callee[0]).copied().ok_or_else(|| {
+                    CompileError::new(span, format!("undefined function '{}'", callee[0]))
+                })?;
+                let (is_async, f_ret) = {
+                    let f = &self.prog.funcs[idx];
+                    (f.is_async, f.ret.clone())
+                };
+                if is_async {
+                    self.gen_call(callee, args, frame, span)?; // Task on the stack
+                    self.join_task(span)?;
+                    return Ok(await_ret(f_ret));
+                }
+                // A regular call may still hand back a Task (a factory).
+                if !is_task_ty(&self.prog, &f_ret) {
+                    return Err(CompileError::new(
+                        span,
+                        format!(
+                            "'{}' is not an async function (await needs an async call or a Task)",
+                            callee[0]
+                        ),
+                    ));
+                }
+                self.gen_call(callee, args, frame, span)?;
+            }
+            Expr::MethodCall { base, method, args, .. } => {
+                // Mirrors the lookup in gen_method_call, which then
+                // re-checks access and virtuality.
+                let (sidx, _) = match self.expr_struct_type(base, frame)? {
+                    Some(i) => (i, false),
+                    None => match base.as_ref() {
+                        Expr::Ident { name, .. } => match self.struct_idx_by_name(name) {
+                            Some(ci) => (ci, true),
+                            None => {
+                                return Err(CompileError::new(
+                                    span,
+                                    "await expects an async call or a Task",
+                                ))
+                            }
+                        },
+                        _ => {
+                            return Err(CompileError::new(
+                                span,
+                                "await expects an async call or a Task",
+                            ))
+                        }
+                    },
+                };
+                let (def_ci, mi) = layout::find_method_def(self.prog, sidx, method).ok_or_else(
+                    || CompileError::new(span, format!("method '{}' not found", method)),
+                )?;
+                let (is_async, m_ret) = {
+                    let m = &self.prog.structs[def_ci].methods[mi];
+                    (m.is_async, m.ret.clone())
+                };
+                if is_async {
+                    self.gen_method_call(base, method, args, frame, span)?; // Task on the stack
+                    self.join_task(span)?;
+                    return Ok(await_ret(m_ret));
+                }
+                if !is_task_ty(&self.prog, &m_ret) {
+                    return Err(CompileError::new(
+                        span,
+                        format!(
+                            "method '{}' is not async (await needs an async call or a Task)",
+                            method
+                        ),
+                    ));
+                }
+                self.gen_method_call(base, method, args, frame, span)?;
+            }
+            _ => {
+                // A plain value: evaluate it (and retain an existing
+                // reference), then it must hold a std.Task.
+                let t = self.gen_expr(e, frame)?;
+                self.maybe_retain(e, frame);
+                let sidx = struct_idx_of(&t).ok_or_else(|| {
+                    CompileError::new(span, "await expects an async call or a Task")
+                })?;
+                let cname = &self.prog.structs[sidx].name;
+                if cname != "std_Task" {
+                    return Err(CompileError::new(
+                        span,
+                        format!(
+                            "cannot await a '{}' value (await needs an async call or a Task)",
+                            cname
+                        ),
+                    ));
+                }
+                self.join_task(span)?;
+                return Ok(Ty::Int);
+            }
+        }
+        // The inner was a regular call that returns a Task (a factory):
+        // its result is on the stack; join it.
+        self.join_task(span)?;
+        Ok(Ty::Int)
+    }
+
+    /// Consume a std.Task from the value stack: block on its worker and
+    /// push the worker's value. The Task handle is released afterwards. A
+    /// null Task (a failed thread spawn) yields 0. The handle lives in
+    /// %r13 across the join: neither flint_thread_join nor the release
+    /// function clobber %r13.
+    fn join_task(&mut self, span: Span) -> CompileResult<()> {
+        let task_idx = self
+            .struct_idx
+            .get("std_Task")
+            .copied()
+            .ok_or_else(|| {
+                CompileError::new(
+                    span,
+                    "await requires std.Task; pass src/stdlib/task.flint to flintc",
+                )
+            })?;
+        let fields = layout::all_fields(self.prog, task_idx);
+        let idpos = fields.iter().position(|(nm, _)| nm == "id").ok_or_else(|| {
+            CompileError::new(
+                span,
+                "std.Task must have an `int id` field (the thread id)",
+            )
+        })?;
+        let idoff = layout::field_base_offset(self.prog, task_idx) + 8 * idpos as i64;
+        let null = format!(".Lawaitnull{}", self.strn);
+        let end = format!(".Lawaitend{}", self.strn);
+        self.strn += 2;
+        self.emit("\tpop %r13"); // Task handle
+        self.emit("\ttest %r13, %r13");
+        self.emit(&format!("\tjz {}", null));
+        self.emit(&format!("\tmovq {}(%r13), %rdi", idoff));
+        self.emit("\tcall flint_thread_join");
+        // Keep the result in %r14: the release below clobbers %rax when it
+        // frees the handle (a fresh Task has refcount 1).
+        self.emit("\tmov %rax, %r14");
+        self.emit("\tmov %r13, %rdi");
+        self.emit(&format!(
+            "\tcall flint_release_{}",
+            self.prog.structs[task_idx].name
+        ));
+        self.emit("\tmov %r14, %rax");
+        self.emit(&format!("\tjmp {}", end));
+        self.emit(&format!("{}:", null));
+        self.emit("\txor %rax, %rax");
+        self.emit(&format!("{}:", end));
+        self.emit("\tpush %rax");
+        Ok(())
+    }
+}
+
+/// The type `await` yields for an async definition's result: the declared
+/// return type, or `int` (0) for a void function.
+fn await_ret(ret: Option<Ty>) -> Ty {
+    match ret {
+        Some(Ty::Void) | None => Ty::Int,
+        Some(r) => r,
+    }
+}
+
+/// True when a definition's declared result type is the std.Task handle.
+fn is_task_ty(prog: &Program, ret: &Option<Ty>) -> bool {
+    if let Some(Ty::Struct(i)) = ret {
+        return prog.structs[*i].name == "std_Task";
+    }
+    false
 }

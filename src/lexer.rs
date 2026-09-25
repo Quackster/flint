@@ -164,6 +164,7 @@ impl<'a> Lexer<'a> {
             "catch" => Tok::Catch,
             "finally" => Tok::Finally,
             "async" => Tok::Async,
+            "await" => Tok::Await,
             "byte" => Tok::KwByte,
             "short" => Tok::KwShort,
             "int" => Tok::KwInt,

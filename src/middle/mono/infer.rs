@@ -92,10 +92,87 @@ impl<'a> Mono<'a> {
                     "cannot infer type of call; specify type arguments explicitly",
                 ))
             }
+            Expr::Await { e: inner, .. } => {
+                // `await f(args)` has the async `f`'s return type (0 for
+                // void); `await t` for a `Task t` is an int (the worker's
+                // value). Best effort: a plain Task-typed local is an int.
+                if let Expr::Call { callee, .. } = inner.as_ref() {
+                    if let Some(fi) = self.resolve_func(callee) {
+                        let (is_async, ret) = {
+                            let f = &self.prog.funcs[fi];
+                            (f.is_async, f.ret.clone())
+                        };
+                        if is_async {
+                            return Ok(await_type(ret));
+                        }
+                    }
+                    return Err(CompileError::new(
+                        Span::new(0, 0),
+                        "await needs an async call; specify type arguments explicitly",
+                    ));
+                }
+                if let Expr::MethodCall { base, method, .. } = inner.as_ref() {
+                    // Best effort: the base is a local of a known class type;
+                    // walk its parent chain for the method.
+                    if let Expr::Ident { name, .. } = base.as_ref() {
+                        if let Some(Ty::Struct(s)) = self.cur_locals.get(name).cloned() {
+                            let mut si = s;
+                            for _ in 0..16 {
+                                if let Some(m) = self.out.structs[si]
+                                    .methods
+                                    .iter()
+                                    .find(|m| m.name == *method)
+                                {
+                                    if m.is_async {
+                                        return Ok(await_type(m.ret.clone()));
+                                    }
+                                    break;
+                                }
+                                match self.out.structs[si].extends.clone() {
+                                    Some(en) => match self
+                                        .out
+                                        .structs
+                                        .iter()
+                                        .position(|x| x.name == en)
+                                    {
+                                        Some(n) => si = n,
+                                        None => break,
+                                    },
+                                    None => break,
+                                }
+                            }
+                        }
+                    }
+                    return Err(CompileError::new(
+                        Span::new(0, 0),
+                        "await needs an async method; specify type arguments explicitly",
+                    ));
+                }
+                if let Expr::Ident { name, .. } = inner.as_ref() {
+                    if let Some(Ty::Struct(s)) = self.cur_locals.get(name).cloned() {
+                        if self.class_names.get(&s).map(|n| n.as_str()) == Some("std_Task") {
+                            return Ok(Ty::Int);
+                        }
+                    }
+                }
+                Err(CompileError::new(
+                    Span::new(0, 0),
+                    "cannot infer type of await; specify type arguments explicitly",
+                ))
+            }
             _ => Err(CompileError::new(
                 Span::new(0, 0),
                 "cannot infer type; specify type arguments explicitly",
             )),
         }
+    }
+}
+
+/// The type of the value `await` yields for an async definition: the
+/// declared return type, or `int` (0) for a void function.
+fn await_type(ret: Option<Ty>) -> Ty {
+    match ret {
+        Some(Ty::Void) | None => Ty::Int,
+        Some(r) => r,
     }
 }

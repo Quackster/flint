@@ -1903,21 +1903,31 @@ flint_thread_wrapper:
 flint_thread_create:
     push %rbp
     mov %rsp, %rbp
-    sub $32, %rsp          # space for pipe fds
+    push %rbx             # rbx is callee-saved (the trampoline keeps the
+    sub $32, %rsp         # slot index in it); save/restore around our use
     mov %rdi, %rbx        # rbx = fn
     mov %rsi, %r12        # r12 = arg
-    # Allocate a tid from the counter
-    movq flint_thread_next_id(%rip), %r13  # r13 = tid
+    # Allocate a tid from the counter (atomic: concurrent thread_creates
+    # run in parallel under CLONE_VM, so a plain read-modify-write races)
+.Ltid_alloc:
+    movq flint_thread_next_id(%rip), %r13  # r13 = candidate tid
     # Bounds check: max 32 threads
     cmp $32, %r13
     jae .Lthread_too_many
+    # CAS next_id: r13 -> r13+1 (retry if another process grabbed it first)
+    lea flint_thread_next_id(%rip), %rdi
+    mov %r13, %rsi                # old
+    lea 1(%r13), %rdx            # new
+    call flint_atomic_cas
+    test %eax, %eax
+    jz .Ltid_alloc               # lost the race: retry with the new value
     # Create a pipe for thread synchronization
     lea 16(%rsp), %rdi     # rdi = &pipe_fds (on stack)
     mov $22, %rax          # SYS_pipe
     syscall
     test %rax, %rax
     jne .Lthread_pipe_fail  # rax < 0 on error
-    # Save pipe fds (int is 4 bytes)
+    # Save pipe fds (int is 4 bytes; pipe writes fd[0] at +0 and fd[1] at +4)
     movl 16(%rsp), %r14d   # r14 = read fd
     movl 20(%rsp), %r15d   # r15 = write fd
     # Store in per-thread table
@@ -1925,9 +1935,6 @@ flint_thread_create:
     movq %r14, 0(%r10, %r13, 8)   # table_read[tid] = read fd
     lea flint_thread_pipe_write(%rip), %r10
     movq %r15, 0(%r10, %r13, 8)   # table_write[tid] = write fd
-    # Increment counter
-    lea 1(%r13), %r10
-    movq %r10, flint_thread_next_id(%rip)
     # Allocate a new stack (8KB)
     mov $8192, %rdi
     call flint_alloc         # rax = start
@@ -1951,16 +1958,19 @@ flint_thread_create:
     # Parent: store child pid for reaping, then return tid
     lea flint_thread_pid(%rip), %r10
     movq %rax, 0(%r10, %r13, 8)   # pid_table[tid] = child pid
+    mov -8(%rbp), %rbx
     leave
     mov %r13, %rax
     ret
     .Lthread_child:
     jmp flint_thread_wrapper
     .Lthread_pipe_fail:
+    mov -8(%rbp), %rbx
     leave
     movq $-1, %rax
     ret
     .Lthread_too_many:
+    mov -8(%rbp), %rbx
     leave
     movq $-1, %rax
     ret

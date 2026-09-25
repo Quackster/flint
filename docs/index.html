@@ -2554,10 +2554,12 @@ it. <code>threadJoin</code> is a separate known limitation — see
 </section>
 <section id="concurrency" class="doc-section" data-label="Concurrency">
 <div class="page-head"><h1>Concurrency</h1>
-<p class="lede">Threads, mutexes, and atomic CAS. Use
-<code>std.Thread</code> (spawn/join, one thread per CPU) and
-<code>std.Sync</code> (lock/unlock/cas/nanosleep) for application code; the
-raw <code>sys.*</code> primitives below are the escape hatch.</p></div>
+ <p class="lede">Threads, tasks, mutexes, and atomic CAS. Use
+ <code>std.Thread</code> (spawn/join, one thread per CPU),
+ <code>std.Task</code> (<code>async</code> functions, joined with
+ <code>join()</code> or <code>await</code>), and <code>std.Sync</code>
+ (lock/unlock/cas/nanosleep) for application code; the raw <code>sys.*</code>
+ primitives below are the escape hatch.</p></div>
 
 <h2>High-level (std.Thread / std.Sync)</h2>
 <table>
@@ -2565,9 +2567,11 @@ raw <code>sys.*</code> primitives below are the escape hatch.</p></div>
 <tr><td><code>Thread.nCpu()</code></td><td>number of available CPUs</td></tr>
 <tr><td><code>Thread.spawn(@fn, arg)</code></td><td>start a thread; returns
 the id to pass to <code>join</code></td></tr>
-<tr><td><code>Thread.join(tid)</code></td><td>block until the thread
-finishes; returns the worker's return value</td></tr>
-<tr><td><code>Sync.lock(&amp;m)</code></td><td>lock a mutex
+ <tr><td><code>Thread.join(tid)</code></td><td>block until the thread
+ finishes; returns the worker's return value</td></tr>
+ <tr><td><code>Thread.sleep(millis)</code></td><td>pause the calling thread
+ for <code>millis</code> ms (thread-specific: other threads keep running)</td></tr>
+ <tr><td><code>Sync.lock(&amp;m)</code></td><td>lock a mutex
 (<code>int</code>: 0 = unlocked, 1 = locked)</td></tr>
 <tr><td><code>Sync.unlock(&amp;m)</code></td><td>unlock</td></tr>
 <tr><td><code>Sync.cas(&amp;x, old, new)</code></td><td>compare-and-set;
@@ -3357,13 +3361,24 @@ int main() {
 </section>
 <section id="std-thread" class="doc-section" data-label="Thread">
 <div class="page-head"><h1>Standard library: <code>Thread</code></h1>
-<p class="lede"><code>import std.Thread;</code> — spawn/join worker threads
-(one per CPU) and read the CPU count, hiding the raw
-<code>sys.threadCreate</code>/<code>threadJoin</code> and the
-<code>sched_getaffinity</code> syscall.</p></div>
+ <p class="lede"><code>import std.Thread;</code> — spawn/join worker threads
+ (one per CPU), read the CPU count, and sleep the calling thread, hiding the
+ raw <code>sys.threadCreate</code>/<code>threadJoin</code>/<code>nanosleep</code>
+ and the <code>sched_getaffinity</code> syscall.</p></div>
 
-<h2>Methods</h2>
-<p><code>nCpu</code> <code>spawn</code> <code>join</code></p>
+ <h2>Methods</h2>
+ <p><code>nCpu</code> <code>spawn</code> <code>join</code>
+ <code>sleep</code></p>
+ <p><code>static int nCpu()</code> &mdash; number of online CPUs.
+ <code>static int spawn(int fn, int arg)</code> &mdash; start a worker
+ (<code>int fn(int arg)</code>) on its own thread; returns the thread id.
+ <code>static int join(int id)</code> &mdash; block until the thread
+ finishes; returns its worker's value.
+ <code>static void sleep(int millis)</code> &mdash; pause the
+ <b>calling</b> thread for <code>millis</code> milliseconds. It is
+ thread-specific: only the calling thread is paused, so one sleeping worker
+ never holds up the others (two workers that each sleep 600&nbsp;ms finish in
+ ~600&nbsp;ms, not ~1200&nbsp;ms).</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/primes_thread.flint</span></div>
@@ -3440,10 +3455,25 @@ and returns a <code>Task</code>. An instance method passes <code>this</code>
 as its first argument. <code>async</code> methods cannot be constructors and
 cannot be <code>abstract</code> (the worker thread needs a body), and an
 <code>async</code> instance method cannot be virtual (it cannot sit in a
-vtable). The program must be compiled with <code>task.flint</code> so that
-<code>std.Task</code> exists.</p>
+ vtable). The program must be compiled with <code>task.flint</code> so that
+ <code>std.Task</code> exists.</p>
 
-<h2>Example</h2>
+ <h2>await</h2>
+ <p><code>await</code> is the ergonomic form of <code>join()</code>: it blocks
+ on a worker and evaluates to the value the worker returned, with no handle to
+ name. It accepts an <code>async</code> call (a free function, an instance
+ method, or a static method) or a stored <code>Task</code>:</p>
+ <div class="code"><pre><code class="flint">printi(await worker(5));        // spawn + block + value, one step
+Task t = worker(5);
+printi(await t);               // await a stored handle
+printi(await b.add(2));       // an instance async method
+printi(await Box.mul(2, 3));  // a static async method</code></pre></div>
+ <p>An <code>async</code> function may <code>await</code> another, blocking its
+ own worker on the inner task (nested await). Awaiting an <code>async</code>
+ <code>void</code> function yields 0. Awaiting a non-<code>async</code> call is
+ a compile error.</p>
+
+ <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/async_task.flint</span></div>
 <pre><code class="flint">import std.Task;
 

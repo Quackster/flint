@@ -1,10 +1,13 @@
-// std/thread — lightweight worker threads and CPU count (import std.Thread).
+// std/thread — lightweight worker threads, CPU count, and sleep (import
+// std.Thread).
 //
 // A worker is any `int fn(int arg)` (or `void fn(int arg)`). `spawn` starts it
 // on its own thread and returns the thread id (0, 1, 2, ... in creation order);
 // `join(id)` blocks until that thread finishes and returns the value its worker
 // returned. `nCpu()` reports the number of online CPUs so an example can spawn
-// one worker per core.
+// one worker per core. `sleep(millis)` pauses the calling thread — and only
+// that thread — for the given milliseconds, so one sleeping worker never holds
+// up the others.
 //
 // Usage:
 //   import std.Thread;
@@ -43,5 +46,14 @@ class Thread {
     // Block until thread `id` finishes; returns the value its worker returned.
     static int join(int id) {
         return sys.threadJoin(id);
+    }
+
+    // Sleep the calling thread for `millis` milliseconds. Thread-specific:
+    // only the calling thread is paused; the other threads keep running, so
+    // one sleeping worker never holds up the rest.
+    static void sleep(int millis) {
+        int sec = millis / 1000;
+        int nsec = (millis % 1000) * 1000000;
+        sys.nanosleep(sec, nsec);
     }
 }

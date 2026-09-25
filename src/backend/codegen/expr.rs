@@ -290,6 +290,7 @@ impl Ctx<'_> {
             }
             Expr::Call { callee, args, span, .. } => self.gen_call(callee, args, frame, *span),
             Expr::MethodCall { base, method, args, span } => self.gen_method_call(base, method, args, frame, *span),
+            Expr::Await { e: inner, span } => self.gen_await(inner.as_ref(), frame, *span),
             Expr::Index { base, idx, .. } => {
                 let bty = self.gen_expr_ro(base, frame)?;
                 self.gen_expr_ro(idx, frame)?;

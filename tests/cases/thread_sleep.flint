@@ -1,0 +1,29 @@
+// Thread.sleep is thread-specific: it pauses only the calling thread, so one
+// sleeping worker never holds up the others. Two workers that each sleep for
+// the same duration therefore run their sleeps in parallel — both finish in
+// about one duration, not the sum of the two.
+import std.Thread;
+import std.Task;
+import std.Time;
+
+async int sleeper(int tag, int ms) {
+    Thread.sleep(ms);   // pause only this worker
+    return tag;
+}
+
+int main() {
+    // Two 600ms sleeps, one per worker. Thread-specific => they overlap and
+    // the total is ~600ms; a program-wide sleep would serialize them into
+    // ~1200ms.
+    int t0 = Time.millis();
+    Task a = sleeper(1, 600);
+    Task b = sleeper(2, 600);
+    int ra = a.join();
+    int rb = b.join();
+    int elapsed = Time.millis() - t0;
+    printi(ra + rb);                    // 3 (both workers ran and returned)
+    print("\n");
+    printi(elapsed < 1000 ? 1 : 0);   // 1 = the sleeps overlapped
+    print("\n");
+    return 0;
+}

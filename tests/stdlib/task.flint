@@ -53,5 +53,16 @@ int main() {
     Task e = double(4);
     printi(a.join() + c.join() + e.join());
     print("\n");
+
+    // await: blocks on the worker and yields its return value.
+    printi(await double(21));
+    print("\n");
+    Task t2 = double(5);
+    printi(await t2);
+    print("\n");
+    printi(await Box.mul(6, 7));
+    print("\n");
+    printi(await b.add(23));
+    print("\n");
     return 0;
 }
