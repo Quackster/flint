@@ -26,7 +26,7 @@ int main() {
     printi(m.contains(2)); print(" ");
     printi(m.contains(1)); print("\n");
 
-    // string values (vkind = 1); get() returns the raw slot value
+    // string values (vkind = 1); get() returns a string
     HashMap<int, string> d = new HashMap<int, string>();
     d.put(1, "one");
     d.put(2, "two");

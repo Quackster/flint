@@ -1,6 +1,6 @@
 // std/coll — the collections as ordinary generic classes over raw 8-byte
 // slot arrays: `Collection` (the base), `List<T>`, `Queue<T>`,
-// `HashSet<T>`, and `HashMap<K, V>`.
+// `HashSet<T>`, `HashMap<K, V>`, and `CopyOnWriteList<T>`.
 //
 // Every collection stores its elements in a `Mem.intArray` of 8-byte
 // slots that it manipulates itself: `List` grows by doubling and
@@ -16,9 +16,24 @@
 //                                              clear/destroy; by pointer
 // A `HashMap<K, V>` carries `kkind`/`vkind` for its keys and values.
 //
+// The element-facing API is typed: `add(T)`, `T get(i)`,
+// `T set(i, T)` (returns the displaced element), `T remove(i)`
+// (returns the removed element), `contains(T)`, … For
+// `List<string>` the methods take and return `string`; for
+// `List<Foo>` they take and return `Foo`. The compiler resolves
+// `T` to the concrete element type when the class is monomorphized;
+// the internals still move raw 8-byte slots and dispatch on `kind`.
+//
 // Common API: `size()`, `isEmpty()`, `clear()`. `destroy()` runs when
 // the last reference drops (it drops the element references and frees
 // the slot array) — do not call it manually.
+//
+// `CopyOnWriteList` is the concurrent member: every mutator
+// (add / insert / set / remove / removeObject / clear) builds a fresh
+// slot array (retaining the copied object elements) and swaps it in
+// under a lock; readers (get / contains / indexOf / …) and `snapshot()`
+// (the COW "iterator", a plain `List<T>`) never lock, and a snapshot
+// is not affected by later mutations.
 //
 // Usage:
 //   import std.List;
@@ -115,7 +130,7 @@ class List<T> extends Collection {
         super();
         this.kind = 0; // baked by the compiler from T
     }
-    void add(int v) {
+    void add(T v) {
         if (this.count >= this.cap) {
             *int ns = Mem.intArray(this.cap * 2);
             Mem.copy(ns, this.slots, this.count * 8);
@@ -125,24 +140,24 @@ class List<T> extends Collection {
         this.slots[this.count] = v;
         this.count = this.count + 1;
     }
-    int get(int i) {
+    // The stored element (0 when out of range; object elements get a
+    // fresh reference).
+    T get(int i) {
         int v = this.slots[i];
         Collection.retainElem(this.kind, v);
         return v;
     }
-    // The slot as a string (for `kind == 1` lists; the stored value is
-    // already a NUL-terminated string pointer).
-    string getStr(int i) {
-        int v = this.slots[i];
-        return v;
-    }
-    void set(int i, int v) {
-        Collection.releaseElem(this.kind, this.slots[i]);
+    // Write the slot; returns the displaced element (released here,
+    // retained for the caller).
+    T set(int i, T v) {
+        int old = this.slots[i];
+        Collection.releaseElem(this.kind, old);
         Collection.retainElem(this.kind, v);
         this.slots[i] = v;
+        return old;
     }
     // Insert at i (the tail shifts right; i >= size appends).
-    void insert(int i, int v) {
+    void insert(int i, T v) {
         if (i >= this.count) {
             i = this.count;
         }
@@ -160,8 +175,9 @@ class List<T> extends Collection {
         this.slots[i] = v;
         this.count = this.count + 1;
     }
-    // 1 removed, 0 when i >= size. The removed reference is dropped.
-    int remove(int i) {
+    // The removed element (0 when i >= size; object elements get a
+    // fresh reference).
+    T remove(int i) {
         if (i >= this.count) {
             return 0;
         }
@@ -172,10 +188,10 @@ class List<T> extends Collection {
             j = j + 1;
         }
         this.count = this.count - 1;
-        Collection.releaseElem(this.kind, v);
-        return 1;
+        Collection.retainElem(this.kind, v);
+        return v;
     }
-    int contains(int v) {
+    int contains(T v) {
         int i = 0;
         while (i < this.count) {
             if (Collection.eq(this.kind, this.slots[i], v) == 1) {
@@ -249,7 +265,7 @@ class Queue<T> extends Collection {
         this.kind = 0; // baked by the compiler from T
         this.head = 0;
     }
-    void push(int v) {
+    void push(T v) {
         if (this.count >= this.cap) {
             int i = 0;
             while (i < this.count) {
@@ -265,8 +281,9 @@ class Queue<T> extends Collection {
         this.slots[(this.head + this.count) % this.cap] = v;
         this.count = this.count + 1;
     }
-    // 0 when empty; the stored reference transfers to the caller.
-    int pop() {
+    // The front element (0 when empty; the stored reference transfers
+    // to the caller).
+    T pop() {
         if (this.count == 0) {
             return 0;
         }
@@ -275,7 +292,7 @@ class Queue<T> extends Collection {
         this.count = this.count - 1;
         return v;
     }
-    int peek() {
+    T peek() {
         if (this.count == 0) {
             return 0;
         }
@@ -302,7 +319,7 @@ class HashSet<T> extends Collection {
         this.slots = Mem.intArray(32);
     }
     // 1 inserted, 0 already present.
-    int add(int v) {
+    int add(T v) {
         if (this.count * 2 >= this.cap) {
             this.rehash();
         }
@@ -331,7 +348,7 @@ class HashSet<T> extends Collection {
             i = (i + 1) & mask;
         }
     }
-    int contains(int v) {
+    int contains(T v) {
         int mask = this.cap - 1;
         int i = Collection.hash(this.kind, v) & mask;
         while (true) {
@@ -346,7 +363,7 @@ class HashSet<T> extends Collection {
         }
     }
     // 1 removed, 0 absent (the bucket becomes a tombstone).
-    int remove(int v) {
+    int remove(T v) {
         int mask = this.cap - 1;
         int i = Collection.hash(this.kind, v) & mask;
         while (true) {
@@ -392,6 +409,14 @@ class HashSet<T> extends Collection {
             }
             i = i + 1;
         }
+        // drop the old array's element references before freeing it
+        i = 0;
+        while (i < oldCap) {
+            if (old[2 * i + 1] == 1) {
+                Collection.releaseElem(this.kind, old[2 * i]);
+            }
+            i = i + 1;
+        }
         Mem.freeInt(old);
     }
 }
@@ -406,8 +431,9 @@ class HashMap<K, V> extends Collection {
         this.vkind = 0; // baked by the compiler from V
         this.slots = Mem.intArray(48);
     }
-    // 1 inserted, 0 updated (the old value reference is dropped).
-    int put(int k, int v) {
+    // 1 inserted, 0 updated (the old value reference is dropped; the
+    // key reference is retained on insert).
+    int put(K k, V v) {
         if (this.count * 2 >= this.cap) {
             this.rehash();
         }
@@ -420,6 +446,7 @@ class HashMap<K, V> extends Collection {
                 this.slots[3 * i] = k;
                 this.slots[3 * i + 1] = 1;
                 this.slots[3 * i + 2] = v;
+                Collection.retainElem(this.kkind, k);
                 Collection.retainElem(this.vkind, v);
                 this.count = this.count + 1;
                 return 1;
@@ -440,8 +467,9 @@ class HashMap<K, V> extends Collection {
             i = (i + 1) & mask;
         }
     }
-    // 0 when absent; object values get a fresh reference.
-    int get(int k) {
+    // The stored value (0 when absent; object values get a fresh
+    // reference).
+    V get(K k) {
         int mask = this.cap - 1;
         int i = Collection.hash(this.kkind, k) & mask;
         while (true) {
@@ -457,23 +485,7 @@ class HashMap<K, V> extends Collection {
             i = (i + 1) & mask;
         }
     }
-    // The stored value as a string (for `vkind == 1` maps; the slot
-    // already holds a NUL-terminated string pointer). 0 when absent.
-    string getStr(int k) {
-        int mask = this.cap - 1;
-        int i = Collection.hash(this.kkind, k) & mask;
-        while (true) {
-            int flag = this.slots[3 * i + 1];
-            if (flag == 0) {
-                return 0;
-            }
-            if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
-                return this.slots[3 * i + 2];
-            }
-            i = (i + 1) & mask;
-        }
-    }
-    int contains(int k) {
+    int contains(K k) {
         int mask = this.cap - 1;
         int i = Collection.hash(this.kkind, k) & mask;
         while (true) {
@@ -488,7 +500,7 @@ class HashMap<K, V> extends Collection {
         }
     }
     // 1 removed, 0 absent (the entry becomes a tombstone).
-    int remove(int k) {
+    int remove(K k) {
         int mask = this.cap - 1;
         int i = Collection.hash(this.kkind, k) & mask;
         while (true) {
@@ -497,6 +509,7 @@ class HashMap<K, V> extends Collection {
                 return 0;
             }
             if (flag == 1 && Collection.eq(this.kkind, this.slots[3 * i], k) == 1) {
+                Collection.releaseElem(this.kkind, this.slots[3 * i]);
                 Collection.releaseElem(this.vkind, this.slots[3 * i + 2]);
                 this.slots[3 * i + 1] = 2;
                 this.count = this.count - 1;
@@ -509,6 +522,7 @@ class HashMap<K, V> extends Collection {
         int i = 0;
         while (i < this.cap) {
             if (this.slots[3 * i + 1] == 1) {
+                Collection.releaseElem(this.kkind, this.slots[3 * i]);
                 Collection.releaseElem(this.vkind, this.slots[3 * i + 2]);
             }
             this.slots[3 * i + 1] = 0;
@@ -558,6 +572,250 @@ class HashMap<K, V> extends Collection {
             }
             i = i + 1;
         }
+        // drop the old array's element references before freeing it
+        i = 0;
+        while (i < oldCap) {
+            if (old[3 * i + 1] == 1) {
+                Collection.releaseElem(this.kkind, old[3 * i]);
+                Collection.releaseElem(this.vkind, old[3 * i + 2]);
+            }
+            i = i + 1;
+        }
         Mem.freeInt(old);
+    }
+}
+class CopyOnWriteList<T> extends Collection {
+    // The write lock; readers (get, contains, indexOf, …) never lock.
+    int mutex;
+    public CopyOnWriteList() {
+        super();
+        this.kind = 0; // baked by the compiler from T
+        this.mutex = 0;
+    }
+    // Install a fresh array: the array pointer goes first, then count
+    // and cap (readers load the count before the array, and x86-64
+    // never reorders stores, so a concurrent mutation cannot expose an
+    // inconsistent pair). The old array's element references are
+    // dropped and the old array freed afterwards.
+    void install(*int ns, int oldCount, int newCount) {
+        *int old = this.slots;
+        this.slots = ns;
+        this.count = newCount;
+        this.cap = newCount;
+        int i = 0;
+        while (i < oldCount) {
+            Collection.releaseElem(this.kind, old[i]);
+            i = i + 1;
+        }
+        Mem.freeInt(old);
+    }
+    // A fresh array of `cap` slots holding the first `n` elements;
+    // object elements are retained (the old array's references are
+    // dropped by `install`).
+    *int copyOf(int cap, int n) {
+        *int ns = Mem.intArray(cap);
+        int i = 0;
+        while (i < n) {
+            ns[i] = this.slots[i];
+            Collection.retainElem(this.kind, ns[i]);
+            i = i + 1;
+        }
+        return ns;
+    }
+    void addLocked(T v) {
+        int n = this.count;
+        *int ns = this.copyOf(n + 1, n);
+        Collection.retainElem(this.kind, v);
+        ns[n] = v;
+        this.install(ns, n, n + 1);
+    }
+    void insertLocked(int i, T v) {
+        int n = this.count;
+        if (i >= n) {
+            i = n;
+        }
+        *int ns = this.copyOf(n + 1, n);
+        int j = n - 1;
+        while (j >= i) {
+            ns[j + 1] = ns[j];
+            j = j - 1;
+        }
+        Collection.retainElem(this.kind, v);
+        ns[i] = v;
+        this.install(ns, n, n + 1);
+    }
+    // The displaced element (0 when i >= size): the extra retain for it
+    // is what the caller keeps once `install` drops the slot's
+    // reference.
+    int setLocked(int i, T v) {
+        int n = this.count;
+        if (i >= n) {
+            return 0;
+        }
+        *int ns = this.copyOf(n, n);
+        int old = ns[i];
+        Collection.retainElem(this.kind, old);
+        Collection.retainElem(this.kind, v);
+        ns[i] = v;
+        this.install(ns, n, n);
+        return old;
+    }
+    // The removed element (0 when i >= size).
+    int removeLocked(int i) {
+        int n = this.count;
+        if (i >= n) {
+            return 0;
+        }
+        *int ns = this.copyOf(n, n);
+        int old = ns[i];
+        Collection.retainElem(this.kind, old);
+        int j = i;
+        while (j < n - 1) {
+            ns[j] = ns[j + 1];
+            j = j + 1;
+        }
+        this.install(ns, n, n - 1);
+        return old;
+    }
+    int indexOfLocked(T v) {
+        int n = this.count;
+        int i = 0;
+        while (i < n) {
+            if (Collection.eq(this.kind, this.slots[i], v) == 1) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+    // Append (Java `add(E)`): readers keep working on the old array
+    // while the fresh one is built.
+    void add(T v) {
+        Sync.lock(&this.mutex);
+        this.addLocked(v);
+        Sync.unlock(&this.mutex);
+    }
+    // Insert at i (Java `add(int, E)`; the tail shifts right,
+    // i >= size appends).
+    void insert(int i, T v) {
+        Sync.lock(&this.mutex);
+        this.insertLocked(i, v);
+        Sync.unlock(&this.mutex);
+    }
+    // Write the slot; returns the displaced element (0 when i >= size).
+    T set(int i, T v) {
+        Sync.lock(&this.mutex);
+        int old = this.setLocked(i, v);
+        Sync.unlock(&this.mutex);
+        return old;
+    }
+    // Remove at i; returns the removed element (0 when i >= size).
+    T remove(int i) {
+        Sync.lock(&this.mutex);
+        int old = this.removeLocked(i);
+        Sync.unlock(&this.mutex);
+        return old;
+    }
+    // Java `remove(Object)`: drop the first occurrence of v. 1 removed,
+    // 0 absent.
+    int removeObject(T v) {
+        Sync.lock(&this.mutex);
+        int i = this.indexOfLocked(v);
+        int r = 0;
+        if (i != -1) {
+            this.removeLocked(i);
+            r = 1;
+        }
+        Sync.unlock(&this.mutex);
+        return r;
+    }
+    // Override of the base in-place clear: install a fresh empty array.
+    void clear() {
+        Sync.lock(&this.mutex);
+        int n = this.count;
+        *int ns = Mem.intArray(16);
+        this.install(ns, n, 0);
+        Sync.unlock(&this.mutex);
+    }
+    T get(int i) {
+        int n = this.count;
+        if (i >= n) {
+            return 0;
+        }
+        *int a = this.slots;
+        int v = a[i];
+        Collection.retainElem(this.kind, v);
+        return v;
+    }
+    int contains(T v) {
+        int n = this.count;
+        *int a = this.slots;
+        int i = 0;
+        while (i < n) {
+            if (Collection.eq(this.kind, a[i], v) == 1) {
+                return 1;
+            }
+            i = i + 1;
+        }
+        return 0;
+    }
+    // The first index of v, or -1 when absent.
+    int indexOf(T v) {
+        int n = this.count;
+        *int a = this.slots;
+        int i = 0;
+        while (i < n) {
+            if (Collection.eq(this.kind, a[i], v) == 1) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+    // The last index of v, or -1 when absent.
+    int lastIndexOf(T v) {
+        int n = this.count;
+        *int a = this.slots;
+        int i = n - 1;
+        while (i >= 0) {
+            if (Collection.eq(this.kind, a[i], v) == 1) {
+                return i;
+            }
+            i = i - 1;
+        }
+        return -1;
+    }
+    // The COW "iterator": a fresh List<T> holding the elements as of
+    // now; later mutations install new arrays and do not affect it.
+    List<T> snapshot() {
+        int n = this.count;
+        *int a = this.slots;
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < n) {
+            out.add(a[i]);
+            i = i + 1;
+        }
+        return out;
+    }
+    // Elements joined by sep: strings verbatim, the rest via itoa.
+    string join(string sep) {
+        int n = this.count;
+        *int a = this.slots;
+        string out = "";
+        int i = 0;
+        while (i < n) {
+            int v = a[i];
+            if (i > 0) {
+                out = str.concat(out, sep);
+            }
+            if (this.kind == 1) {
+                out = str.concat(out, v);
+            } else {
+                out = str.concat(out, str.itoa(v));
+            }
+            i = i + 1;
+        }
+        return out;
     }
 }

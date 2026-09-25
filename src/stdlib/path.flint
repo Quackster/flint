@@ -92,7 +92,7 @@ class Path {
         int i = 0;
         int n = parts.size();
         while (i < n) {
-            string s = parts.getStr(i);
+            string s = parts.get(i);
             if (str.cmp(s, ".") != 0 && str.cmp(s, "") != 0) {
                 if (str.cmp(s, "..") == 0) {
                     if (stack.size() > 0) {
@@ -114,7 +114,7 @@ class Path {
             if (j > 0) {
                 out = out + "/";
             }
-            out = out + stack.getStr(j);
+            out = out + stack.get(j);
             j = j + 1;
         }
         return out;

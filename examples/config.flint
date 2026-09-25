@@ -8,7 +8,7 @@ class Config {
         this.table = new HashMap<string, string>();
     }
     public string get(string key, string dflt) {
-        string v = this.table.getStr(key);
+        string v = this.table.get(key);
         if (v == null) {
             return dflt;
         }

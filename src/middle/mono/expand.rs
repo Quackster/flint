@@ -57,7 +57,9 @@ impl<'a> Mono<'a> {
         // refcounts its elements without a manual `kind` field set.
         if tpkg == "std" {
             let fields: Vec<(&str, i64)> = match (tname.as_str(), args) {
-                ("List" | "Queue" | "HashSet", [a]) => vec![("kind", Self::kind_of(a))],
+                ("List" | "Queue" | "HashSet" | "CopyOnWriteList", [a]) => {
+                    vec![("kind", Self::kind_of(a))]
+                }
                 ("HashMap", [a, b]) => vec![
                     ("kkind", Self::kind_of(a)),
                     ("vkind", Self::kind_of(b)),

@@ -55,7 +55,7 @@ int main() {
     lit.put(2, "b");
     printi(lit.size());            // 2
     print("\n");
-    print(lit.getStr(2));          // b
+    print(lit.get(2));             // b
     print("\n");
     // clear
     n.clear();

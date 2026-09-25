@@ -1,0 +1,127 @@
+// cowlist: std.CopyOnWriteList — copy-on-write semantics: every
+// mutator (add/insert/set/remove/removeObject/clear) installs a fresh
+// slot array under a lock; readers (get/contains/indexOf/…) never
+// lock, and snapshot() — the COW "iterator" — is a plain List<T> that
+// later mutations do not affect.
+import std.CopyOnWriteList;
+import std.List;
+import std.Thread;
+
+class Holder {
+    static CopyOnWriteList<int> shared;
+}
+
+// A worker appends 25 values to the shared list
+int worker(int tid) {
+    int k = 0;
+    while (k < 25) {
+        Holder.shared.add(tid * 1000 + k);
+        k = k + 1;
+    }
+    return tid;
+}
+
+class Box {
+    static int destroyed;
+    int id;
+    public Box(int i) { this.id = i; }
+    public int id() { return this.id; }
+    void destroy() { Box.destroyed = Box.destroyed + 1; }
+}
+
+int main() {
+    // ---- int semantics ----
+    CopyOnWriteList<int> l = new CopyOnWriteList<int>();
+    printi(l.size()); print("\n");               // 0
+    printi(l.isEmpty()); print("\n");           // 1
+    l.add(10); l.add(20); l.add(30);
+    printi(l.size()); print("\n");             // 3
+    printi(l.get(1)); print("\n");            // 20
+    l.insert(1, 5);
+    printi(l.get(1)); print("\n");           // 5
+    printi(l.get(5)); print("\n");           // 0 (out of range)
+    int old = l.set(0, 99);
+    printi(old); print("\n");                // 10
+    printi(l.set(9, 7)); print("\n");        // 0 (out of range: no change)
+    printi(l.get(0)); print("\n");           // 99
+    int gone = l.remove(1);
+    printi(gone); print("\n");               // 5
+    printi(l.remove(9)); print("\n");        // 0 (out of range)
+    printi(l.size()); print("\n");           // 3
+    printi(l.contains(99)); print("\n");     // 1
+    printi(l.contains(77)); print("\n");     // 0
+    printi(l.indexOf(20)); print("\n");      // 1
+    printi(l.indexOf(77)); print("\n");      // -1
+    printi(l.lastIndexOf(30)); print("\n");   // 2
+    printi(l.lastIndexOf(99)); print("\n");   // 0
+    printi(l.lastIndexOf(77)); print("\n");   // -1
+    printi(l.removeObject(20)); print("\n"); // 1
+    printi(l.contains(20)); print("\n");     // 0
+    printi(l.removeObject(77)); print("\n"); // 0
+    print(l.join("-")); print("\n");         // 99-30
+    // snapshot: later mutations do not affect it
+    List<int> snap = l.snapshot();
+    l.add(40);
+    printi(snap.size()); print("\n");         // 2
+    printi(l.size()); print("\n");           // 3
+    l.clear();
+    printi(l.size()); print("\n");           // 0
+    printi(l.isEmpty()); print("\n");        // 1
+    printi(l.get(0)); print("\n");           // 0 (now empty)
+    // ---- string elements ----
+    CopyOnWriteList<string> s = new CopyOnWriteList<string>();
+    s.add("b"); s.add("a"); s.add("c");
+    print(s.join("|")); print("\n");          // b|a|c
+    print(s.get(1)); print("\n");             // a
+    printi(s.contains("a")); print("\n");     // 1
+    printi(s.contains("z")); print("\n");     // 0
+    printi(s.indexOf("c")); print("\n");      // 2
+    printi(s.lastIndexOf("b")); print("\n");  // 0
+    string displaced = s.set(0, "z");
+    print(displaced); print("\n");            // b (displaced, returned)
+    print(s.get(0)); print("\n");             // z
+    printi(s.removeObject("a")); print("\n"); // 1
+    print(s.join("|")); print("\n");          // z|c
+    // ---- object elements (kind 2): retained on store, released on
+    // remove; the Box must survive while a local still holds it ----
+    Box x = new Box(7);
+    if (1) {
+        CopyOnWriteList<Box> o = new CopyOnWriteList<Box>();
+        o.add(x);
+        Box old2 = o.set(0, x);
+        printi(old2.id() == 7 ? 1 : 0); print("\n");  // 1
+        List<Box> osnap = o.snapshot();
+        printi(osnap.size()); print("\n");            // 1
+        o.remove(0);
+        printi(o.size()); print("\n");               // 0
+    }
+    printi(x.id()); print("\n");                     // 7
+    printi(Box.destroyed); print("\n");             // 0 (still referenced by main)
+    // ---- four workers append 25 values each ----
+    Holder.shared = new CopyOnWriteList<int>();
+    int k = 0;
+    while (k < 4) {
+        Thread.spawn(@worker, k);
+        k = k + 1;
+    }
+    k = 0;
+    while (k < 4) {
+        Thread.join(k);
+        k = k + 1;
+    }
+    printi(Holder.shared.size()); print("\n");      // 100
+    int ok = 1;
+    k = 0;
+    while (k < 4) {
+        int j = 0;
+        while (j < 25) {
+            if (Holder.shared.contains(k * 1000 + j) == 0) {
+                ok = 0;
+            }
+            j = j + 1;
+        }
+        k = k + 1;
+    }
+    printi(ok); print("\n");                        // 1
+    return 0;
+}

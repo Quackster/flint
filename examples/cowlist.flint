@@ -1,0 +1,89 @@
+// cowlist: std.CopyOnWriteList — a list whose mutators install a fresh
+// array (under a lock), so readers and `snapshot()` never lock. A
+// snapshot is a plain List<T> that later mutations do not affect.
+// Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint src/stdlib/sync.flint src/stdlib/thread.flint examples/cowlist.flint -o cowlist
+import std.CopyOnWriteList;
+import std.List;
+import std.Thread;
+
+class Holder {
+    static CopyOnWriteList<int> shared;
+}
+
+// A worker appends 25 values to the shared list
+int worker(int tid) {
+    int k = 0;
+    while (k < 25) {
+        Holder.shared.add(tid * 1000 + k);
+        k = k + 1;
+    }
+    return tid;
+}
+
+int main() {
+    CopyOnWriteList<int> l = new CopyOnWriteList<int>();
+    l.add(10); l.add(20); l.add(30);
+    printi(l.size());             // 3
+    print("\n");
+    printi(l.get(1));            // 20
+    print("\n");
+    l.insert(1, 5);
+    printi(l.get(1));           // 5
+    print("\n");
+    int old = l.set(0, 99);
+    printi(old);                 // 10 (displaced, returned)
+    print("\n");
+    printi(l.remove(1));        // 5 (removed, returned)
+    print("\n");
+    printi(l.contains(99));     // 1
+    print("\n");
+    printi(l.indexOf(30));      // 2
+    print("\n");
+    printi(l.lastIndexOf(99));  // 0
+    print("\n");
+    printi(l.removeObject(20)); // 1
+    print("\n");
+    print(l.join("-"));         // 99-30
+    print("\n");
+    // snapshot: the COW "iterator" is a plain List, so a later
+    // mutation does not affect it
+    List<int> snap = l.snapshot();
+    l.add(40);
+    printi(snap.size());        // 2
+    print("\n");
+    printi(l.size());          // 3
+    print("\n");
+    l.clear();
+    printi(l.size());          // 0
+    print("\n");
+    // four workers append 25 values each: the COW lock serializes the
+    // array swaps while the reads never lock
+    Holder.shared = new CopyOnWriteList<int>();
+    int k = 0;
+    while (k < 4) {
+        Thread.spawn(@worker, k);
+        k = k + 1;
+    }
+    k = 0;
+    while (k < 4) {
+        Thread.join(k);
+        k = k + 1;
+    }
+    printi(Holder.shared.size());  // 100
+    print("\n");
+    int ok = 1;
+    k = 0;
+    while (k < 4) {
+        int j = 0;
+        while (j < 25) {
+            if (Holder.shared.contains(k * 1000 + j) == 0) {
+                ok = 0;
+            }
+            j = j + 1;
+        }
+        k = k + 1;
+    }
+    printi(ok);                 // 1 (every value made it in)
+    print("\n");
+    return 0;
+}
