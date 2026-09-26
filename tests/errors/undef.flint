@@ -1,4 +1,4 @@
 int main() {
-    printi(nosuchvar);
+    print(nosuchvar);
     return 0;
 }

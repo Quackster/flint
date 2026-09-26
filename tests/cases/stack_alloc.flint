@@ -23,35 +23,35 @@ Pair make() {
 int main() {
     // stack-allocated: top level, field access only, non-escaping ctor
     Pair s = new Pair(3, 4);
-    printi(s.a);
+    print(s.a);
     print(",");
-    printi(s.b);
+    print(s.b);
     print("\n");
     s.a = 10;
-    printi(s.a + s.b);
+    print(s.a + s.b);
     print("\n");
     // alias of a stack object: plain address, no refcount traffic
     Pair r = s;
-    printi(r.b);
+    print(r.b);
     print("\n");
     // heap: escapes into a function
     Pair h = new Pair(5, 6);
-    printi(sum_of(h));
+    print(sum_of(h));
     print("\n");
     // heap alias: both hold refcounted references
     Pair c = h;
     c.b = 100;
-    printi(h.b);
+    print(h.b);
     print("\n");
     // stack object with a class field: the field is a heap refcount
     Box o = new Box(new Inner(42), 7);
-    printi(o.in.v);
+    print(o.in.v);
     print(",");
-    printi(o.n);
+    print(o.n);
     print("\n");
     // class value returned from a function: fresh reference
     Pair t = make();
-    printi(t.a + t.b);
+    print(t.a + t.b);
     print("\n");
     return 0;
 }

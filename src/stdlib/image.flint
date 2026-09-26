@@ -1804,7 +1804,7 @@ class Image {
         while (r < 8) {
             int c = 0;
             while (c < 8) {
-                printi(this.j_blk[c * 8 + r]);
+                print(this.j_blk[c * 8 + r]);
                 print(" ");
                 c = c + 1;
             }
@@ -2150,11 +2150,11 @@ class Image {
             i = i + 1;
         }
         this.jIdct();
-        printi(this.j_blk[0]);
+        print(this.j_blk[0]);
         print(" ");
-        printi(this.j_blk[1]);
+        print(this.j_blk[1]);
         print(" ");
-        printi(this.j_blk[9]);
+        print(this.j_blk[9]);
         print("\n");
         return 0;
     }

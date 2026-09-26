@@ -16,7 +16,7 @@
 //       Thread.spawn(@worker, k);
 //   }
 //   for (int k = 0; k < n; k = k + 1) {
-//       printi(Thread.join(k));
+//       print(Thread.join(k));
 //   }
 package std;
 class Thread {

@@ -6,13 +6,13 @@ int bump() {
     return 1;
 }
 int main() {
-    printi(0 && bump()); print("\n");
-    printi(0 || bump()); print("\n");
-    printi(1 || bump()); print("\n");
-    printi(1 && bump()); print("\n");
-    printi(Cnt.n); print("\n");
-    printi(5 && 7); print("\n");
-    printi(0 || 0); print("\n");
-    printi(3 || 0); print("\n");
+    println(0 && bump());
+    println(0 || bump());
+    println(1 || bump());
+    println(1 && bump());
+    println(Cnt.n);
+    println(5 && 7);
+    println(0 || 0);
+    println(3 || 0);
     return 0;
 }

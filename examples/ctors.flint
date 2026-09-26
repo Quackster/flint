@@ -25,19 +25,19 @@ class Counter {
 
 int main() {
     Point p = new Point(3, 4);   // (1) routes to the 2-arg constructor
-    printi(p.x);                // 4 (3 + 1)
+    print(p.x);                // 4 (3 + 1)
     print("\n");
-    printi(p.y);                // 6 (4 + 2)
+    print(p.y);                // 6 (4 + 2)
     print("\n");
     Raw r = new Raw(10, 20);    // (2) no constructor: positional field init
-    printi(r.x * 100 + r.y);   // 1020
+    print(r.x * 100 + r.y);   // 1020
     print("\n");
     Counter c = new Counter();  // (3) zero-arg constructor
-    printi(c.n);               // 42
+    print(c.n);               // 42
     print("\n");
     Counter c2 = new Counter();
     c2.n = 100;
-    printi(c2.n);             // 100 (mutable after construction)
+    print(c2.n);             // 100 (mutable after construction)
     print("\n");
     return 0;
 }

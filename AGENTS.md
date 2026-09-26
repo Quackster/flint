@@ -70,7 +70,7 @@ like ordinary application code, **not** like a systems-programming demo:
   the raw string API and may show `sys.byteLoad`, but must not use raw
   `alloc`.)
 - Prefer `for` loops and small, focused helpers; use `str.itoa(n)` (or
-  `printi(n)`) to print numbers — never rely on `string + int`.
+  `println(n)`) to print numbers — never rely on `string + int`.
 
 ## Where things live
 

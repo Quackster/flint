@@ -273,7 +273,7 @@ pub enum Expr {
     This {
         span: Span,
     },
-    // callee is a dotted path (e.g. ["sys", "write"] or ["printi"]).
+    // callee is a dotted path (e.g. ["sys", "write"] or ["println"]).
     Call {
         span: Span,
         callee: Vec<String>,

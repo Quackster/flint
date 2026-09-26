@@ -6,16 +6,16 @@ import std.Rand;
 int main() {
     Rand.init(42);
     // range(lo, hi) is uniform in [lo, hi); coin() is 0 or 1.
-    printi(Rand.range(1, 1000)); print(" ");
-    printi(Rand.range(1, 1000)); print(" ");
-    printi(Rand.coin()); print(" ");
-    printi(Rand.coin()); print(" ");
+    print(Rand.range(1, 1000)); print(" ");
+    print(Rand.range(1, 1000)); print(" ");
+    print(Rand.coin()); print(" ");
+    print(Rand.coin()); print(" ");
     // shuffle (Fisher-Yates, in place) then print the order.
     int a[] = [0, 1, 2, 3, 4];
     Rand.shuffle(a);
     int i = 0;
     while (i < 5) {
-        printi(a[i]);
+        print(a[i]);
         if (i < 4) {
             print(" ");
         }
@@ -24,6 +24,6 @@ int main() {
     print("\n");
     // pick returns a uniformly random element.
     int b[] = [10, 20, 30];
-    printi(Rand.pick(b)); print("\n");
+    println(Rand.pick(b));
     return 0;
 }

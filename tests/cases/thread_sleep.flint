@@ -21,9 +21,9 @@ int main() {
     int ra = a.join();
     int rb = b.join();
     int elapsed = Time.millis() - t0;
-    printi(ra + rb);                    // 3 (both workers ran and returned)
+    print(ra + rb);                    // 3 (both workers ran and returned)
     print("\n");
-    printi(elapsed < 1000 ? 1 : 0);   // 1 = the sleeps overlapped
+    print(elapsed < 1000 ? 1 : 0);   // 1 = the sleeps overlapped
     print("\n");
     return 0;
 }

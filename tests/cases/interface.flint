@@ -21,18 +21,18 @@ class Human implements Speaker {
 }
 int main() {
     Speaker s = new Robot(3);
-    printi(s.speak());
+    print(s.speak());
     print("\n");
-    printi(s instanceof Robot);
+    print(s instanceof Robot);
     print("\n");
-    printi(s instanceof Speaker);
+    print(s instanceof Speaker);
     print("\n");
     Speaker h = new Human(5);
-    printi(h.speak());
+    print(h.speak());
     print("\n");
-    printi(h instanceof Human);
+    print(h instanceof Human);
     print("\n");
-    printi(h instanceof Robot);
+    print(h instanceof Robot);
     print("\n");
     return 0;
 }

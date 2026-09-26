@@ -9,8 +9,8 @@ int main() {
     xs.add(9);
     xs.add(1);
     xs.add(7);
-    printi(Stats.sum(xs)); print(" ");   // 21
-    printi(Stats.max(xs)); print(" ");   // 9
-    printi(Stats.mean(xs)); print("\n"); // 5
+    print(Stats.sum(xs)); print(" ");   // 21
+    print(Stats.max(xs)); print(" ");   // 9
+    println(Stats.mean(xs)); // 5
     return 0;
 }

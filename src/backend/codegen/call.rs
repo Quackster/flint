@@ -60,6 +60,24 @@ impl Ctx<'_> {
                     format!("{} expects {} arguments, got {}", callee.join("."), b.arity, args.len()),
                 ));
             }
+            // print / println are polymorphic: an int (or bool/enum)
+            // argument prints as decimal, anything else as a string.
+            if b.target == "flint_print" || b.target == "flint_println" {
+                let aty = self.gen_expr_ro(&args[0], frame)?;
+                // int (and bool/enum; array slots are plain 64-bit ints)
+                let is_int = matches!(aty, Ty::Int | Ty::Bool | Ty::Enum(_) | Ty::Array);
+                let target = match (b.target, is_int) {
+                    ("flint_print", true) => "flint_printi64",
+                    ("flint_print", false) => "flint_printstr",
+                    ("flint_println", true) => "flint_println_i64",
+                    _ => "flint_println_str",
+                };
+                self.pop_args(args.len());
+                self.emit(&format!("\tcall {}", target));
+                self.emit("\tmovq $0, %rax");
+                self.emit("\tpush %rax");
+                return Ok(Ty::Void);
+            }
             // len() only makes sense on arrays (ident args are checked;
             // other expressions fall through untyped in v1).
             let target = if b.target == "flint_len" {

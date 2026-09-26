@@ -120,14 +120,17 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Int,
             noreturn: false,
         }),
+        // Polymorphic: an int (or bool/enum) argument prints as decimal,
+        // anything else as a string; the backend picks the variant by the
+        // argument type (see gen_call).
         "print" | "io.print" => Some(Builtin {
-            target: "flint_printstr",
+            target: "flint_print",
             arity: 1,
             ret: Ty::Void,
             noreturn: false,
         }),
-        "printi" | "io.printi" => Some(Builtin {
-            target: "flint_printi64",
+        "println" | "io.println" => Some(Builtin {
+            target: "flint_println",
             arity: 1,
             ret: Ty::Void,
             noreturn: false,

@@ -16,50 +16,50 @@ int main() {
     bump(m, "fox");
     bump(m, "the");
     bump(m, "the");
-    printi(m.size());                 // 3 (unique keys)
+    print(m.size());                 // 3 (unique keys)
     print("\n");
-    printi(m.get("the"));          // 3
+    print(m.get("the"));          // 3
     print("\n");
-    printi(m.get("quick"));        // 1
+    print(m.get("quick"));        // 1
     print("\n");
-    printi(m.get("fox"));          // 1
+    print(m.get("fox"));          // 1
     print("\n");
-    printi(m.get("dog"));          // 0 (absent)
+    print(m.get("dog"));          // 0 (absent)
     print("\n");
-    printi(m.contains("the"));     // 1
+    print(m.contains("the"));     // 1
     print("\n");
     // keys() / values(): fresh Lists, insertion order
     List<string> k = m.keys();
     List<int> v = m.values();
-    printi(k.size() + v.size());        // 6
+    print(k.size() + v.size());        // 6
     print("\n");
     // int keys and int values
     HashMap<int, int> n = new HashMap<int, int>();
     n.put(1, 100);
     n.put(2, 200);
     n.put(1, 150);                 // update, not insert
-    printi(n.size());             // 2
+    print(n.size());             // 2
     print("\n");
-    printi(n.get(1));             // 150
+    print(n.get(1));             // 150
     print("\n");
-    printi(n.get(2));             // 200
+    print(n.get(2));             // 200
     print("\n");
     n.remove(1);
-    printi(n.get(1));             // 0 (removed)
+    print(n.get(1));             // 0 (removed)
     print("\n");
-    printi(n.size());             // 1
+    print(n.size());             // 1
     print("\n");
     // built up with put() (no literals in the stdlib world)
     HashMap<int, string> lit = new HashMap<int, string>();
     lit.put(1, "a");
     lit.put(2, "b");
-    printi(lit.size());            // 2
+    print(lit.size());            // 2
     print("\n");
     print(lit.get(2));             // b
     print("\n");
     // clear
     n.clear();
-    printi(n.size());             // 0
+    print(n.size());             // 0
     print("\n");
     return 0;
 }

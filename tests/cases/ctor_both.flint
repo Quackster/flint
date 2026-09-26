@@ -18,21 +18,21 @@ class Counter {
 }
 int main() {
     Point p = new Point(3, 4);
-    printi(p.x);
+    print(p.x);
     print(",");
-    printi(p.y);
+    print(p.y);
     print("\n");
     Raw r = new Raw(10, 20);
-    printi(r.x);
+    print(r.x);
     print(",");
-    printi(r.y);
+    print(r.y);
     print("\n");
     Counter c = new Counter();
-    printi(c.n);
+    print(c.n);
     print("\n");
     Counter c2 = new Counter();
     c2.n = 100;
-    printi(c2.n);
+    print(c2.n);
     print("\n");
     return 0;
 }

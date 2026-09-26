@@ -1,11 +1,11 @@
 int main() {
-    printi(atoi("123"));
+    print(atoi("123"));
     print("\n");
-    printi(atoi("  -456"));
+    print(atoi("  -456"));
     print("\n");
     int a = atoi("100");
     int b = atoi("250");
-    printi(a + b);
+    print(a + b);
     print("\n");
     return 0;
 }

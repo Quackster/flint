@@ -7,13 +7,9 @@
 //
 // String literals lower to `.asciz` in .rodata; `print(s)` writes one.
 int main() {
-    printi(strlen("flint"));
-    print("\n");
-    printi(strlen("hello, world"));
-    print("\n");
-    print(str.concati("answer: ", 42));
-    print("\n");
-    print(str.itoa(-17));
-    print("\n");
+    println(strlen("flint"));
+    println(strlen("hello, world"));
+    println(str.concati("answer: ", 42));
+    println(str.itoa(-17));
     return 0;
 }

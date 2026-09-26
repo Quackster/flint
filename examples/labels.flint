@@ -13,7 +13,7 @@ int main() {
             }
         }
     }
-    printi(i * 10 + j);            // 01 -> 1 (stopped at i=0, j=1)
+    print(i * 10 + j);            // 01 -> 1 (stopped at i=0, j=1)
     print("\n");
 
     // continue outer2: when n == 2, skip the rest of that outer round
@@ -25,7 +25,7 @@ int main() {
             if (n == 2) {
                 continue outer2;
             }
-            printi(n * 10 + k);
+            print(n * 10 + k);
             print("\n");
         }
     }
@@ -40,7 +40,7 @@ int main() {
             break lbl;
         }
     }
-    printi(m);                   // 3
+    print(m);                   // 3
     print("\n");
     return 0;
 }

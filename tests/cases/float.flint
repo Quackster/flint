@@ -6,41 +6,41 @@ int main() {
     // fadd: 3.0 + 2.0 = 5.0
     int c = math.fadd(a, b);
     int ci = math.ftoi(c);
-    printi(ci == 5 ? 1 : 0); print("\n");
+    println(ci == 5 ? 1 : 0);
 
     // fsub: 3.0 - 2.0 = 1.0
     int d = math.fsub(a, b);
     int di = math.ftoi(d);
-    printi(di == 1 ? 1 : 0); print("\n");
+    println(di == 1 ? 1 : 0);
 
     // fmul: 3.0 * 2.0 = 6.0
     int e = math.fmul(a, b);
     int ei = math.ftoi(e);
-    printi(ei == 6 ? 1 : 0); print("\n");
+    println(ei == 6 ? 1 : 0);
 
     // fdiv: 6.0 / 2.0 = 3.0
     int f = math.fdiv(e, b);
     int fi = math.ftoi(f);
-    printi(fi == 3 ? 1 : 0); print("\n");
+    println(fi == 3 ? 1 : 0);
 
     // fcmp: 3.0 > 2.0
     int g = math.fcmp(a, b);
-    printi(g == 1 ? 1 : 0); print("\n");
+    println(g == 1 ? 1 : 0);
 
     // fcmp: 2.0 < 3.0
     int h = math.fcmp(b, a);
-    printi(h == -1 ? 1 : 0); print("\n");
+    println(h == -1 ? 1 : 0);
 
     // fcmp: 3.0 == 3.0
     int i = math.fcmp(a, a);
-    printi(i == 0 ? 1 : 0); print("\n");
+    println(i == 0 ? 1 : 0);
 
     // Fractional: 0.5 + 0.5 = 1.0
     // 0.5 in Q48.16 = 32768
     int half = 32768;
     int sum = math.fadd(half, half);
     int si = math.ftoi(sum);
-    printi(si == 1 ? 1 : 0); print("\n");
+    println(si == 1 ? 1 : 0);
 
     return 0;
 }

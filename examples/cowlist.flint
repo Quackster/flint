@@ -23,25 +23,25 @@ int worker(int tid) {
 int main() {
     CopyOnWriteList<int> l = new CopyOnWriteList<int>();
     l.add(10); l.add(20); l.add(30);
-    printi(l.size());             // 3
+    print(l.size());             // 3
     print("\n");
-    printi(l.get(1));            // 20
+    print(l.get(1));            // 20
     print("\n");
     l.insert(1, 5);
-    printi(l.get(1));           // 5
+    print(l.get(1));           // 5
     print("\n");
     int old = l.set(0, 99);
-    printi(old);                 // 10 (displaced, returned)
+    print(old);                 // 10 (displaced, returned)
     print("\n");
-    printi(l.remove(1));        // 5 (removed, returned)
+    print(l.remove(1));        // 5 (removed, returned)
     print("\n");
-    printi(l.contains(99));     // 1
+    print(l.contains(99));     // 1
     print("\n");
-    printi(l.indexOf(30));      // 2
+    print(l.indexOf(30));      // 2
     print("\n");
-    printi(l.lastIndexOf(99));  // 0
+    print(l.lastIndexOf(99));  // 0
     print("\n");
-    printi(l.removeObject(20)); // 1
+    print(l.removeObject(20)); // 1
     print("\n");
     print(l.join("-"));         // 99-30
     print("\n");
@@ -49,12 +49,12 @@ int main() {
     // mutation does not affect it
     List<int> snap = l.snapshot();
     l.add(40);
-    printi(snap.size());        // 2
+    print(snap.size());        // 2
     print("\n");
-    printi(l.size());          // 3
+    print(l.size());          // 3
     print("\n");
     l.clear();
-    printi(l.size());          // 0
+    print(l.size());          // 0
     print("\n");
     // four workers append 25 values each: the COW lock serializes the
     // array swaps while the reads never lock
@@ -69,7 +69,7 @@ int main() {
         Thread.join(k);
         k = k + 1;
     }
-    printi(Holder.shared.size());  // 100
+    print(Holder.shared.size());  // 100
     print("\n");
     int ok = 1;
     k = 0;
@@ -83,7 +83,7 @@ int main() {
         }
         k = k + 1;
     }
-    printi(ok);                 // 1 (every value made it in)
+    print(ok);                 // 1 (every value made it in)
     print("\n");
     return 0;
 }

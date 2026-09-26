@@ -29,16 +29,16 @@ int main() {
     d.join();
     int total = Time.millis() - t0;
     // Each thread slept for (at least) its own interval.
-    printi(elapsed[0] >= ms0 - 20 ? 1 : 0);
+    print(elapsed[0] >= ms0 - 20 ? 1 : 0);
     print("\n");
-    printi(elapsed[1] >= ms1 - 20 ? 1 : 0);
+    print(elapsed[1] >= ms1 - 20 ? 1 : 0);
     print("\n");
-    printi(elapsed[2] >= ms2 - 20 ? 1 : 0);
+    print(elapsed[2] >= ms2 - 20 ? 1 : 0);
     print("\n");
-    printi(elapsed[3] >= ms3 - 20 ? 1 : 0);
+    print(elapsed[3] >= ms3 - 20 ? 1 : 0);
     print("\n");
     // Simultaneous: the batch took ~the longest (400), not the sum (1000).
-    printi(total < 900 ? 1 : 0);
+    print(total < 900 ? 1 : 0);
     print("\n");
     return 0;
 }

@@ -1,17 +1,17 @@
 int main() {
-    printi(2 + 3 * 4);
+    print(2 + 3 * 4);
     print("\n");
-    printi((2 + 3) * 4);
+    print((2 + 3) * 4);
     print("\n");
-    printi(20 / 6);
+    print(20 / 6);
     print("\n");
-    printi(20 % 6);
+    print(20 % 6);
     print("\n");
-    printi(1 << 3);
+    print(1 << 3);
     print("\n");
-    printi(16 >> 2);
+    print(16 >> 2);
     print("\n");
-    printi(12 - 20);
+    print(12 - 20);
     print("\n");
     return 0;
 }

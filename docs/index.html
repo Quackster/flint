@@ -33,8 +33,7 @@ syscall access, and no runtime to install.</p>
 produces a standalone binary in one step (it assembles and links for you).</p>
 <div class="code"><div class="head"><span>hello.flint</span></div>
 <pre><code class="flint">int main() {
-    print("hello, flint");
-    print("\n");
+    println("hello, flint");
     return 0;
 }</code></pre></div>
 <div class="code"><div class="head"><span>build &amp; run</span></div>
@@ -225,7 +224,7 @@ int main() {
     List&lt;int&gt; xs = new List&lt;int&gt;();
     xs.add(4);
     xs.add(9);
-    printi(Stats.sum(xs));
+    print(Stats.sum(xs));
     print("\n");
     return 0;
 }</code></pre></div>
@@ -263,9 +262,9 @@ int main() {
     xs.add(9);
     xs.add(1);
     xs.add(7);
-    printi(Stats.sum(xs)); print(" ");   // 21
-    printi(Stats.max(xs)); print(" ");   // 9
-    printi(Stats.mean(xs)); print("\n"); // 5
+    print(Stats.sum(xs)); print(" ");   // 21
+    print(Stats.max(xs)); print(" ");   // 9
+    println(Stats.mean(xs)); // 5
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (positional, manifest — identical)</span>21 9 5</div>
@@ -303,21 +302,21 @@ positive; values from <code>0x8000000000000000</code> up wrap negative.</p>
 <div class="code"><div class="head"><span>examples/hexwrap.flint</span></div>
 <pre><code class="flint">int main() {
     int a = 0xFFFFFFFFFFFFFFFF;
-    printi(a);                        // -1 (all 64 bits set)
+    print(a);                        // -1 (all 64 bits set)
     print("\n");
     int b = 0x7FFFFFFFFFFFFFFF;
-    printi(b &gt; 0 ? 1 : 0);          // 1 (i64 max stays positive)
+    print(b &gt; 0 ? 1 : 0);          // 1 (i64 max stays positive)
     print("\n");
     int c = 0x8000000000000000;
-    printi(c &lt; 0 ? 1 : 0);         // 1 (i64 min, wraps negative)
+    print(c &lt; 0 ? 1 : 0);         // 1 (i64 min, wraps negative)
     print("\n");
     int d = 0xFFFFFFFF;
-    printi(d);                      // 4294967295 (fits positive; no wrap)
+    print(d);                      // 4294967295 (fits positive; no wrap)
     print("\n");
     int e = 0x10;
-    printi(e);                     // 16
+    print(e);                     // 16
     print("\n");
-    printi(a + 1);                 // 0 (two's complement wrap)
+    print(a + 1);                 // 0 (two's complement wrap)
     print("\n");
     return 0;
 }</code></pre></div>
@@ -364,16 +363,16 @@ it — and the new value <em>persists</em> after the block ends.</p>
     int v = 10;
     if (1) {
         int v = 20;          // re-declares v
-        printi(v);         // 20
+        print(v);         // 20
     }
-    printi(v);             // 20 (the re-declaration persists)
+    print(v);             // 20 (the re-declaration persists)
     print("\n");
     int total = 0;
     for (int i = 0; i &lt; 3; i = i + 1) {
         int i = 100;        // overwrites the loop variable's slot
         total = total + i;
     }
-    printi(total);         // 100 (loop ends after one round: i becomes 101)
+    print(total);         // 100 (loop ends after one round: i becomes 101)
     print("\n");
     int a[] = [1, 2, 3, 4];
     int u = 0;
@@ -381,7 +380,7 @@ it — and the new value <em>persists</em> after the block ends.</p>
         int x = 100;
         u = u + x;
     }
-    printi(u);             // 400 (4 elements, each read as 100)
+    print(u);             // 400 (4 elements, each read as 100)
     print("\n");
     return 0;
 }</code></pre></div>
@@ -412,19 +411,19 @@ with a couple of deliberate, documented departures.</p></div>
 <code>&amp;&amp;</code> and <code>||</code> short-circuit and yield
 <code>0</code>/<code>1</code>. The ternary is right-associative.</p>
 <div class="code"><div class="head"><span>examples/ops.flint (selected)</span></div>
-<pre><code class="flint">printi(2 + 3 * 4);                    // 14 (precedence)
-printi((2 + 3) * 4);                // 20 (parentheses)
-printi(-7 / 2);                     // -3 (truncate toward zero)
-printi(-7 % 2);                     // -1 (sign of the dividend)
-printi(1 &lt;&lt; 4);                     // 16
-printi(40 &gt;&gt; 2);                    // 10
-printi(5 &amp; 3);                     // 1
-printi(5 | 3);                     // 7
-printi(5 ^ 3);                     // 6
-printi(1 || 0);                    // 1 (short-circuit)
-printi(0 &amp;&amp; 7);                   // 0 (right side not evaluated)
-printi(!0);                       // 1
-printi(0 ? 10 : (1 ? 30 : 40));  // 30 (right-associative)
+<pre><code class="flint">print(2 + 3 * 4);                    // 14 (precedence)
+print((2 + 3) * 4);                // 20 (parentheses)
+print(-7 / 2);                     // -3 (truncate toward zero)
+print(-7 % 2);                     // -1 (sign of the dividend)
+print(1 &lt;&lt; 4);                     // 16
+print(40 &gt;&gt; 2);                    // 10
+print(5 &amp; 3);                     // 1
+print(5 | 3);                     // 7
+print(5 ^ 3);                     // 6
+print(1 || 0);                    // 1 (short-circuit)
+print(0 &amp;&amp; 7);                   // 0 (right side not evaluated)
+print(!0);                       // 1
+print(0 ? 10 : (1 ? 30 : 40));  // 30 (right-associative)
 </code></pre></div>
 
 <h2>Increment evaluates to the new value</h2>
@@ -434,14 +433,14 @@ increment (the post-increment value). There is no "old value" form.</p>
 <div class="code"><div class="head"><span>examples/ops.flint (increment section)</span></div>
 <pre><code class="flint">int x = 5;
 x += 2;                           // x = 7
-printi(x++);                       // 8 (x++: value after increment)
-printi(++x);                      // 9 (++x: same post-increment value)
+print(x++);                       // 8 (x++: value after increment)
+print(++x);                      // 9 (++x: same post-increment value)
 </code></pre></div>
 
 <h2>Full kitchen-sink &amp; captured output</h2>
 <div class="code"><div class="head"><span>examples/ops.flint — full run</span></div>
 <pre><code class="flint">int main() {
-    printi(2 + 3 * 4);  printi(14 == (2 + 3 * 4) ? 1 : 0);
+    print(2 + 3 * 4);  print(14 == (2 + 3 * 4) ? 1 : 0);
     // (the full program prints each result on its own line; shown
     //  compactly here are the exact captured values)
     return 0;
@@ -496,7 +495,7 @@ for (int i = 0; i &lt; n; i = i + 1) {
 // range-for over an array (desugars to an index loop)
 int a[] = [1, 2, 3];
 for (int v : a) {
-    printi(v);
+    print(v);
 }</code></pre></div>
 
 <h2>Switch &amp; fall-through</h2>
@@ -532,19 +531,19 @@ Stacked case labels (with no body between them) share the following body.</p>
 }
 
 int main() {
-    printi(daysInMonth(1));        // 31
-    printi(daysInMonth(4));        // 30
-    printi(daysInMonth(2));        // 28
-    printi(daysInMonth(99));      // 0 (default)
+    print(daysInMonth(1));        // 31
+    print(daysInMonth(4));        // 30
+    print(daysInMonth(2));        // 28
+    print(daysInMonth(99));      // 0 (default)
     // explicit fall-through: case 4 matches, prints, falls into case 5
     switch (4) {
         case 4:
-            printi(100);
+            print(100);
         case 5:
-            printi(200);          // reached by fall-through
+            print(200);          // reached by fall-through
             break;
         default:
-            printi(0);
+            print(0);
     }
     return 0;
 }</code></pre></div>
@@ -581,7 +580,7 @@ iteration of that (possibly outer) loop.</p>
             }
         }
     }
-    printi(i * 10 + j);            // 1 (stopped at i=0, j=1)
+    print(i * 10 + j);            // 1 (stopped at i=0, j=1)
     print("\n");
 
     // continue outer2: when n == 2, skip the rest of that outer round
@@ -593,7 +592,7 @@ iteration of that (possibly outer) loop.</p>
             if (n == 2) {
                 continue outer2;
             }
-            printi(n * 10 + k);
+            print(n * 10 + k);
             print("\n");
         }
     }
@@ -607,7 +606,7 @@ iteration of that (possibly outer) loop.</p>
             break lbl;
         }
     }
-    printi(m);                   // 3
+    print(m);                   // 3
     print("\n");
     return 0;
 }</code></pre></div>
@@ -648,11 +647,11 @@ void increment(*int p) {
 }
 
 int main() {
-    printi(factorial(5)); print(" ");   // 120
+    print(factorial(5)); print(" ");   // 120
     int x = 10;
     increment(&amp;x);              // &amp; = address-of
-    printi(x); print(" ");              // 11
-    printi(1); print("\n");
+    print(x); print(" ");              // 11
+    println(1);
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full example: doubleIt(21), factorial(5), increment, @)</span>42 120 11 1</div>
@@ -722,7 +721,7 @@ See <a href="concurrency.html">Concurrency</a>.</li>
          if (j &gt; 0) {
              print(", ");
          }
-         printi(over20[j]);
+         print(over20[j]);
          j = j + 1;
      }
      print("\n");
@@ -813,28 +812,28 @@ int fin_ret() {
     } catch (int e) {
         return e;
     } finally {
-        printi(3);             // runs even though the try returned
+        print(3);             // runs even though the try returned
     }
 }
 
 int uncaught() {
     throw 9;
-    printi(12345);           // never reached
+    print(12345);           // never reached
 }
 
 int main() {
-    printi(caught_int() == 42 ? 1 : 0);   // 1
+    print(caught_int() == 42 ? 1 : 0);   // 1
     print("\n");
     try {
         throw new MyError(77);
     } catch (MyError e) {
-        printi(e.code);      // 77
+        print(e.code);      // 77
     }
     print("\n");
-    printi(fin_ret());       // 5 (the 3 above came from finally)
+    print(fin_ret());       // 5 (the 3 above came from finally)
     print("\n");
     uncaught();             // uncaught throw: silent return
-    printi(1);               // reached
+    print(1);               // reached
     print("\n");
     return 0;
 }</code></pre></div>
@@ -871,19 +870,19 @@ class Rect {
 
 int main() {
     Point p = new Point(3, 4);
-    printi(p.x * 100 + p.y);      // 304
+    print(p.x * 100 + p.y);      // 304
     p.x = 10;
-    printi(p.x + p.y);           // 14
+    print(p.x + p.y);           // 14
     // nested object literal: first field is itself a Point
     Rect r = new Rect(new Point(1, 2), 30, 40);
-    printi(r.origin.x);          // 1
-    printi(r.origin.y);          // 2
-    printi(r.w + r.h);           // 70
+    print(r.origin.x);          // 1
+    print(r.origin.y);          // 2
+    print(r.w + r.h);           // 70
     r.w = 50;
-    printi(r.w);               // 50
+    print(r.w);               // 50
     // an object field can be re-pointed at a different object
     r.origin = new Point(9, 9);
-    printi(r.origin.x * 10 + r.origin.y);  // 99
+    print(r.origin.x * 10 + r.origin.y);  // 99
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>304
@@ -940,15 +939,15 @@ class Counter {
 
 int main() {
     Point p = new Point(3, 4);   // (1) routes to the 2-arg constructor
-    printi(p.x);                // 4 (3 + 1)
-    printi(p.y);                // 6 (4 + 2)
+    print(p.x);                // 4 (3 + 1)
+    print(p.y);                // 6 (4 + 2)
     Raw r = new Raw(10, 20);    // (2) no constructor: positional field init
-    printi(r.x * 100 + r.y);   // 1020
+    print(r.x * 100 + r.y);   // 1020
     Counter c = new Counter();  // (3) zero-arg constructor
-    printi(c.n);               // 42
+    print(c.n);               // 42
     Counter c2 = new Counter();
     c2.n = 100;
-    printi(c2.n);             // 100 (mutable after construction)
+    print(c2.n);             // 100 (mutable after construction)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>4
@@ -1006,9 +1005,9 @@ object.</p>
 
 int main() {
     Point p = new Point(1, 2);
-    printi(p.sum());                          // 3
-    printi(p.move(1, 1).sum());              // 5 (chained call)
-    printi(p.move(2, 2).scale(10).sum());   // (4*10)+(5*10) = 90
+    print(p.sum());                          // 3
+    print(p.move(1, 1).sum());              // 5 (chained call)
+    print(p.move(2, 2).scale(10).sum());   // (4*10)+(5*10) = 90
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>3
@@ -1050,13 +1049,13 @@ object-level privacy).</li>
 
 int main() {
     Secret s = new Secret(5);
-    printi(s.getVal());
+    print(s.getVal());
     s.setVal(10);
-    printi(s.getVal());
-    printi(s.callHidden());
+    print(s.getVal());
+    print(s.callHidden());
     Secret t = new Secret(20);
     s.copyFrom(t);        // reads another instance's private field
-    printi(s.getVal());
+    print(s.getVal());
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>5
@@ -1108,11 +1107,11 @@ underscore prefix is conventional, not required).
 int main() {
     Account a = new Account("alice", 100);
     print(a.getOwner());            // alice
-    printi(a.getBalance());       // 100
+    print(a.getBalance());       // 100
     a.deposit(50);
-    printi(a.getBalance());       // 150
+    print(a.getBalance());       // 150
     a.setBalance(7);
-    printi(a.getBalance());       // 7
+    print(a.getBalance());       // 7
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>alice
@@ -1149,12 +1148,12 @@ int main() {
     Counter.n = 5;
     Counter c1 = new Counter(1);
     Counter c2 = new Counter(2);
-    printi(c1.id + c2.id);         // 3 (instance fields are per-object)
-    printi(Counter.n);           // 5
+    print(c1.id + c2.id);         // 3 (instance fields are per-object)
+    print(Counter.n);           // 5
     Counter.n = Counter.n + 3;    // shared across all instances
-    printi(Counter.n);           // 8
-    printi(Util.square(7));      // 49 (no instance needed)
-    printi(Util.sum2(20, 22));   // 42
+    print(Counter.n);           // 8
+    print(Util.square(7));      // 49 (no instance needed)
+    print(Util.sum2(20, 22));   // 42
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>3
@@ -1217,14 +1216,14 @@ class Cat extends Animal {
 
 int main() {
     Animal a = new Dog(5, 3);
-    printi(a.speak());             // 1 (virtual dispatch through Animal)
+    print(a.speak());             // 1 (virtual dispatch through Animal)
     Animal c = new Cat(6, 2);
-    printi(c.speak());             // 2
-    printi(a.id);                // 5 (inherited field)
+    print(c.speak());             // 2
+    print(a.id);                // 5 (inherited field)
     Dog d = (Dog) a;             // narrowing cast
-    printi(d.bark());            // 3 (super.speak() + barks = 0 + 3)
-    printi(a instanceof Dog);    // 1
-    printi(c instanceof Dog);    // 0
+    print(d.bark());            // 3 (super.speak() + barks = 0 + 3)
+    print(a instanceof Dog);    // 1
+    print(c instanceof Dog);    // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1
@@ -1284,11 +1283,11 @@ int total(Shape sh) {
 int main() {
     Circle c = new Circle(3);
     Square q = new Square(4);
-    printi(c.area());             // 9
-    printi(q.area());             // 16
-    printi(total(c));           // 9 (through the abstract type)
-    printi(total(q));           // 16
-    printi(c.area() + q.area());  // 25
+    print(c.area());             // 9
+    print(q.area());             // 16
+    print(total(c));           // 9 (through the abstract type)
+    print(total(q));           // 16
+    print(c.area() + q.area());  // 25
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>9
@@ -1341,12 +1340,12 @@ int loudest(Speaker s) {
 int main() {
     Speaker r = new Robot(3);
     Speaker h = new Human(5);
-    printi(r.speak());            // 30
-    printi(h.speak());            // 105
-    printi(loudest(r));         // 30
-    printi(r instanceof Robot);  // 1
-    printi(r instanceof Speaker);  // 1 (interface test)
-    printi(h instanceof Robot);  // 0
+    print(r.speak());            // 30
+    print(h.speak());            // 105
+    print(loudest(r));         // 30
+    print(r instanceof Robot);  // 1
+    print(r instanceof Speaker);  // 1 (interface test)
+    print(h instanceof Robot);  // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>30
@@ -1395,7 +1394,7 @@ events.)</p>
 // A handler that prints to stdout.
 class Console implements OnLog {
     void log(int level, string msg) {
-        printi(level);
+        print(level);
         print(": ");
         print(msg);
         print("\n");
@@ -1440,7 +1439,7 @@ int main() {
     // += again replaces the current handler (the old one is released).
     app.onLog += counter;
     app.emit(2, "counted");
-    printi(counter.n);
+    print(counter.n);
     print("\n");
     return 0;
 }</code></pre></div>
@@ -1478,21 +1477,21 @@ enum Status {
 
 int main() {
     Color c = Color.Green;
-    printi(c);                      // 1
-    printi(Color.Blue + 1);         // 3 (usable in expressions)
-    printi(Status.Inactive);        // 11
+    print(c);                      // 1
+    print(Color.Blue + 1);         // 3 (usable in expressions)
+    print(Status.Inactive);        // 11
     int s = Status.Active;
     switch (s) {
         case 10:
-            printi(1);              // matches the explicit value
+            print(1);              // matches the explicit value
             break;
         case 11:
-            printi(2);
+            print(2);
             break;
         default:
-            printi(0);
+            print(0);
     }
-    printi(Status.Active + Status.Inactive);  // 21
+    print(Status.Active + Status.Inactive);  // 21
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1
@@ -1534,23 +1533,23 @@ T identity&lt;T&gt;(T x) {
 
 int main() {
     Vessel&lt;int&gt; a = new Vessel&lt;int&gt;(41);
-    printi(a.v);                 // 41
+    print(a.v);                 // 41
     Vessel&lt;string&gt; s = new Vessel&lt;string&gt;("hi");
     print(s.v);               // hi
     int x = identity(7);        // 7 (type inferred from the argument)
-    printi(x);
+    print(x);
     int y = identity&lt;int&gt;(9);   // 9 (explicit type args)
-    printi(y);
+    print(y);
     // two type parameters
     Pair&lt;int, string&gt; p = new Pair&lt;int, string&gt;(5, "ok");
-    printi(p.a);
+    print(p.a);
     print(" ");
     print(p.b);
     // nested instantiation: a Vessel holding a Pair
     Vessel&lt;Pair&lt;int, int&gt;&gt; np =
         new Vessel&lt;Pair&lt;int, int&gt;&gt;(new Pair&lt;int, int&gt;(3, 4));
-    printi(np.v.a);              // 3
-    printi(np.v.b);              // 4
+    print(np.v.a);              // 3
+    print(np.v.b);              // 4
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>41
@@ -1614,22 +1613,22 @@ Pair make() {
 int main() {
     // stack-allocated: never escapes
     Pair s = new Pair(3, 4);
-    printi(s.a + s.b);        // 7
+    print(s.a + s.b);        // 7
     s.a = 10;
-    printi(s.a + s.b);        // 14
+    print(s.a + s.b);        // 14
     // alias of a stack object: plain address, no refcount traffic
     Pair r = s;
-    printi(r.b);             // 4
+    print(r.b);             // 4
     // heap: escapes into sum_of()
     Pair h = new Pair(5, 6);
-    printi(sum_of(h));      // 11
+    print(sum_of(h));      // 11
     // heap alias: both hold refcounted references
     Pair c = h;
     c.b = 100;
-    printi(h.b);           // 100 (same object)
+    print(h.b);           // 100 (same object)
     // class value returned from a function: fresh reference
     Pair t = make();
-    printi(t.a + t.b);      // 17
+    print(t.a + t.b);      // 17
     // an object stored in a class field is a heap reference
     // ... (see full source for Holder)
     return 0;
@@ -1670,7 +1669,7 @@ little-endian access and a generic syscall.</p></div>
     int x = 10;
     *int p = &amp;x;
     *p = 99;
-    printi(x);                     // 99
+    print(x);                     // 99
     // dynamic array over alloc(); buf[i] is an 8-byte slot
     int n = 5;
     *int fib = alloc(n * 8);
@@ -1687,31 +1686,31 @@ little-endian access and a generic syscall.</p></div>
         s = s + fib[i];
         i = i + 1;
     }
-    printi(s);                     // 0+1+1+2+3 = 7
+    print(s);                     // 0+1+1+2+3 = 7
     free(fib);
     // sub-word little-endian access into a buffer
     *byte buf = alloc(16);
     sys.byteStore(buf + 8, 65);
-    printi(sys.byteLoad(buf + 8));   // 65 ('A')
+    print(sys.byteLoad(buf + 8));   // 65 ('A')
     sys.shortStore(buf, 1000);
-    printi(sys.shortLoad(buf));      // 1000
+    print(sys.shortLoad(buf));      // 1000
     sys.intStore(buf + 12, 0x12345678);
-    printi(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
+    print(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
     // memcpy: copy 16 bytes
     *byte src = alloc(16);
     src[0] = 111;
     src[1] = 222;
     *byte dst = alloc(16);
     memcpy(dst, src, 16);
-    printi(dst[0] * 1000 + dst[1]);   // 111222
+    print(dst[0] * 1000 + dst[1]);   // 111222
     free(src);
     free(dst);
     // generic syscall escape hatch: getpid (39), open (2), close (3)
     int pid = sys.syscall(39, 0, 0, 0, 0, 0);
-    printi(pid &gt; 0 ? 1 : 0);        // 1
+    print(pid &gt; 0 ? 1 : 0);        // 1
     int fd = sys.syscall(2, "/dev/null", 0, 0, 0, 0);
-    printi(fd &gt;= 0 ? 1 : 0);        // 1
-    printi(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
+    print(fd &gt;= 0 ? 1 : 0);        // 1
+    print(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>99
@@ -1792,15 +1791,15 @@ int make() {                   // returns a fresh array
 int main() {
     int a[] = [10, 20, 30];
     a[1] = 25;
-    printi(len(a));              // 3
-    printi(sum3(a));            // 65 (mutated through the pointer)
+    print(len(a));              // 3
+    print(sum3(a));            // 65 (mutated through the pointer)
     int r[] = make();
-    printi(r[0] + r[2]);        // 16
+    print(r[0] + r[2]);        // 16
     // array literal as a constructor argument
     Grid g = new Grid([5, 6, 7]);
-    printi(g.max3());           // 7
+    print(g.max3());           // 7
     a[0] = 100;
-    printi(sum3(a));            // 155 (alias mutates the same block)
+    print(sum3(a));            // 155 (alias mutates the same block)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>3
@@ -1847,12 +1846,12 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
 <pre><code class="flint">int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
-    printi(sys.byteLoad(p + 1));  // 101 ('e')
-    printi(strlen(p));             // 5
+    print(sys.byteLoad(p + 1));  // 101 ('e')
+    print(strlen(p));             // 5
     // concatenation with + of two strings
     string s = "hello" + " world";
     print(s);                     // hello world
-    printi(strlen(s));            // 11
+    print(strlen(s));            // 11
     // (string)N single-char construction, then concatenate
     string c = (string)72;         // 'H'
     print(c + (string)73);        // HI
@@ -1866,7 +1865,7 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
     sys.byteStore(m + 1, 66);
     sys.byteStore(m + 2, 0);
     print(m);                    // AB
-    printi(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
+    print(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>101
@@ -1916,22 +1915,22 @@ format; <code>math.ftoi</code> lowers it (rounding half-up).
 <pre><code class="flint">int main() {
     int a = math.itof(3);
     int b = math.itof(2);
-    printi(math.ftoi(math.fadd(a, b)));        // 5 (3.0 + 2.0)
-    printi(math.ftoi(math.fsub(a, b)));        // 1 (3.0 - 2.0)
-    printi(math.ftoi(math.fmul(a, b)));        // 6 (3.0 * 2.0)
-    printi(math.ftoi(math.fdiv(math.fmul(a, b), b)));  // 3 (6.0 / 2.0)
-    printi(math.fcmp(a, b) == 1 ? 1 : 0);      // 1 (3.0 &gt; 2.0)
-    printi(math.fcmp(b, a) == -1 ? 1 : 0);    // 1 (2.0 &lt; 3.0)
-    printi(math.fcmp(a, a) == 0 ? 1 : 0);     // 1 (equal)
+    print(math.ftoi(math.fadd(a, b)));        // 5 (3.0 + 2.0)
+    print(math.ftoi(math.fsub(a, b)));        // 1 (3.0 - 2.0)
+    print(math.ftoi(math.fmul(a, b)));        // 6 (3.0 * 2.0)
+    print(math.ftoi(math.fdiv(math.fmul(a, b), b)));  // 3 (6.0 / 2.0)
+    print(math.fcmp(a, b) == 1 ? 1 : 0);      // 1 (3.0 &gt; 2.0)
+    print(math.fcmp(b, a) == -1 ? 1 : 0);    // 1 (2.0 &lt; 3.0)
+    print(math.fcmp(a, a) == 0 ? 1 : 0);     // 1 (equal)
     // fractional: 0.5 + 0.5 = 1.0 (0.5 in Q48.16 is 32768)
     int half = 32768;
-    printi(math.ftoi(math.fadd(half, half)));   // 1
+    print(math.ftoi(math.fadd(half, half)));   // 1
     // 1.5 + 2.5 = 4.0  (1.5 = 1*65536 + 32768; 2.5 = 2*65536 + 32768)
     int p15 = 98304;
     int p25 = 163840;
-    printi(math.ftoi(math.fadd(p15, p25)));    // 4
+    print(math.ftoi(math.fadd(p15, p25)));    // 4
     // ftoi rounds half-up: 1.5 -&gt; 2
-    printi(math.ftoi(p15));                  // 2 (1.5 rounds up)
+    print(math.ftoi(p15));                  // 2 (1.5 rounds up)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>5
@@ -2047,43 +2046,43 @@ int main() {
     List&lt;int&gt; l = new List&lt;int&gt;();
     l.add(10); l.add(20); l.add(30);
     List&lt;int&gt; e = new List&lt;int&gt;();
-    printi(e.size());             // 0
+    print(e.size());             // 0
     l.add(40);
-    printi(l.size());            // 4
-    printi(l.get(1));           // 20
+    print(l.size());            // 4
+    print(l.get(1));           // 20
     l.set(0, 99);
-    printi(l.get(0));           // 99
-    printi(l.contains(20));     // 1
-    printi(l.contains(77));     // 0
+    print(l.get(0));           // 99
+    print(l.contains(20));     // 1
+    print(l.contains(77));     // 0
     l.insert(1, 5);
-    printi(l.size());          // 5
-    printi(l.get(1));         // 5
-    printi(l.get(2));         // 20 (was shifted)
+    print(l.size());          // 5
+    print(l.get(1));         // 5
+    print(l.get(2));         // 20 (was shifted)
     l.remove(0);
-    printi(l.get(0));         // 5
-    printi(l.size());         // 4
+    print(l.get(0));         // 5
+    print(l.size());         // 4
     l.sort();
-    printi(l.get(0));         // 5
-    printi(l.get(3));         // 40
+    print(l.get(0));         // 5
+    print(l.get(3));         // 40
     l.reverse();
-    printi(l.get(0));         // 40
+    print(l.get(0));         // 40
     string j = l.join("-");
     print(j);               // 40-30-20-5
     l.clear();
-    printi(l.size());         // 0
+    print(l.size());         // 0
     // string elements: sort by content, join verbatim
     List&lt;string&gt; s = new List&lt;string&gt;();
     s.add("b");
     s.add("a");
     s.add("c");
-    printi(s.contains("a"));   // 1 (content compare)
-    printi(s.contains("z"));   // 0
+    print(s.contains("a"));   // 1 (content compare)
+    print(s.contains("z"));   // 0
     s.sort();
     print(s.join("|"));       // a|b|c
     List&lt;int&gt; t = new List&lt;int&gt;();
     t.add(7); t.add(8); t.add(9);
-    printi(t.size());         // 3
-    printi(t.get(2));       // 9
+    print(t.size());         // 3
+    print(t.get(2));       // 9
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>0
@@ -2144,23 +2143,23 @@ int next_cmd(Queue&lt;int&gt; q) {
 int main() {
     Queue&lt;int&gt; q = new Queue&lt;int&gt;();
     q.push(10); q.push(20); q.push(30);
-    printi(q.size());             // 3
-    printi(q.peek());           // 10
-    printi(q.pop());           // 10
-    printi(q.pop());           // 20
+    print(q.size());             // 3
+    print(q.peek());           // 10
+    print(q.pop());           // 10
+    print(q.pop());           // 20
     q.push(40);
-    printi(q.peek());           // 30
-    printi(q.size());          // 2
+    print(q.peek());           // 30
+    print(q.size());          // 2
     q.pop();                   // 30
     q.pop();                   // 40
-    printi(q.pop());           // 0 (empty)
-    printi(q.peek());           // 0 (empty)
+    print(q.pop());           // 0 (empty)
+    print(q.peek());           // 0 (empty)
     // a producer/consumer hand-off through a function
     Queue&lt;int&gt; jobs = new Queue&lt;int&gt;();
     jobs.push(111);
     jobs.push(222);
-    printi(next_cmd(jobs));   // 111 (consumed in FIFO order)
-    printi(next_cmd(jobs));   // 222
+    print(next_cmd(jobs));   // 111 (consumed in FIFO order)
+    print(next_cmd(jobs));   // 222
     // string elements
     Queue&lt;string&gt; names = new Queue&lt;string&gt;();
     names.push("in");
@@ -2171,7 +2170,7 @@ int main() {
     print(" ");
     print(n2);               // out
     jobs.clear();
-    printi(jobs.size());     // 0
+    print(jobs.size());     // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>3
@@ -2215,19 +2214,19 @@ for strings, <code>HashSet&lt;Foo&gt;</code> for objects).</p>
 <pre><code class="flint">import std.HashSet;
 int main() {
     HashSet&lt;int&gt; s = new HashSet&lt;int&gt;();
-    printi(s.add(5));        // 1 (inserted)
-    printi(s.add(10));      // 1
-    printi(s.add(15));      // 1
-    printi(s.add(10));      // 0 (already present)
-    printi(s.size());       // 3
-    printi(s.contains(10)); // 1
-    printi(s.contains(99)); // 0
+    print(s.add(5));        // 1 (inserted)
+    print(s.add(10));      // 1
+    print(s.add(15));      // 1
+    print(s.add(10));      // 0 (already present)
+    print(s.size());       // 3
+    print(s.contains(10)); // 1
+    print(s.contains(99)); // 0
     // remove (tombstone) then re-add
-    printi(s.remove(10));   // 1 (removed)
-    printi(s.contains(10)); // 0
-    printi(s.size());       // 2
-    printi(s.add(10));      // 1 (re-inserted over the tombstone slot)
-    printi(s.size());       // 3
+    print(s.remove(10));   // 1 (removed)
+    print(s.contains(10)); // 0
+    print(s.size());       // 2
+    print(s.add(10));      // 1 (re-inserted over the tombstone slot)
+    print(s.size());       // 3
     // string elements: content dedup of a word stream
     HashSet&lt;string&gt; words = new HashSet&lt;string&gt;();
     words.add("the");
@@ -2236,18 +2235,18 @@ int main() {
     words.add("fox");
     words.add("the");        // duplicate
     words.add("quick");      // duplicate
-    printi(words.size());     // 4 (unique)
-    printi(words.contains("fox")); // 1
-    printi(words.contains("dog")); // 0
+    print(words.size());     // 4 (unique)
+    print(words.contains("fox")); // 1
+    print(words.contains("dog")); // 0
     // built up with add() (no literals in the stdlib world)
     HashSet&lt;int&gt; lit = new HashSet&lt;int&gt;();
     lit.add(3);
     lit.add(4);
-    printi(lit.size());        // 2
-    printi(lit.contains(4));  // 1
+    print(lit.size());        // 2
+    print(lit.contains(4));  // 1
     s.clear();
     words.clear();
-    printi(s.size() + words.size()); // 0
+    print(s.size() + words.size()); // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>1
@@ -2314,35 +2313,35 @@ int main() {
     bump(m, "fox");
     bump(m, "the");
     bump(m, "the");
-    printi(m.size());                 // 3 (unique keys)
-    printi(m.get("the"));          // 3
-    printi(m.get("quick"));        // 1
-    printi(m.get("fox"));          // 1
-    printi(m.get("dog"));          // 0 (absent)
-    printi(m.contains("the"));     // 1
+    print(m.size());                 // 3 (unique keys)
+    print(m.get("the"));          // 3
+    print(m.get("quick"));        // 1
+    print(m.get("fox"));          // 1
+    print(m.get("dog"));          // 0 (absent)
+    print(m.contains("the"));     // 1
     // keys() / values(): fresh Lists, insertion order
     List&lt;string&gt; k = m.keys();
     List&lt;int&gt; v = m.values();
-    printi(k.size() + v.size());        // 6
+    print(k.size() + v.size());        // 6
     // int keys and int values
     HashMap&lt;int, int&gt; n = new HashMap&lt;int, int&gt;();
     n.put(1, 100);
     n.put(2, 200);
     n.put(1, 150);                 // update, not insert
-    printi(n.size());             // 2
-    printi(n.get(1));             // 150
-    printi(n.get(2));             // 200
+    print(n.size());             // 2
+    print(n.get(1));             // 150
+    print(n.get(2));             // 200
     n.remove(1);
-    printi(n.get(1));             // 0 (removed)
-    printi(n.size());             // 1
+    print(n.get(1));             // 0 (removed)
+    print(n.size());             // 1
     // built up with put() (no literals in the stdlib world)
     HashMap&lt;int, string&gt; lit = new HashMap&lt;int, string&gt;();
     lit.put(1, "a");
     lit.put(2, "b");
-    printi(lit.size());            // 2
+    print(lit.size());            // 2
     print(lit.get(2));             // b
     n.clear();
-    printi(n.size());             // 0
+    print(n.size());             // 0
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>3
@@ -2434,25 +2433,25 @@ int worker(int tid) {
 int main() {
     CopyOnWriteList&lt;int&gt; l = new CopyOnWriteList&lt;int&gt;();
     l.add(10); l.add(20); l.add(30);
-    printi(l.size());             // 3
-    printi(l.get(1));            // 20
+    print(l.size());             // 3
+    print(l.get(1));            // 20
     l.insert(1, 5);
-    printi(l.get(1));           // 5
+    print(l.get(1));           // 5
     int old = l.set(0, 99);
-    printi(old);                 // 10
-    printi(l.remove(1));        // 5
-    printi(l.contains(99));     // 1
-    printi(l.indexOf(30));      // 2
-    printi(l.removeObject(20)); // 1
+    print(old);                 // 10
+    print(l.remove(1));        // 5
+    print(l.contains(99));     // 1
+    print(l.indexOf(30));      // 2
+    print(l.removeObject(20)); // 1
     print(l.join("-"));         // 99-30
     // snapshot: the COW "iterator" is a plain List, so a later
     // mutation does not affect it
     List&lt;int&gt; snap = l.snapshot();
     l.add(40);
-    printi(snap.size());        // 2
-    printi(l.size());          // 3
+    print(snap.size());        // 2
+    print(l.size());          // 3
     l.clear();
-    printi(l.size());          // 0
+    print(l.size());          // 0
     // four workers append 25 values each
     Holder.shared = new CopyOnWriteList&lt;int&gt;();
     int k = 0;
@@ -2465,7 +2464,7 @@ int main() {
         Thread.join(k);
         k = k + 1;
     }
-    printi(Holder.shared.size());  // 100
+    print(Holder.shared.size());  // 100
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (full program)</span>3
@@ -2525,10 +2524,10 @@ int main() {
     // int list
     List&lt;int&gt; t = new List&lt;int&gt;();
     t.add(7); t.add(8); t.add(9);
-    printi(t.size());             // 3
-    printi(t.get(2));            // 9
+    print(t.size());             // 3
+    print(t.get(2));            // 9
     t.add(10);
-    printi(t.get(3));           // 10
+    print(t.get(3));           // 10
     // string list
     List&lt;string&gt; names = new List&lt;string&gt;();
     names.add("flint");
@@ -2538,9 +2537,9 @@ int main() {
     print(names.join(","));       // c,flint,rust
     // int set
     HashSet&lt;int&gt; seen = new HashSet&lt;int&gt;();
-    printi(seen.add(5));        // 1
-    printi(seen.add(5));        // 0 (duplicate)
-    printi(seen.size());        // 1
+    print(seen.add(5));        // 1
+    print(seen.add(5));        // 0 (duplicate)
+    print(seen.size());        // 1
     // string queue
     Queue&lt;string&gt; q = new Queue&lt;string&gt;();
     q.push("a");
@@ -2550,8 +2549,8 @@ int main() {
     HashMap&lt;string, int&gt; scores = new HashMap&lt;string, int&gt;();
     scores.put("a", 15);
     scores.put("b", 20);
-    printi(scores.get("b"));   // 20
-    printi(scores.size());     // 2
+    print(scores.get("b"));   // 20
+    print(scores.size());     // 2
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>3
@@ -2601,30 +2600,30 @@ int main() {
     Box b2 = new Box(2);
     b.add(a);
     b.add(b2);
-    printi(b.size());             // 2
+    print(b.size());             // 2
     // reading back: the collection's reference keeps the object alive
     Box r1 = b.get(0);
-    printi(r1.n);              // 1
+    print(r1.n);              // 1
     Box r2 = b.get(1);
-    printi(r2.n);              // 2
+    print(r2.n);              // 2
     // the original references still work alongside the collection's
-    printi(a.n);              // 1
-    printi(b2.n);              // 2
+    print(a.n);              // 1
+    print(b2.n);              // 2
     // a map of objects, keyed by int
     HashMap&lt;int, Box&gt; m = new HashMap&lt;int, Box&gt;();
     m.put(10, new Box(3));
     m.put(20, new Box(4));
-    printi(m.size());             // 2
+    print(m.size());             // 2
     Box v = m.get(20);
-    printi(v.n);              // 4
+    print(v.n);              // 4
     // a queue of objects
     Queue&lt;Box&gt; q = new Queue&lt;Box&gt;();
     q.push(new Box(5));
     q.push(new Box(6));
     Box f = q.pop();
-    printi(f.n);              // 5 (FIFO)
+    print(f.n);              // 5 (FIFO)
     Box s = q.pop();
-    printi(s.n);              // 6
+    print(s.n);              // 6
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>2
@@ -2700,18 +2699,18 @@ int main() {
     // mutex lock/unlock on a fresh (unlocked) mutex
     Sync.lock(&amp;s.mutex);
     Sync.unlock(&amp;s.mutex);
-    printi(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
+    print(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
     print("\n");
     // atomic CAS: 5 -&gt; 10 succeeds
     int val = 5;
     int r1 = Sync.cas(&amp;val, 5, 10);
-    printi(r1 == 1 ? 1 : 0);       // 1 (success)
-    printi(val == 10 ? 1 : 0);     // 1 (updated)
+    print(r1 == 1 ? 1 : 0);       // 1 (success)
+    print(val == 10 ? 1 : 0);     // 1 (updated)
     print("\n");
     // a CAS that does not match the current value fails
     int r2 = Sync.cas(&amp;val, 5, 20);
-    printi(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
-    printi(val == 10 ? 1 : 0);     // 1 (unchanged)
+    print(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
+    print(val == 10 ? 1 : 0);     // 1 (unchanged)
     print("\n");
     return 0;
 }</code></pre></div>
@@ -2770,7 +2769,7 @@ int main() {
     for (int k = 0; k &lt; K; k = k + 1) {
         total = total + Thread.join(k); // join each, sum the per-chunk counts
     }
-    printi(total == 168 ? 1 : 0);      // 1 (168 primes below 1000)
+    print(total == 168 ? 1 : 0);      // 1 (168 primes below 1000)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1</div>
@@ -2923,8 +2922,8 @@ the I/O-related builtin namespaces (<code>b64</code>, <code>json</code>,
 
 int main() {
     // writeAll returns the number of bytes written; size() reports them back
-    printi(File.writeAll("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
-    printi(File.size("/tmp/flint_sysio.txt") == 6 ? 1 : 0); print(" ");               // 1
+    print(File.writeAll("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
+    print(File.size("/tmp/flint_sysio.txt") == 6 ? 1 : 0); print(" ");               // 1
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1 1</div>
@@ -3007,7 +3006,7 @@ utilities. They are compiled directly to the runtime — no
 <td><code>alloc free memcpy</code> · <code>retain release retainVal</code></td>
 <td><a href="pointers.html">Pointers</a></td></tr>
 <tr><td><code>io</code></td>
-<td><code>print printi</code></td>
+<td><code>print println</code></td>
 <td>—</td></tr>
 <tr><td><code>conv</code></td>
 <td><code>atoi</code></td>
@@ -3034,8 +3033,10 @@ utilities. They are compiled directly to the runtime — no
 
 <h2>Notes</h2>
 <ul>
-<li><code>print</code> (string) and <code>printi</code> (int) write to
-stdout. <code>log.*</code> writes tagged lines —
+<li><code>print</code> and <code>println</code> each take a string or an
+int (an int argument is formatted in decimal) and write to stdout;
+<code>println</code> adds a trailing newline, <code>print</code> does
+not. <code>log.*</code> writes tagged lines —
 <code>log.info</code> to stdout, <code>log.warn</code> to stderr.</li>
 <li><code>math.*</code> operate on Q48.16 fixed-point values
 (<a href="fixed-point.html">Fixed-point numbers</a>).</li>
@@ -3069,24 +3070,24 @@ fixed-point (Q48.16) helpers built on the <code>math.*</code> builtins.</p></div
 
 int main() {
     // ---- integer helpers ----
-    printi(Math.abs(-7)); print(" ");      // 7
-    printi(Math.min(3, 9)); print(" ");   // 3
-    printi(Math.max(3, 9)); print(" ");   // 9
-    printi(Math.gcd(48, 18)); print(" "); // 6
-    printi(Math.lcm(4, 6)); print(" ");   // 12
-    printi(Math.factorial(5)); print(" "); // 120
-    printi(Math.isPrime(97)); print(" "); // 1
-    printi(Math.sqrt(81)); print(" ");     // 9
-    printi(Math.pow(2, 10)); print(" ");  // 1024
-    printi(Math.fib(10)); print("\n");     // 55
+    print(Math.abs(-7)); print(" ");      // 7
+    print(Math.min(3, 9)); print(" ");   // 3
+    print(Math.max(3, 9)); print(" ");   // 9
+    print(Math.gcd(48, 18)); print(" "); // 6
+    print(Math.lcm(4, 6)); print(" ");   // 12
+    print(Math.factorial(5)); print(" "); // 120
+    print(Math.isPrime(97)); print(" "); // 1
+    print(Math.sqrt(81)); print(" ");     // 9
+    print(Math.pow(2, 10)); print(" ");  // 1024
+    println(Math.fib(10));     // 55
 
     // ---- fixed-point (Q48.16) ----
     int f = math.itof(7);
-    printi(math.ftoi(f)); print(" ");      // 7
-    printi(Math.fround(math.itof(1) + math.itof(1))); print(" "); // 2
-    printi(math.ftoi(Math.fsqrt(math.itof(25)))); print(" "); // 5
-    printi(Math.ffloor(math.itof(1) + math.itof(1))); print(" "); // 2
-    printi(math.ftoi(Math.fabs(math.itof(0) - math.itof(3)))); print("\n"); // 3
+    print(math.ftoi(f)); print(" ");      // 7
+    print(Math.fround(math.itof(1) + math.itof(1))); print(" "); // 2
+    print(math.ftoi(Math.fsqrt(math.itof(25)))); print(" "); // 5
+    print(Math.ffloor(math.itof(1) + math.itof(1))); print(" "); // 2
+    println(math.ftoi(Math.fabs(math.itof(0) - math.itof(3)))); // 3
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>7 3 9 6 12 120 1 9 1024 55
@@ -3109,27 +3110,27 @@ array queries. Sorting is done on the array itself.</p></div>
 int main() {
     int a[] = [5, 2, 9, 1, 7];
     Sort.sort(a);
-    printi(a[0]); print(" ");
-    printi(a[1]); print(" ");
-    printi(a[4]); print("\n");            // 1 2 9
+    print(a[0]); print(" ");
+    print(a[1]); print(" ");
+    println(a[4]);            // 1 2 9
     int d[] = [3, 8, 1, 6];
     Sort.sortDesc(d);
-    printi(d[0]); print(" ");
-    printi(d[3]); print("\n");            // 8 1
+    print(d[0]); print(" ");
+    println(d[3]);            // 8 1
     int q[] = [4, 9, 2, 7];
-    printi(Sort.min(q)); print(" ");      // 2
-    printi(Sort.max(q)); print(" ");      // 9
-    printi(Sort.sum(q)); print(" ");      // 22
-    printi(Sort.avg(q)); print(" ");      // 5
-    printi(Sort.contains(q, 7)); print(" "); // 1
-    printi(Sort.contains(q, 8)); print(" "); // 0
-    printi(Sort.indexOf(q, 9)); print(" "); // 1
-    printi(Sort.count(q, 4)); print(" ");  // 1
-    printi(Sort.argmax(q)); print("\n");   // 1
+    print(Sort.min(q)); print(" ");      // 2
+    print(Sort.max(q)); print(" ");      // 9
+    print(Sort.sum(q)); print(" ");      // 22
+    print(Sort.avg(q)); print(" ");      // 5
+    print(Sort.contains(q, 7)); print(" "); // 1
+    print(Sort.contains(q, 8)); print(" "); // 0
+    print(Sort.indexOf(q, 9)); print(" "); // 1
+    print(Sort.count(q, 4)); print(" ");  // 1
+    println(Sort.argmax(q));   // 1
     // binarySearch needs a sorted array
     int s[] = [1, 3, 5, 7, 9];
-    printi(Sort.binarySearch(s, 7)); print(" "); // 3
-    printi(Sort.binarySearch(s, 8)); print("\n"); // -1 (not found)
+    print(Sort.binarySearch(s, 7)); print(" "); // 3
+    println(Sort.binarySearch(s, 8)); // -1 (not found)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1 2 9
@@ -3166,7 +3167,7 @@ int main() {
          if (j &gt; 0) {
              print(", ");
          }
-         printi(over20[j]);
+         print(over20[j]);
          j = j + 1;
      }
      print("\n");
@@ -3190,16 +3191,16 @@ toggleBit</code> · <code>bitRev isPowerOfTwo nextPowerOfTwo</code> ·
 <pre><code class="flint">import std.Bit;
 
 int main() {
-    printi(Bit.popcount(255)); print(" ");       // 8 (255 = 0xFF, eight set bits)
-    printi(Bit.nlz(1)); print(" ");             // 63 (single bit at position 0)
-    printi(Bit.ntz(8)); print(" ");            // 3 (8 = 1&lt;&lt;3)
-    printi(Bit.setBit(0, 3)); print(" ");     // 8
-    printi(Bit.testBit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
-    printi(Bit.toggleBit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
-    printi(Bit.isPowerOfTwo(64)); print(" "); // 1
-    printi(Bit.isPowerOfTwo(65)); print(" "); // 0
-    printi(Bit.nextPowerOfTwo(100)); print(" "); // 128
-    printi(Bit.byteSwap(0x1234)); print("\n");   // 0x3412000000000000 (all 8 bytes swapped)
+    print(Bit.popcount(255)); print(" ");       // 8 (255 = 0xFF, eight set bits)
+    print(Bit.nlz(1)); print(" ");             // 63 (single bit at position 0)
+    print(Bit.ntz(8)); print(" ");            // 3 (8 = 1&lt;&lt;3)
+    print(Bit.setBit(0, 3)); print(" ");     // 8
+    print(Bit.testBit(42, 5)); print(" ");   // 1 (42 = 0b101010, bit 5 set)
+    print(Bit.toggleBit(8, 2)); print(" ");  // 12 (0b1000 with bit 2 toggled = 0b1100)
+    print(Bit.isPowerOfTwo(64)); print(" "); // 1
+    print(Bit.isPowerOfTwo(65)); print(" "); // 0
+    print(Bit.nextPowerOfTwo(100)); print(" "); // 128
+    println(Bit.byteSwap(0x1234));   // 0x3412000000000000 (all 8 bytes swapped)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>8 63 3 8 1 12 1 0 128 3752061439553044480</div>
@@ -3222,15 +3223,15 @@ isPalindrome digitAt</code></p>
 int main() {
     print(Num.toHex(255)); print(" ");    // ff
     print(Num.toUpperHex(255)); print(" "); // FF
-    printi(Num.fromHex("ff")); print(" ");   // 255
+    print(Num.fromHex("ff")); print(" ");   // 255
     print(Num.toBin(5)); print(" ");         // 101
-    printi(Num.fromBin("101")); print(" ");  // 5
+    print(Num.fromBin("101")); print(" ");  // 5
     print(Num.toOct(8)); print(" ");         // 10
-    printi(Num.fromOct("10")); print(" ");   // 8
-    printi(Num.sumDigits(1234)); print(" "); // 10
-    printi(Num.digitCount(1000)); print(" "); // 4
+    print(Num.fromOct("10")); print(" ");   // 8
+    print(Num.sumDigits(1234)); print(" "); // 10
+    print(Num.digitCount(1000)); print(" "); // 4
     print(Num.reverseDigits(1234)); print(" "); // 4321
-    printi(Num.isPalindrome(1221)); print("\n"); // 1
+    println(Num.isPalindrome(1221)); // 1
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>ff FF 255 101 5 10 8 10 4 4321 1</div>
@@ -3254,22 +3255,22 @@ int main() {
     // writeAll creates/truncates; returns the byte count written
     // (or a negative errno on failure)
     int w = File.writeAll(p, "hello file");
-    printi(w &gt; 0 ? 1 : 0);
-    printi(File.exists(p));              // 1
-    printi(File.size(p));               // 10
+    print(w &gt; 0 ? 1 : 0);
+    print(File.exists(p));              // 1
+    print(File.size(p));               // 10
     string back = File.readAll(p);
-    printi(str.cmp(back, "hello file") == 0 ? 1 : 0);  // 1
+    print(str.cmp(back, "hello file") == 0 ? 1 : 0);  // 1
     File.append(p, "!");
-    printi(File.size(p));               // 11
+    print(File.size(p));               // 11
     // copy then rename then delete
     File.copy(p, "/tmp/flint_file_lib_copy.txt");
-    printi(File.exists("/tmp/flint_file_lib_copy.txt"));  // 1
+    print(File.exists("/tmp/flint_file_lib_copy.txt"));  // 1
     File.rename("/tmp/flint_file_lib_copy.txt", "/tmp/flint_file_lib_moved.txt");
-    printi(File.exists("/tmp/flint_file_lib_moved.txt"));  // 1
-    printi(File.exists("/tmp/flint_file_lib_copy.txt"));   // 0 (gone)
+    print(File.exists("/tmp/flint_file_lib_moved.txt"));  // 1
+    print(File.exists("/tmp/flint_file_lib_copy.txt"));   // 0 (gone)
     File.delete("/tmp/flint_file_lib_moved.txt");
     File.delete(p);
-    printi(File.exists(p));             // 0 (deleted)
+    print(File.exists(p));             // 0 (deleted)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1 1 10 1 11 1 1 0 0</div>
@@ -3293,8 +3294,8 @@ int main() {
     print(Path.ext("/a/b/c.txt")); print(" ");    // txt (no dot)
     print(Path.join("/a/b", "c.txt")); print(" "); // /a/b/c.txt
     print(Path.parent("/a/b/c.txt")); print(" ");  // /a/b
-    printi(Path.isAbsolute("/a/b")); print(" ");  // 1
-    printi(Path.isAbsolute("a/b")); print(" ");   // 0
+    print(Path.isAbsolute("/a/b")); print(" ");  // 1
+    print(Path.isAbsolute("a/b")); print(" ");   // 0
     print(Path.normalize("/a/b/../c/./d")); print("\n"); // a/c/d (relative form)
     return 0;
 }</code></pre></div>
@@ -3322,11 +3323,11 @@ on first use.</p></div>
 
 int main() {
     string s = "hello";
-    printi(Checksum.sum32(s)); print(" ");    // 104+101+108+108+111 = 532
-    printi(Checksum.crc32(s) &amp; 0xFFFF); print(" ");  // crc32("hello") low 16 bits
-    printi(Checksum.djb2(s) &amp; 0xFFFF); print(" ");
-    printi(Checksum.fnv1a32(s) &amp; 0xFFFF); print(" ");
-    printi(Checksum.adler32(s)); print("\n");
+    print(Checksum.sum32(s)); print(" ");    // 104+101+108+108+111 = 532
+    print(Checksum.crc32(s) &amp; 0xFFFF); print(" ");  // crc32("hello") low 16 bits
+    print(Checksum.djb2(s) &amp; 0xFFFF); print(" ");
+    print(Checksum.fnv1a32(s) &amp; 0xFFFF); print(" ");
+    println(Checksum.adler32(s));
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>532 42630 12441 11435 103547413</div>
@@ -3349,16 +3350,16 @@ randString</code></p>
 int main() {
     Rand.init(42);
     // range(lo, hi) is uniform in [lo, hi); coin() is 0 or 1
-    printi(Rand.range(1, 1000)); print(" ");
-    printi(Rand.range(1, 1000)); print(" ");
-    printi(Rand.coin()); print(" ");
-    printi(Rand.coin()); print(" ");
+    print(Rand.range(1, 1000)); print(" ");
+    print(Rand.range(1, 1000)); print(" ");
+    print(Rand.coin()); print(" ");
+    print(Rand.coin()); print(" ");
     // shuffle (Fisher-Yates, in place) then print the order
     int a[] = [0, 1, 2, 3, 4];
     Rand.shuffle(a);
     int i = 0;
     while (i &lt; 5) {
-        printi(a[i]);
+        print(a[i]);
         if (i &lt; 4) {
             print(" ");
         }
@@ -3367,7 +3368,7 @@ int main() {
     print("\n");
     // pick returns a uniformly random element
     int b[] = [10, 20, 30];
-    printi(Rand.pick(b)); print("\n");
+    println(Rand.pick(b));
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output (Rand.init(42))</span>980 382 0 0 2 0 1 3 4
@@ -3393,11 +3394,11 @@ int main() {
     print(Str.lower("FlInT")); print(" ");      // flint
     print(Str.reverse("abc")); print(" ");      // cba
     print(Str.trim("  hi  ")); print(" ");     // hi
-    printi(Str.count("banana", "an")); print(" "); // 2
-    printi(Str.contains("banana", "nana")); print(" "); // 1
-    printi(Str.lastIndexOf("banana", "an")); print(" "); // 3 ("an" at index 3)
-    printi(Str.startsWith("flint", "fli")); print(" "); // 1
-    printi(Str.endsWith("flint", "nt")); print(" "); // 1
+    print(Str.count("banana", "an")); print(" "); // 2
+    print(Str.contains("banana", "nana")); print(" "); // 1
+    print(Str.lastIndexOf("banana", "an")); print(" "); // 3 ("an" at index 3)
+    print(Str.startsWith("flint", "fli")); print(" "); // 1
+    print(Str.endsWith("flint", "nt")); print(" "); // 1
     print(Str.replaceAll("a-b-c", "-", "+")); print(" "); // a+b+c
     print(Str.repeat("ab", 3)); print(" ");    // ababab
     print(Str.rjust("7", 5, 48)); print(" ");  // 00007  (48 is '0')
@@ -3424,15 +3425,15 @@ int main() {
     // millis() is monotonic increasing; two reads differ by &gt;= 0
     int m1 = Time.millis();
     int m2 = Time.millis();
-    printi(m2 &gt;= m1 ? 1 : 0);             // 1
+    print(m2 &gt;= m1 ? 1 : 0);             // 1
     // seconds() should be a plausible magnitude (year 2000..3000)
     int s = Time.seconds();
-    printi(s &gt; 1000000000 &amp;&amp; s &lt; 100000000000 ? 1 : 0); // 1
+    print(s &gt; 1000000000 &amp;&amp; s &lt; 100000000000 ? 1 : 0); // 1
     // nanos() is a large positive value
-    printi(Time.nanos() &gt; 0 ? 1 : 0);    // 1
+    print(Time.nanos() &gt; 0 ? 1 : 0);    // 1
     // date() returns "YYYY-MM-DD HH:MM:SS" (19 chars); check the length
     string d = Time.date();
-    printi(strlen(d) == 19 ? 1 : 0);    // 1
+    print(strlen(d) == 19 ? 1 : 0);    // 1
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1 1 1 1</div>
@@ -3480,22 +3481,22 @@ int main() {
     // The centre is inside the disc -&gt; green; a corner is red
     int centre = im.get(32, 32);
     int corner = im.get(0, 0);
-    printi(Image.cg(centre) &gt; 200 ? 1 : 0); // 1 (green centre)
-    printi(Image.cr(corner) &gt; 200 ? 1 : 0); // 1 (red corner)
+    print(Image.cg(centre) &gt; 200 ? 1 : 0); // 1 (green centre)
+    print(Image.cr(corner) &gt; 200 ? 1 : 0); // 1 (red corner)
     // Grayscale then rotate 90 (64x64 stays 64x64)
     im.grayscale();
     im.rotate90();
     int p = im.get(10, 10);
-    printi(Image.cr(p) == Image.cb(p) ? 1 : 0); // 1 (channels equal)
+    print(Image.cr(p) == Image.cb(p) ? 1 : 0); // 1 (channels equal)
     // Save as BMP (returns the byte count), load it back, round-trip check
     int r = im.save("/tmp/flint_image_demo.bmp");
-    printi(r &gt; 0 ? 1 : 0);                    // 1 (saved ok)
+    print(r &gt; 0 ? 1 : 0);                    // 1 (saved ok)
     Image back = Image.load("/tmp/flint_image_demo.bmp");
-    printi(back != null ? 1 : 0);             // 1 (loaded)
-    printi(Image.cr(back.get(10, 10)) == Image.cr(p) ? 1 : 0); // 1
+    print(back != null ? 1 : 0);             // 1 (loaded)
+    print(Image.cr(back.get(10, 10)) == Image.cr(p) ? 1 : 0); // 1
     // scale() returns a new image (nearest-neighbor)
     Image big = im.scale(32, 32);
-    printi(big != null ? 1 : 0);             // 1
+    print(big != null ? 1 : 0);             // 1
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1 1 1 1 1 1
@@ -3569,7 +3570,7 @@ int main() {
     for (int k = 0; k &lt; K; k = k + 1) {
         total = total + Thread.join(k); // join each, sum the per-chunk counts
     }
-    printi(total == 168 ? 1 : 0);      // 1 (168 primes below 1000)
+    print(total == 168 ? 1 : 0);      // 1 (168 primes below 1000)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>1</div>
@@ -3605,11 +3606,11 @@ cannot be <code>abstract</code> (the worker thread needs a body), and an
  on a worker and evaluates to the value the worker returned, with no handle to
  name. It accepts an <code>async</code> call (a free function, an instance
  method, or a static method) or a stored <code>Task</code>:</p>
- <div class="code"><pre><code class="flint">printi(await worker(5));        // spawn + block + value, one step
+ <div class="code"><pre><code class="flint">print(await worker(5));        // spawn + block + value, one step
 Task t = worker(5);
-printi(await t);               // await a stored handle
-printi(await b.add(2));       // an instance async method
-printi(await Box.mul(2, 3));  // a static async method</code></pre></div>
+print(await t);               // await a stored handle
+print(await b.add(2));       // an instance async method
+print(await Box.mul(2, 3));  // a static async method</code></pre></div>
  <p>An <code>async</code> function may <code>await</code> another, blocking its
  own worker on the inner task (nested await). Awaiting an <code>async</code>
  <code>void</code> function yields 0. Awaiting a non-<code>async</code> call is
@@ -3705,16 +3706,16 @@ int main() {
     State s = new State();
     Sync.lock(&amp;s.mutex);
     Sync.unlock(&amp;s.mutex);
-    printi(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
+    print(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
     print("\n");
     int val = 5;
     int r1 = Sync.cas(&amp;val, 5, 10);
-    printi(r1 == 1 ? 1 : 0);       // 1 (success)
-    printi(val == 10 ? 1 : 0);     // 1 (updated)
+    print(r1 == 1 ? 1 : 0);       // 1 (success)
+    print(val == 10 ? 1 : 0);     // 1 (updated)
     print("\n");
     int r2 = Sync.cas(&amp;val, 5, 20);
-    printi(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
-    printi(val == 10 ? 1 : 0);     // 1 (unchanged)
+    print(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
+    print(val == 10 ? 1 : 0);     // 1 (unchanged)
     print("\n");
     return 0;
 }</code></pre></div>
@@ -3750,13 +3751,13 @@ int main() {
     int j = 0;
     int sum = 0;
     while (j &lt; n) {
-        printi(fib[j]);
+        print(fib[j]);
         if (j + 1 &lt; n) { print(" "); }
         sum = sum + fib[j];
         j = j + 1;
     }
     print("\nsum=");
-    printi(sum);                   // 88
+    print(sum);                   // 88
     print("\n");
     Mem.freeInt(fib);
     return 0;
@@ -3956,9 +3957,9 @@ class Demo implements OnDraw, OnKey, OnButton, OnMotion {
     void draw(Image c) {
         if (this.t &lt; 3) {
             print("iter ");
-            printi(this.t);
+            print(this.t);
             print(" running=");
-            printi(this.app.running());
+            print(this.app.running());
             print("\n");
         }
         this.t = this.t + 1;

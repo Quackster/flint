@@ -33,32 +33,32 @@ int fin_ret() {
     } catch (int e) {
         return e;
     } finally {
-        printi(3);             // runs even though the try returned
+        print(3);             // runs even though the try returned
     }
 }
 
 int uncaught() {
     throw 9;
-    printi(12345);           // never reached
+    print(12345);           // never reached
 }
 
 int main() {
-    printi(caught_int() == 42 ? 1 : 0);   // 1
+    print(caught_int() == 42 ? 1 : 0);   // 1
     print("\n");
-    printi(no_throw());         // 7
+    print(no_throw());         // 7
     print("\n");
     // throw an object; catch it by a class-typed variable
     try {
         throw new MyError(77);
     } catch (MyError e) {
-        printi(e.code);      // 77
+        print(e.code);      // 77
     }
     print("\n");
-    printi(fin_ret());         // 5 (the 3 above came from finally)
+    print(fin_ret());         // 5 (the 3 above came from finally)
     print("\n");
     // uncaught throw: the function returns silently, main continues
     uncaught();
-    printi(1);                  // reached
+    print(1);                  // reached
     print("\n");
     return 0;
 }

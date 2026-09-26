@@ -2,7 +2,7 @@ int main() {
     // wall-clock millis: after 2001-09-09 (1e12 ms) and monotonically non-decreasing
     int t1 = time.millis();
     int t2 = time.millis();
-    printi(t1 > 1000000000000 ? 1 : 0); print("\n");
-    printi(t2 >= t1 ? 1 : 0); print("\n");
+    println(t1 > 1000000000000 ? 1 : 0);
+    println(t2 >= t1 ? 1 : 0);
     return 0;
 }

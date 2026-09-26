@@ -39,19 +39,19 @@ class Cat extends Animal {
 
 int main() {
     Animal a = new Dog(5, 3);
-    printi(a.speak());             // 1 (virtual dispatch through Animal)
+    print(a.speak());             // 1 (virtual dispatch through Animal)
     print("\n");
     Animal c = new Cat(6, 2);
-    printi(c.speak());             // 2
+    print(c.speak());             // 2
     print("\n");
-    printi(a.id);                // 5 (inherited field)
+    print(a.id);                // 5 (inherited field)
     print("\n");
     Dog d = (Dog) a;             // narrowing cast
-    printi(d.bark());            // 3 (super.speak() + barks = 0 + 3)
+    print(d.bark());            // 3 (super.speak() + barks = 0 + 3)
     print("\n");
-    printi(a instanceof Dog);    // 1
+    print(a instanceof Dog);    // 1
     print("\n");
-    printi(c instanceof Dog);    // 0
+    print(c instanceof Dog);    // 0
     print("\n");
     return 0;
 }

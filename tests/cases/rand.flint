@@ -2,12 +2,12 @@ int main() {
     // two 64-bit draws differ with overwhelming probability
     int a = rand.next();
     int b = rand.next();
-    printi(a == b ? 0 : 1); print("\n");
+    println(a == b ? 0 : 1);
     // range is within [min, max)
     int r1 = rand.range(10, 20);
-    printi(r1 >= 10 && r1 < 20 ? 1 : 0); print("\n");
+    println(r1 >= 10 && r1 < 20 ? 1 : 0);
     // degenerate range returns min
     int r2 = rand.range(5, 6);
-    printi(r2 == 5 ? 1 : 0); print("\n");
+    println(r2 == 5 ? 1 : 0);
     return 0;
 }

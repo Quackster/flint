@@ -20,18 +20,18 @@ int main() {
     // mutex lock/unlock on a fresh (unlocked) mutex
     Sync.lock(&s.mutex);
     Sync.unlock(&s.mutex);
-    printi(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
+    print(s.mutex == 0 ? 1 : 0);   // 1 (back to unlocked)
     print("\n");
     // atomic CAS: 5 -> 10 succeeds
     int val = 5;
     int r1 = Sync.cas(&val, 5, 10);
-    printi(r1 == 1 ? 1 : 0);       // 1 (success)
-    printi(val == 10 ? 1 : 0);     // 1 (updated)
+    print(r1 == 1 ? 1 : 0);       // 1 (success)
+    print(val == 10 ? 1 : 0);     // 1 (updated)
     print("\n");
     // a CAS that does not match the current value fails
     int r2 = Sync.cas(&val, 5, 20);
-    printi(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
-    printi(val == 10 ? 1 : 0);     // 1 (unchanged)
+    print(r2 == 0 ? 1 : 0);       // 1 (failed: val is 10, not 5)
+    print(val == 10 ? 1 : 0);     // 1 (unchanged)
     print("\n");
     return 0;
 }

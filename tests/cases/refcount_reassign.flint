@@ -5,28 +5,28 @@ int main() {
     // 1. field reassignment (the original double-assignment bug)
     C c = new C();
     c.a = new Inner(1);
-    printi(c.a.x); print("\n");
+    println(c.a.x);
     c.a = new Inner(2);
-    printi(c.a.x); print("\n");
+    println(c.a.x);
     c.a = new Inner(3);
-    printi(c.a.x); print("\n");
+    println(c.a.x);
 
     // 2. heap local reassignment
     Inner x = new Inner(10);
-    printi(x.x); print("\n");
+    println(x.x);
     x = new Inner(20);
-    printi(x.x); print("\n");
+    println(x.x);
 
     // 3. reassignment in a loop (exercises stack-region reuse)
     int i = 0;
     while (i < 3) {
         c.a = new Inner(i * 100);
-        printi(c.a.x); print("\n");
+        println(c.a.x);
         i = i + 1;
     }
 
     // 4. field access on a temporary base (new)
     int t = new Inner(99).x;
-    printi(t); print("\n");
+    println(t);
     return 0;
 }

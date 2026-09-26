@@ -15,71 +15,71 @@ import std.List;
 
 int main() {
     // ---- Math ----
-    printi(Math.fib(10)); print(" ");
-    printi(Math.fib(20)); print(" ");
-    printi(Math.cbrt(27)); print(" ");
-    printi(Math.cbrt(64)); print(" ");
-    printi(Math.cbrt(8000)); print(" ");
-    printi(Math.isEven(8)); print(" ");
-    printi(Math.isOdd(7)); print(" ");
-    printi(Math.mod(-7, 3)); print(" ");
-    printi(Math.sumRange(1, 10)); print("\n");
+    print(Math.fib(10)); print(" ");
+    print(Math.fib(20)); print(" ");
+    print(Math.cbrt(27)); print(" ");
+    print(Math.cbrt(64)); print(" ");
+    print(Math.cbrt(8000)); print(" ");
+    print(Math.isEven(8)); print(" ");
+    print(Math.isOdd(7)); print(" ");
+    print(Math.mod(-7, 3)); print(" ");
+    println(Math.sumRange(1, 10));
 
     // ---- Sort ----
     int sa[] = [1, 3, 5, 7, 9];
-    printi(Sort.binarySearch(sa, 7)); print(" ");
-    printi(Sort.binarySearch(sa, 8)); print(" ");
+    print(Sort.binarySearch(sa, 7)); print(" ");
+    print(Sort.binarySearch(sa, 8)); print(" ");
     int sb[] = [5, 2, 9, 1];
-    printi(Sort.argmin(sb)); print(" ");
-    printi(Sort.argmax(sb)); print(" ");
+    print(Sort.argmin(sb)); print(" ");
+    print(Sort.argmax(sb)); print(" ");
     int sc[] = [1, 2, 3, 4];
     Sort.swap(sc, 0, 3);
-    printi(sc[0]); print(" ");
-    printi(sc[3]); print(" ");
+    print(sc[0]); print(" ");
+    print(sc[3]); print(" ");
     int sd[] = [2, 4, 6, 8];
-    printi(Sort.avg(sd)); print(" ");
+    print(Sort.avg(sd)); print(" ");
     int se[] = [1, 2, 3, 4, 5];
     Sort.rotate(se, 2);
-    printi(se[0]); print(" ");
-    printi(se[4]); print("\n");
+    print(se[0]); print(" ");
+    println(se[4]);
 
     // ---- Bit ----
-    printi(Bit.isPowerOfTwo(16)); print(" ");
-    printi(Bit.isPowerOfTwo(15)); print(" ");
-    printi(Bit.nextPowerOfTwo(100)); print(" ");
-    printi(Bit.byteSwap(0x0102030405060708)); print(" ");
-    printi(Bit.parity(0x7)); print(" ");
-    printi(Bit.getByte(0x01020304, 1)); print(" ");
-    printi(Bit.setByte(0, 2, 0xAB)); print("\n");
+    print(Bit.isPowerOfTwo(16)); print(" ");
+    print(Bit.isPowerOfTwo(15)); print(" ");
+    print(Bit.nextPowerOfTwo(100)); print(" ");
+    print(Bit.byteSwap(0x0102030405060708)); print(" ");
+    print(Bit.parity(0x7)); print(" ");
+    print(Bit.getByte(0x01020304, 1)); print(" ");
+    println(Bit.setByte(0, 2, 0xAB));
 
     // ---- Num ----
-    printi(Num.isPalindrome(1221)); print(" ");
-    printi(Num.isPalindrome(123)); print(" ");
-    printi(Num.digitAt(9876, 0)); print(" ");
-    printi(Num.digitAt(9876, 3)); print(" ");
+    print(Num.isPalindrome(1221)); print(" ");
+    print(Num.isPalindrome(123)); print(" ");
+    print(Num.digitAt(9876, 0)); print(" ");
+    print(Num.digitAt(9876, 3)); print(" ");
     print(Num.toUpperHex(255)); print("\n");
 
     // ---- Checksum ----
-    printi(Checksum.fnv1a("")); print(" ");
-    printi(Checksum.fnv1a32("hello")); print(" ");
-    printi(Checksum.adler32("hello")); print("\n");
+    print(Checksum.fnv1a("")); print(" ");
+    print(Checksum.fnv1a32("hello")); print(" ");
+    println(Checksum.adler32("hello"));
 
     // ---- Path ----
-    printi(Path.isAbsolute("/a/b")); print(" ");
-    printi(Path.isAbsolute("a/b")); print(" ");
+    print(Path.isAbsolute("/a/b")); print(" ");
+    print(Path.isAbsolute("a/b")); print(" ");
     print(Path.normalize("a/./b/../c")); print(" ");
     List<string> pp = Path.split("x/y/z");
-    printi(pp.size()); print("\n");
+    println(pp.size());
 
     // ---- File (temp file) ----
     File.writeAll("/tmp/flint_stdlib_t.txt", "line1\nline2\n");
-    printi(File.append("/tmp/flint_stdlib_t.txt", "line3\n")); print(" ");
-    printi(File.exists("/tmp/flint_stdlib_t.txt")); print(" ");
+    print(File.append("/tmp/flint_stdlib_t.txt", "line3\n")); print(" ");
+    print(File.exists("/tmp/flint_stdlib_t.txt")); print(" ");
     print(File.readLine("/tmp/flint_stdlib_t.txt")); print(" ");
     File.copy("/tmp/flint_stdlib_t.txt", "/tmp/flint_stdlib_c.txt");
-    printi(File.exists("/tmp/flint_stdlib_c.txt")); print(" ");
+    print(File.exists("/tmp/flint_stdlib_c.txt")); print(" ");
     File.rename("/tmp/flint_stdlib_c.txt", "/tmp/flint_stdlib_r.txt");
-    printi(File.exists("/tmp/flint_stdlib_r.txt")); print(" ");
+    print(File.exists("/tmp/flint_stdlib_r.txt")); print(" ");
     File.delete("/tmp/flint_stdlib_t.txt");
     File.delete("/tmp/flint_stdlib_r.txt");
     print("\n");
@@ -88,21 +88,21 @@ int main() {
     Rand.init(42);
     int ra[] = [10, 20, 30, 40];
     int p = Rand.pick(ra);
-    printi(p >= 10 && p <= 40 ? 1 : 0); print(" ");
-    printi(strlen(Rand.bytes(8)) == 8); print(" ");
-    printi(strlen(Rand.hexId(16)) == 16); print(" ");
-    printi(strlen(Rand.randString(10)) == 10); print("\n");
+    print(p >= 10 && p <= 40 ? 1 : 0); print(" ");
+    print(strlen(Rand.bytes(8)) == 8); print(" ");
+    print(strlen(Rand.hexId(16)) == 16); print(" ");
+    println(strlen(Rand.randString(10)) == 10);
 
     // ---- Str ----
     print(Str.upper("hi")); print(" ");
     print(Str.lower("Ab")); print(" ");
     print(Str.reverse("ab")); print(" ");
     print(Str.trim(" x ")); print(" ");
-    printi(Str.count("aaa", "a")); print(" ");
-    printi(Str.contains("hello", "ell")); print(" ");
-    printi(Str.lastIndexOf("abcabc", "bc")); print(" ");
-    printi(Str.startsWith("hello", "he")); print(" ");
-    printi(Str.endsWith("hello", "lo")); print(" ");
+    print(Str.count("aaa", "a")); print(" ");
+    print(Str.contains("hello", "ell")); print(" ");
+    print(Str.lastIndexOf("abcabc", "bc")); print(" ");
+    print(Str.startsWith("hello", "he")); print(" ");
+    print(Str.endsWith("hello", "lo")); print(" ");
     print(Str.replaceAll("a-b-a", "a", "z")); print(" ");
     print(Str.repeat("ab", 3)); print("\n");
     List<string> sp = Str.split("a,b,c", ",");
@@ -111,8 +111,8 @@ int main() {
     print(Str.rjust("ab", 5, 32)); print("\n");
 
     // ---- Time (lengths only, never the value) ----
-    printi(Time.seconds() > 0); print(" ");
-    printi(Time.nanos() > 0); print(" ");
-    printi(strlen(Time.date()) == 19); print("\n");
+    print(Time.seconds() > 0); print(" ");
+    print(Time.nanos() > 0); print(" ");
+    println(strlen(Time.date()) == 19);
     return 0;
 }

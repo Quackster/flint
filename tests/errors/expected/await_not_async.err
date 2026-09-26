@@ -1,3 +1,3 @@
-error[6:12]: 'plain' is not an async function (await needs an async call or a Task)
-  |     printi(await plain(1));
-  |            ^
+error[6:11]: 'plain' is not an async function (await needs an async call or a Task)
+  |     print(await plain(1));
+  |           ^

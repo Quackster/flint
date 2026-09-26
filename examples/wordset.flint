@@ -7,30 +7,30 @@ import std.HashSet;
 int main() {
     HashSet<int> s = new HashSet<int>();
     // int elements: duplicates collapse
-    printi(s.add(5));        // 1 (inserted)
+    print(s.add(5));        // 1 (inserted)
     print("\n");
-    printi(s.add(10));      // 1
+    print(s.add(10));      // 1
     print("\n");
-    printi(s.add(15));      // 1
+    print(s.add(15));      // 1
     print("\n");
-    printi(s.add(10));      // 0 (already present)
+    print(s.add(10));      // 0 (already present)
     print("\n");
-    printi(s.size());       // 3
+    print(s.size());       // 3
     print("\n");
-    printi(s.contains(10)); // 1
+    print(s.contains(10)); // 1
     print("\n");
-    printi(s.contains(99)); // 0
+    print(s.contains(99)); // 0
     print("\n");
     // remove (tombstone) then re-add
-    printi(s.remove(10));   // 1 (removed)
+    print(s.remove(10));   // 1 (removed)
     print("\n");
-    printi(s.contains(10)); // 0
+    print(s.contains(10)); // 0
     print("\n");
-    printi(s.size());       // 2
+    print(s.size());       // 2
     print("\n");
-    printi(s.add(10));      // 1 (re-inserted over the tombstone slot)
+    print(s.add(10));      // 1 (re-inserted over the tombstone slot)
     print("\n");
-    printi(s.size());       // 3
+    print(s.size());       // 3
     print("\n");
     // string elements: content dedup of a word stream
     HashSet<string> words = new HashSet<string>();
@@ -40,23 +40,23 @@ int main() {
     words.add("fox");
     words.add("the");        // duplicate
     words.add("quick");      // duplicate
-    printi(words.size());     // 4 (unique)
+    print(words.size());     // 4 (unique)
     print("\n");
-    printi(words.contains("fox")); // 1
+    print(words.contains("fox")); // 1
     print("\n");
-    printi(words.contains("dog")); // 0
+    print(words.contains("dog")); // 0
     print("\n");
     // built up with add() (no literals in the stdlib world)
     HashSet<int> lit = new HashSet<int>();
     lit.add(3);
     lit.add(4);
-    printi(lit.size());        // 2
+    print(lit.size());        // 2
     print("\n");
-    printi(lit.contains(4));  // 1
+    print(lit.contains(4));  // 1
     print("\n");
     s.clear();
     words.clear();
-    printi(s.size() + words.size()); // 0
+    print(s.size() + words.size()); // 0
     print("\n");
     return 0;
 }

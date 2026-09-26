@@ -55,24 +55,24 @@ int main() {
     T t = new T();
     h.tick += t;               // register
     h.fire(5);
-    printi(t.lastVal()); print(" ");    // 5
+    print(t.lastVal()); print(" ");    // 5
     via(h.get());
-    printi(t.lastVal()); print("\n");   // 7 (dispatch through interface)
+    println(t.lastVal());   // 7 (dispatch through interface)
     U u = new U();
     h.tick += u;               // re-register: releases t's reference
     h.fire(9);
-    printi(u.total()); print(" ");      // 9
-    printi(t.lastVal()); print("\n");   // 7 (t untouched)
+    print(u.total()); print(" ");      // 9
+    println(t.lastVal());   // 7 (t untouched)
     // `=` behaves the same as `+=` for interface values
     h.tick = t;
     h.fire(11);
-    printi(t.lastVal()); print("\n");   // 11
+    println(t.lastVal());   // 11
     // local interface value: re-declare releases the old reference
     OnTick local = t;
     local.tick(1);
-    printi(t.lastVal()); print(" ");    // 1 (tick sets)
+    print(t.lastVal()); print(" ");    // 1 (tick sets)
     local = u;
     local.tick(1);
-    printi(u.total()); print("\n");     // 10
+    println(u.total());     // 10
     return 0;
 }

@@ -28,23 +28,23 @@ int daysInMonth(int m) {
 }
 
 int main() {
-    printi(daysInMonth(1));        // 31
+    print(daysInMonth(1));        // 31
     print("\n");
-    printi(daysInMonth(4));        // 30
+    print(daysInMonth(4));        // 30
     print("\n");
-    printi(daysInMonth(2));        // 28
+    print(daysInMonth(2));        // 28
     print("\n");
-    printi(daysInMonth(99));      // 0 (default)
+    print(daysInMonth(99));      // 0 (default)
     print("\n");
     // explicit fall-through: case 4 matches, prints, falls into case 5
     switch (4) {
         case 4:
-            printi(100);
+            print(100);
         case 5:
-            printi(200);          // reached by fall-through
+            print(200);          // reached by fall-through
             break;
         default:
-            printi(0);
+            print(0);
     }
     print("\n");
     return 0;

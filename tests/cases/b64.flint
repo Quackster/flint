@@ -1,12 +1,12 @@
 int main() {
     // "hello" -> "aGVsbG8="
     *byte e = b64.encode("hello");
-    printi(str.cmp(e, "aGVsbG8=") == 0 ? 1 : 0); print("\n");
+    println(str.cmp(e, "aGVsbG8=") == 0 ? 1 : 0);
     // decode round-trip
     *byte d = b64.decode(e);
-    printi(str.cmp(d, "hello") == 0 ? 1 : 0); print("\n");
+    println(str.cmp(d, "hello") == 0 ? 1 : 0);
     // decode a literal
     *byte d2 = b64.decode("aGVsbG8=");
-    printi(str.cmp(d2, "hello") == 0 ? 1 : 0); print("\n");
+    println(str.cmp(d2, "hello") == 0 ? 1 : 0);
     return 0;
 }

@@ -1,15 +1,15 @@
 int main() {
     int x = 10;
     *int p = &x;
-    printi(*p);
+    print(*p);
     print("\n");
     *p = 99;
-    printi(x);
+    print(x);
     print("\n");
     int y = 5;
     *int q = &y;
     *q = *q + 1;
-    printi(y);
+    print(y);
     print("\n");
     return 0;
 }

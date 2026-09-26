@@ -32,15 +32,15 @@ int total(Shape sh) {
 int main() {
     Circle c = new Circle(3);
     Square q = new Square(4);
-    printi(c.area());             // 9
+    print(c.area());             // 9
     print("\n");
-    printi(q.area());             // 16
+    print(q.area());             // 16
     print("\n");
-    printi(total(c));           // 9 (through the abstract type)
+    print(total(c));           // 9 (through the abstract type)
     print("\n");
-    printi(total(q));           // 16
+    print(total(q));           // 16
     print("\n");
-    printi(c.area() + q.area());  // 25
+    print(c.area() + q.area());  // 25
     print("\n");
     return 0;
 }

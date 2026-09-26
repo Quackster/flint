@@ -3,6 +3,6 @@ int plain(int x) {
 }
 
 int main() {
-    printi(await plain(1));
+    print(await plain(1));
     return 0;
 }

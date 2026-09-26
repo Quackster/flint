@@ -7,10 +7,10 @@ class Counter {
 int main() {
     Counter.n = 5;
     Counter c = new Counter(1);
-    printi(Counter.n == 5 ? 1 : 0); print("\n");
+    println(Counter.n == 5 ? 1 : 0);
     Counter.n = Counter.n + 3;
-    printi(Counter.n == 8 ? 1 : 0); print("\n");
+    println(Counter.n == 8 ? 1 : 0);
     // instance fields still work alongside statics
-    printi(c.id == 1 ? 1 : 0); print("\n");
+    println(c.id == 1 ? 1 : 0);
     return 0;
 }

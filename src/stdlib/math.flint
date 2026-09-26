@@ -2,7 +2,7 @@
 //
 // Usage:
 //   import std.Math;
-//   printi(Math.abs(-7));          // 7
+//   print(Math.abs(-7));          // 7
 //
 // Fixed-point helpers operate on Q48.16 values (see the `math.*` builtins).
 package std;

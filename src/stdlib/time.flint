@@ -2,7 +2,7 @@
 //
 // Usage:
 //   import std.Time;
-//   printi(Time.seconds());   // epoch seconds
+//   print(Time.seconds());   // epoch seconds
 //   print(Time.date());       // "YYYY-MM-DD HH:MM:SS"
 package std;
 class Time {

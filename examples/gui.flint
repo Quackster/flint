@@ -15,9 +15,9 @@ class Demo implements OnDraw, OnKey, OnButton, OnMotion {
     void draw(Image c) {
         if (this.t < 3) {
             print("iter ");
-            printi(this.t);
+            print(this.t);
             print(" running=");
-            printi(this.app.running());
+            print(this.app.running());
             print("\n");
         }
         this.t = this.t + 1;

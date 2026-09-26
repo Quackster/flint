@@ -23,16 +23,16 @@ int main() {
     Counter.n = 5;
     Counter c1 = new Counter(1);
     Counter c2 = new Counter(2);
-    printi(c1.id + c2.id);         // 3 (instance fields are per-object)
+    print(c1.id + c2.id);         // 3 (instance fields are per-object)
     print("\n");
-    printi(Counter.n);           // 5
+    print(Counter.n);           // 5
     print("\n");
     Counter.n = Counter.n + 3;    // shared across all instances
-    printi(Counter.n);           // 8
+    print(Counter.n);           // 8
     print("\n");
-    printi(Util.square(7));      // 49 (no instance needed)
+    print(Util.square(7));      // 49 (no instance needed)
     print("\n");
-    printi(Util.sum2(20, 22));   // 42
+    print(Util.sum2(20, 22));   // 42
     print("\n");
     return 0;
 }

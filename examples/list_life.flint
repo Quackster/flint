@@ -8,44 +8,44 @@ int main() {
     List<int> l = new List<int>();
     l.add(10); l.add(20); l.add(30);
     List<int> e = new List<int>();
-    printi(e.size());             // 0
+    print(e.size());             // 0
     print("\n");
     // add / get / set / size
     l.add(40);
-    printi(l.size());            // 4
+    print(l.size());            // 4
     print("\n");
-    printi(l.get(1));           // 20
+    print(l.get(1));           // 20
     print("\n");
     l.set(0, 99);
-    printi(l.get(0));           // 99
+    print(l.get(0));           // 99
     print("\n");
     // contains: int compare; string content compare
-    printi(l.contains(20));     // 1
+    print(l.contains(20));     // 1
     print("\n");
-    printi(l.contains(77));     // 0
+    print(l.contains(77));     // 0
     print("\n");
     // insert at an index (tail shifts right; i >= size appends)
     l.insert(1, 5);
-    printi(l.size());          // 5
+    print(l.size());          // 5
     print("\n");
-    printi(l.get(1));         // 5
+    print(l.get(1));         // 5
     print("\n");
-    printi(l.get(2));         // 20 (was shifted)
+    print(l.get(2));         // 20 (was shifted)
     print("\n");
     // remove(i): tail shifts left; no-op when i >= size
     l.remove(0);
-    printi(l.get(0));         // 5
+    print(l.get(0));         // 5
     print("\n");
-    printi(l.size());         // 4
+    print(l.size());         // 4
     print("\n");
     // sort (signed int ascending) and reverse
     l.sort();
-    printi(l.get(0));         // 5
+    print(l.get(0));         // 5
     print("\n");
-    printi(l.get(3));         // 40
+    print(l.get(3));         // 40
     print("\n");
     l.reverse();
-    printi(l.get(0));         // 40
+    print(l.get(0));         // 40
     print("\n");
     // join: ints via itoa, strings verbatim
     string j = l.join("-");
@@ -53,16 +53,16 @@ int main() {
     print("\n");
     // clear
     l.clear();
-    printi(l.size());         // 0
+    print(l.size());         // 0
     print("\n");
     // string elements (kind = 1): sort by content, join verbatim
     List<string> s = new List<string>();
     s.add("b");
     s.add("a");
     s.add("c");
-    printi(s.contains("a"));   // 1 (content compare)
+    print(s.contains("a"));   // 1 (content compare)
     print("\n");
-    printi(s.contains("z"));   // 0
+    print(s.contains("z"));   // 0
     print("\n");
     s.sort();
     print(s.join("|"));       // a|b|c
@@ -70,9 +70,9 @@ int main() {
     // int list
     List<int> t = new List<int>();
     t.add(7); t.add(8); t.add(9);
-    printi(t.size());         // 3
+    print(t.size());         // 3
     print("\n");
-    printi(t.get(2));       // 9
+    print(t.get(2));       // 9
     print("\n");
     return 0;
 }

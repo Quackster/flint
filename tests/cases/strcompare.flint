@@ -2,13 +2,13 @@ int main() {
     string a = "hello";
     string b = "hello";
     string c = "world";
-    printi(a == b); print("\n");
-    printi(a == c); print("\n");
-    printi(a != c); print("\n");
-    printi(a != b); print("\n");
+    println(a == b);
+    println(a == c);
+    println(a != c);
+    println(a != b);
     string d = null;
-    printi(d == null); print("\n");
-    printi("" == ""); print("\n");
-    printi("a" == "ab"); print("\n");
+    println(d == null);
+    println("" == "");
+    println("a" == "ab");
     return 0;
 }

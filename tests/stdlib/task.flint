@@ -28,41 +28,41 @@ class Box {
 int main() {
     // Free async function.
     Task t = double(21);
-    printi(t.join());
+    print(t.join());
     print("\n");
 
     // Instance async method (this is passed as the first arg).
     Box b = new Box(100);
     Task m = b.add(23);
-    printi(m.join());
+    print(m.join());
     print("\n");
 
     // Static async method.
     Task s = Box.mul(6, 7);
-    printi(s.join());
+    print(s.join());
     print("\n");
 
     // Async void function (join returns 0; the side effect ran in the worker).
     Task v = beep();
-    printi(v.join());
+    print(v.join());
     print("\n");
 
     // Several tasks at once: all workers run before the joins.
     Task a = double(1);
     Task c = double(2);
     Task e = double(4);
-    printi(a.join() + c.join() + e.join());
+    print(a.join() + c.join() + e.join());
     print("\n");
 
     // await: blocks on the worker and yields its return value.
-    printi(await double(21));
+    print(await double(21));
     print("\n");
     Task t2 = double(5);
-    printi(await t2);
+    print(await t2);
     print("\n");
-    printi(await Box.mul(6, 7));
+    print(await Box.mul(6, 7));
     print("\n");
-    printi(await b.add(23));
+    print(await b.add(23));
     print("\n");
     return 0;
 }

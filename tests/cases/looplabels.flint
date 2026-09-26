@@ -9,7 +9,7 @@ int main() {
             }
         }
     }
-    printi(i); print("\n");
+    println(i);
     int n = 0;
     int k = 0;
     outer2:
@@ -18,7 +18,7 @@ int main() {
             if (n == 2) {
                 continue outer2;
             }
-            printi(n * 10 + k); print("\n");
+            println(n * 10 + k);
         }
     }
     int m = 0;
@@ -29,6 +29,6 @@ int main() {
             break lbl;
         }
     }
-    printi(m); print("\n");
+    println(m);
     return 0;
 }

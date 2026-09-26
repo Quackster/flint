@@ -28,28 +28,28 @@ class Rect {
 }
 int main() {
     Point p = new Point(3, 4);
-    printi(p.getX());
+    print(p.getX());
     print("\n");
-    printi(p.sum());
+    print(p.sum());
     print("\n");
     p.move(1, 2);
-    printi(p.getX());
+    print(p.getX());
     print(",");
-    printi(p.y);
+    print(p.y);
     print("\n");
     Point a = new Point(1, 2);
     Point b = new Point(3, 4);
     Point c = a.add(b);
-    printi(c.x);
+    print(c.x);
     print(",");
-    printi(c.y);
+    print(c.y);
     print("\n");
     Rect r = new Rect(new Point(5, 6), 10, 20);
-    printi(r.ox());
+    print(r.ox());
     print("\n");
-    printi(r.area());
+    print(r.area());
     print("\n");
-    printi(c.add(a).getX());
+    print(c.add(a).getX());
     print("\n");
     return 0;
 }

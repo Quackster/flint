@@ -3,7 +3,7 @@
 // Usage:
 //   import std.Num;
 //   print(Num.toHex(-1));        // ffffffffffffffff (two's complement)
-//   printi(Num.fromHex("ff"));   // 255
+//   print(Num.fromHex("ff"));   // 255
 //
 // Negative values are rendered as 16-hex / 64-bin / 22-oct two's-complement
 // digits; non-negative values are trimmed of leading zeros.

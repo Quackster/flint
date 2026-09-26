@@ -9,9 +9,9 @@ int main() {
     // if/else
     int x = 7;
     if (x > 5) {
-        printi(100);
+        print(100);
     } else {
-        printi(200);
+        print(200);
     }
     print("\n");
     // while: sum 0..9
@@ -21,20 +21,20 @@ int main() {
         s = s + i;
         i++;
     }
-    printi(s);
+    print(s);
     print("\n");
     // abs via function call
-    printi(abs(-42));
+    print(abs(-42));
     print("\n");
     // comparison -> bool (0/1)
     if (3 < 4 && 5 > 2) {
-        printi(1);
+        print(1);
     }
     print("\n");
     if (3 > 4 || 9 < 1) {
-        printi(1);
+        print(1);
     } else {
-        printi(0);
+        print(0);
     }
     print("\n");
     return 0;

@@ -11,36 +11,36 @@ int main() {
     // built up with push()
     Queue<int> q = new Queue<int>();
     q.push(10); q.push(20); q.push(30);
-    printi(q.size());             // 3
+    print(q.size());             // 3
     print("\n");
     // peek: front without removing
-    printi(q.peek());           // 10
+    print(q.peek());           // 10
     print("\n");
     // pop: FIFO order
-    printi(q.pop());           // 10
+    print(q.pop());           // 10
     print("\n");
-    printi(q.pop());           // 20
+    print(q.pop());           // 20
     print("\n");
     // push after pops; the ring wraps
     q.push(40);
-    printi(q.peek());           // 30
+    print(q.peek());           // 30
     print("\n");
-    printi(q.size());          // 2
+    print(q.size());          // 2
     print("\n");
     // pop on the (now) empty queue returns 0
     q.pop();                   // 30
     q.pop();                   // 40
-    printi(q.pop());           // 0 (empty)
+    print(q.pop());           // 0 (empty)
     print("\n");
-    printi(q.peek());           // 0 (empty)
+    print(q.peek());           // 0 (empty)
     print("\n");
     // a producer/consumer hand-off through a function
     Queue<int> jobs = new Queue<int>();
     jobs.push(111);
     jobs.push(222);
-    printi(next_cmd(jobs));   // 111 (consumed in FIFO order)
+    print(next_cmd(jobs));   // 111 (consumed in FIFO order)
     print("\n");
-    printi(next_cmd(jobs));   // 222
+    print(next_cmd(jobs));   // 222
     print("\n");
     // string elements (kind = 1)
     Queue<string> names = new Queue<string>();
@@ -54,7 +54,7 @@ int main() {
     print("\n");
     // clear
     jobs.clear();
-    printi(jobs.size());     // 0
+    print(jobs.size());     // 0
     print("\n");
     return 0;
 }

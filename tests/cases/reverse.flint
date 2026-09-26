@@ -5,23 +5,23 @@ int main() {
     List<int> l = new List<int>();
     l.add(1); l.add(2); l.add(3); l.add(4);
     l.reverse();
-    printi(l.get(0)); print(" ");
-    printi(l.get(1)); print(" ");
-    printi(l.get(2)); print(" ");
-    printi(l.get(3)); print("\n");
+    print(l.get(0)); print(" ");
+    print(l.get(1)); print(" ");
+    print(l.get(2)); print(" ");
+    println(l.get(3));
 
     // odd length still works
     List<int> o = new List<int>();
     o.add(1); o.add(2); o.add(3);
     o.reverse();
-    printi(o.get(0)); print(" ");
-    printi(o.get(1)); print(" ");
-    printi(o.get(2)); print("\n");
+    print(o.get(0)); print(" ");
+    print(o.get(1)); print(" ");
+    println(o.get(2));
 
     // single element: no-op
     List<int> s = new List<int>();
     s.add(9);
     s.reverse();
-    printi(s.get(0)); print("\n");
+    println(s.get(0));
     return 0;
 }

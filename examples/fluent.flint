@@ -24,11 +24,11 @@ class Point {
 
 int main() {
     Point p = new Point(1, 2);
-    printi(p.sum());                          // 3
+    print(p.sum());                          // 3
     print("\n");
-    printi(p.move(1, 1).sum());              // 5 (chained call)
+    print(p.move(1, 1).sum());              // 5 (chained call)
     print("\n");
-    printi(p.move(2, 2).scale(10).sum());   // (4*10)+(5*10) = 90
+    print(p.move(2, 2).scale(10).sum());   // (4*10)+(5*10) = 90
     print("\n");
     return 0;
 }

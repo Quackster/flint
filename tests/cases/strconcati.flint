@@ -3,13 +3,13 @@ int main() {
     *byte s = str.concati("answer: ", 42);
     print(s);
     print("\n");
-    printi(strlen(s));
+    print(strlen(s));
     print("\n");
 
     *byte n = str.itoa(-17);
     print(n);
     print("\n");
-    printi(strlen(n));
+    print(strlen(n));
     print("\n");
 
     *byte z = str.itoa(0);

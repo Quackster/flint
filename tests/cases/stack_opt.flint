@@ -10,12 +10,12 @@ int foo() {
     return p.sum();
 }
 int main() {
-    printi(foo());
+    print(foo());
     print("\n");
     // loop with stack-local objects
     for (int i = 0; i < 5; i++) {
         Point q = new Point(i, i*2);
-        printi(q.sum());
+        print(q.sum());
         print("\n");
     }
     return 0;

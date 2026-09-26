@@ -8,15 +8,15 @@
 int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
-    printi(sys.byteLoad(p + 1));  // 101 ('e')
+    print(sys.byteLoad(p + 1));  // 101 ('e')
     print("\n");
-    printi(strlen(p));             // 5
+    print(strlen(p));             // 5
     print("\n");
     // concatenation with + of two strings
     string s = "hello" + " world";
     print(s);                     // hello world
     print("\n");
-    printi(strlen(s));            // 11
+    print(strlen(s));            // 11
     print("\n");
     // (string)N single-char construction, then concatenate
     string c = (string)72;         // 'H'
@@ -31,27 +31,27 @@ int main() {
     string m = (string)65 + (string)66;   // AB
     print(m);                    // AB
     print("\n");
-    printi(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
+    print(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
     print("\n");
     // str.* builtin tour
     string cc = str.concat("ab", "cd");
-    printi(str.cmp(cc, "abcd") == 0 ? 1 : 0);   // 1
+    print(str.cmp(cc, "abcd") == 0 ? 1 : 0);   // 1
     print("\n");
     string ci = str.concati("answer: ", 42);
-    printi(str.cmp(ci, "answer: 42") == 0 ? 1 : 0);  // 1
+    print(str.cmp(ci, "answer: 42") == 0 ? 1 : 0);  // 1
     print("\n");
-    printi(conv.atoi(str.itoa(-17)) == -17 ? 1 : 0);  // 1
+    print(conv.atoi(str.itoa(-17)) == -17 ? 1 : 0);  // 1
     print("\n");
     string cp = str.copy("same");
-    printi(str.cmp(cp, "same") == 0 ? 1 : 0);   // 1
+    print(str.cmp(cp, "same") == 0 ? 1 : 0);   // 1
     print("\n");
     string sub = str.substring("hello world", 6, 5);
-    printi(str.cmp(sub, "world") == 0 ? 1 : 0);   // 1
+    print(str.cmp(sub, "world") == 0 ? 1 : 0);   // 1
     print("\n");
-    printi(str.indexOf("hello world", "world"));  // 6
+    print(str.indexOf("hello world", "world"));  // 6
     print("\n");
     string rp = str.replace("aaa", "a", "b");
-    printi(str.cmp(rp, "bbb") == 0 ? 1 : 0);   // 1 (all occurrences)
+    print(str.cmp(rp, "bbb") == 0 ? 1 : 0);   // 1 (all occurrences)
     print("\n");
     return 0;
 }

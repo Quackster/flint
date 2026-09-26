@@ -3,7 +3,7 @@ int main() {
     *int buf = alloc(64);
     buf[0] = 42;
     buf[1] = 43;
-    printi(buf[0] + buf[1]);
+    print(buf[0] + buf[1]);
     print("\n");
     // dynamic array: fill with i*i, sum
     int n = 10;
@@ -17,7 +17,7 @@ int main() {
         sum = sum + arr[j];
         j++;
     }
-    printi(sum);
+    print(sum);
     print("\n");
     free(arr);
     free(buf);

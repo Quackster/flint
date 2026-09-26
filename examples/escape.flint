@@ -35,33 +35,33 @@ Pair make() {
 int main() {
     // stack-allocated: never escapes
     Pair s = new Pair(3, 4);
-    printi(s.a + s.b);        // 7
+    print(s.a + s.b);        // 7
     print("\n");
     s.a = 10;
-    printi(s.a + s.b);        // 14
+    print(s.a + s.b);        // 14
     print("\n");
     // alias of a stack object: plain address, no refcount traffic
     Pair r = s;
-    printi(r.b);             // 4
+    print(r.b);             // 4
     print("\n");
     // heap: escapes into sum_of()
     Pair h = new Pair(5, 6);
-    printi(sum_of(h));      // 11
+    print(sum_of(h));      // 11
     print("\n");
     // heap alias: both hold refcounted references
     Pair c = h;
     c.b = 100;
-    printi(h.b);           // 100 (same object)
+    print(h.b);           // 100 (same object)
     print("\n");
     // class value returned from a function: fresh reference
     Pair t = make();
-    printi(t.a + t.b);      // 17
+    print(t.a + t.b);      // 17
     print("\n");
     // an object stored in a class field is a heap reference
     Holder o = new Holder(new Pair(42, 1), 7);
-    printi(o.inner.a);      // 42
+    print(o.inner.a);      // 42
     print("\n");
-    printi(o.n);           // 7
+    print(o.n);           // 7
     print("\n");
     return 0;
 }

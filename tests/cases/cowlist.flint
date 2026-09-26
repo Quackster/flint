@@ -32,55 +32,55 @@ class Box {
 int main() {
     // ---- int semantics ----
     CopyOnWriteList<int> l = new CopyOnWriteList<int>();
-    printi(l.size()); print("\n");               // 0
-    printi(l.isEmpty()); print("\n");           // 1
+    println(l.size());               // 0
+    println(l.isEmpty());           // 1
     l.add(10); l.add(20); l.add(30);
-    printi(l.size()); print("\n");             // 3
-    printi(l.get(1)); print("\n");            // 20
+    println(l.size());             // 3
+    println(l.get(1));            // 20
     l.insert(1, 5);
-    printi(l.get(1)); print("\n");           // 5
-    printi(l.get(5)); print("\n");           // 0 (out of range)
+    println(l.get(1));           // 5
+    println(l.get(5));           // 0 (out of range)
     int old = l.set(0, 99);
-    printi(old); print("\n");                // 10
-    printi(l.set(9, 7)); print("\n");        // 0 (out of range: no change)
-    printi(l.get(0)); print("\n");           // 99
+    println(old);                // 10
+    println(l.set(9, 7));        // 0 (out of range: no change)
+    println(l.get(0));           // 99
     int gone = l.remove(1);
-    printi(gone); print("\n");               // 5
-    printi(l.remove(9)); print("\n");        // 0 (out of range)
-    printi(l.size()); print("\n");           // 3
-    printi(l.contains(99)); print("\n");     // 1
-    printi(l.contains(77)); print("\n");     // 0
-    printi(l.indexOf(20)); print("\n");      // 1
-    printi(l.indexOf(77)); print("\n");      // -1
-    printi(l.lastIndexOf(30)); print("\n");   // 2
-    printi(l.lastIndexOf(99)); print("\n");   // 0
-    printi(l.lastIndexOf(77)); print("\n");   // -1
-    printi(l.removeObject(20)); print("\n"); // 1
-    printi(l.contains(20)); print("\n");     // 0
-    printi(l.removeObject(77)); print("\n"); // 0
+    println(gone);               // 5
+    println(l.remove(9));        // 0 (out of range)
+    println(l.size());           // 3
+    println(l.contains(99));     // 1
+    println(l.contains(77));     // 0
+    println(l.indexOf(20));      // 1
+    println(l.indexOf(77));      // -1
+    println(l.lastIndexOf(30));   // 2
+    println(l.lastIndexOf(99));   // 0
+    println(l.lastIndexOf(77));   // -1
+    println(l.removeObject(20)); // 1
+    println(l.contains(20));     // 0
+    println(l.removeObject(77)); // 0
     print(l.join("-")); print("\n");         // 99-30
     // snapshot: later mutations do not affect it
     List<int> snap = l.snapshot();
     l.add(40);
-    printi(snap.size()); print("\n");         // 2
-    printi(l.size()); print("\n");           // 3
+    println(snap.size());         // 2
+    println(l.size());           // 3
     l.clear();
-    printi(l.size()); print("\n");           // 0
-    printi(l.isEmpty()); print("\n");        // 1
-    printi(l.get(0)); print("\n");           // 0 (now empty)
+    println(l.size());           // 0
+    println(l.isEmpty());        // 1
+    println(l.get(0));           // 0 (now empty)
     // ---- string elements ----
     CopyOnWriteList<string> s = new CopyOnWriteList<string>();
     s.add("b"); s.add("a"); s.add("c");
     print(s.join("|")); print("\n");          // b|a|c
     print(s.get(1)); print("\n");             // a
-    printi(s.contains("a")); print("\n");     // 1
-    printi(s.contains("z")); print("\n");     // 0
-    printi(s.indexOf("c")); print("\n");      // 2
-    printi(s.lastIndexOf("b")); print("\n");  // 0
+    println(s.contains("a"));     // 1
+    println(s.contains("z"));     // 0
+    println(s.indexOf("c"));      // 2
+    println(s.lastIndexOf("b"));  // 0
     string displaced = s.set(0, "z");
     print(displaced); print("\n");            // b (displaced, returned)
     print(s.get(0)); print("\n");             // z
-    printi(s.removeObject("a")); print("\n"); // 1
+    println(s.removeObject("a")); // 1
     print(s.join("|")); print("\n");          // z|c
     // ---- object elements (kind 2): retained on store, released on
     // remove; the Box must survive while a local still holds it ----
@@ -89,14 +89,14 @@ int main() {
         CopyOnWriteList<Box> o = new CopyOnWriteList<Box>();
         o.add(x);
         Box old2 = o.set(0, x);
-        printi(old2.id() == 7 ? 1 : 0); print("\n");  // 1
+        println(old2.id() == 7 ? 1 : 0);  // 1
         List<Box> osnap = o.snapshot();
-        printi(osnap.size()); print("\n");            // 1
+        println(osnap.size());            // 1
         o.remove(0);
-        printi(o.size()); print("\n");               // 0
+        println(o.size());               // 0
     }
-    printi(x.id()); print("\n");                     // 7
-    printi(Box.destroyed); print("\n");             // 0 (still referenced by main)
+    println(x.id());                     // 7
+    println(Box.destroyed);             // 0 (still referenced by main)
     // ---- four workers append 25 values each ----
     Holder.shared = new CopyOnWriteList<int>();
     int k = 0;
@@ -109,7 +109,7 @@ int main() {
         Thread.join(k);
         k = k + 1;
     }
-    printi(Holder.shared.size()); print("\n");      // 100
+    println(Holder.shared.size());      // 100
     int ok = 1;
     k = 0;
     while (k < 4) {
@@ -122,6 +122,6 @@ int main() {
         }
         k = k + 1;
     }
-    printi(ok); print("\n");                        // 1
+    println(ok);                        // 1
     return 0;
 }

@@ -835,11 +835,11 @@ class Window {
         int opcode = w1 & 0xFFFF;
         if (size < 8 || size > 4088) {
             print("readMsg BAD size=");
-            printi(size);
+            print(size);
             print(" w0=");
-            printi(w0);
+            print(w0);
             print(" w1=");
-            printi(w1);
+            print(w1);
             print("\n");
             this.closed = 1;
             return -2;
@@ -857,9 +857,9 @@ class Window {
         if (w0 == 1 && opcode == 0 && this.err_seen == 0) {
             this.err_seen = 1;
             print("window error: obj=");
-            printi(Window.get32(this.rb, 8));
+            print(Window.get32(this.rb, 8));
             print(" code=");
-            printi(Window.get32(this.rb, 12));
+            print(Window.get32(this.rb, 12));
             print(" ");
             int ml = Window.get32(this.rb, 16);
             int maxm = size - 20;

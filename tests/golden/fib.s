@@ -71,14 +71,7 @@ main:
 	call fib
 	push %rax
 	pop %rdi
-	call flint_printi64
-	movq $0, %rax
-	push %rax
-	pop %rax
-	lea .Lstr2(%rip), %rax
-	push %rax
-	pop %rdi
-	call flint_printstr
+	call flint_println_i64
 	movq $0, %rax
 	push %rax
 	pop %rax
@@ -97,5 +90,3 @@ _start:
 	call main
 	mov %eax, %edi
 	call flint_exit
-.section .rodata
-.Lstr2:	.asciz "\n"

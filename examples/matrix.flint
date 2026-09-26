@@ -3,8 +3,8 @@
 // nested range-for then iterates the elements of each row.
 int main() {
     int g[][] = [[1, 2, 3], [4, 5, 6]];
-    printi(g[0][0]);             // 1
-    printi(g[1][2]);            // 6
+    print(g[0][0]);             // 1
+    print(g[1][2]);            // 6
     print("\n");
     // sum every element through the row range-for
     int t = 0;
@@ -13,7 +13,7 @@ int main() {
             t = t + y;
         }
     }
-    printi(t);                 // 21
+    print(t);                 // 21
     print("\n");
     // transpose in place (2x3 -> 3x2)
     int out[][] = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
@@ -31,7 +31,7 @@ int main() {
     while (i < 3) {
         int j = 0;
         while (j < 2) {
-            printi(out[i][j]);
+            print(out[i][j]);
             if (j + 1 < 2) {
                 print(" ");
             }

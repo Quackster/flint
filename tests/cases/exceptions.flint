@@ -32,21 +32,21 @@ int no_throw() {
 int main() {
     // Basic throw/catch
     int v1 = caught_value();
-    printi(v1 == 42 ? 1 : 0); print("\n");
+    println(v1 == 42 ? 1 : 0);
 
     // Another throw/catch
     int v2 = caught_class();
-    printi(v2 == 99 ? 1 : 0); print("\n");
+    println(v2 == 99 ? 1 : 0);
 
     // No throw - try block returns normally
     int v3 = no_throw();
-    printi(v3 == 7 ? 1 : 0); print("\n");
+    println(v3 == 7 ? 1 : 0);
 
     // Throw in main
     try {
         throw 123;
     } catch (int e) {
-        printi(e == 123 ? 1 : 0); print("\n");
+        println(e == 123 ? 1 : 0);
     }
 
     return 0;

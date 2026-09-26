@@ -24,11 +24,11 @@ int main() {
         Queue<Box> q = new Queue<Box>();
         q.push(b);
     }
-    printi(a.id());
+    print(a.id());
     print("\n");                   // 10
-    printi(b.id());
+    print(b.id());
     print("\n");                   // 20
-    printi(Box.destroyed);
+    print(Box.destroyed);
     print("\n");                   // 0: both still referenced by main
     return 0;
 }

@@ -2,7 +2,7 @@ import com.example.Util;
 
 int main() {
     Util u = new Util();
-    printi(u.doubleIt(21));
+    print(u.doubleIt(21));
     print("\n");
     return 0;
 }

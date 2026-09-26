@@ -3,26 +3,26 @@ int main() {
     int n = 2;
     switch (n) {
         case 1:
-            printi(10);
+            print(10);
             break;
         case 2:
-            printi(20);
+            print(20);
             break;
         default:
-            printi(99);
+            print(99);
     }
     print("\n");
 
     int m = 7;
     switch (m) {
         case 5:
-            printi(50);
+            print(50);
             break;
         case 6:
-            printi(60);
+            print(60);
             break;
         default:
-            printi(70);
+            print(70);
             break;
     }
     print("\n");
@@ -39,19 +39,19 @@ int main() {
                 break;
         }
     }
-    printi(acc);
+    print(acc);
     print("\n");
 
     // fallthrough: no break on case 1
     int f = 1;
     switch (f) {
         case 1:
-            printi(100);
+            print(100);
         case 2:
-            printi(200);
+            print(200);
             break;
         default:
-            printi(300);
+            print(300);
     }
     print("\n");
     return 0;

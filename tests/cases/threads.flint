@@ -10,18 +10,18 @@ int main() {
     // Test mutex lock/unlock
     sys.mutexLock(&s.mutex);
     sys.mutexUnlock(&s.mutex);
-    printi(s.mutex == 0 ? 1 : 0); print("\n");
+    println(s.mutex == 0 ? 1 : 0);
 
     // Test atomic CAS
     int val = 5;
     int r1 = sys.atomicCas(&val, 5, 10);
-    printi(r1 == 1 ? 1 : 0); print("\n");
-    printi(val == 10 ? 1 : 0); print("\n");
+    println(r1 == 1 ? 1 : 0);
+    println(val == 10 ? 1 : 0);
 
     // Test atomic CAS failure
     int r2 = sys.atomicCas(&val, 5, 20);
-    printi(r2 == 0 ? 1 : 0); print("\n");
-    printi(val == 10 ? 1 : 0); print("\n");
+    println(r2 == 0 ? 1 : 0);
+    println(val == 10 ? 1 : 0);
 
     return 0;
 }

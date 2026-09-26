@@ -19,15 +19,15 @@ void increment(*int p) {
 
 int main() {
     // basic call
-    printi(doubleIt(21)); print(" ");        // 42
+    print(doubleIt(21)); print(" ");        // 42
     // recursion
-    printi(factorial(5)); print(" ");        // 120
+    print(factorial(5)); print(" ");        // 120
     // void function with a pointer argument
     int x = 10;
     increment(&x);
-    printi(x); print(" ");                  // 11
+    print(x); print(" ");                  // 11
     // @ yields a function's address (an int); std.Thread.spawn takes it
     // int tid = Thread.spawn(@doubleIt, 0);
-    printi(1); print("\n");
+    println(1);
     return 0;
 }

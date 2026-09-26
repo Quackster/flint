@@ -5,16 +5,16 @@ int main() {
     int v = 10;
     if (1) {
         int v = 20;          // re-declares v
-        printi(v);         // 20
+        print(v);         // 20
     }
-    printi(v);             // 20 (the re-declaration persists)
+    print(v);             // 20 (the re-declaration persists)
     print("\n");
     int total = 0;
     for (int i = 0; i < 3; i = i + 1) {
         int i = 100;        // overwrites the loop variable's slot
         total = total + i;
     }
-    printi(total);         // 100 (loop ends after one round: i becomes 101)
+    print(total);         // 100 (loop ends after one round: i becomes 101)
     print("\n");
     // range-for: the desugared index loop still iterates every element
     // even when the element variable is re-declared inside the body
@@ -24,7 +24,7 @@ int main() {
         int x = 100;
         u = u + x;
     }
-    printi(u);             // 400 (4 elements, each read as 100)
+    print(u);             // 400 (4 elements, each read as 100)
     print("\n");
     return 0;
 }

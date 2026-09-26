@@ -9,24 +9,24 @@ int main() {
     // ---- b64 ----
     // "hello" encodes to "aGVsbG8="; decoding round-trips.
     string e = b64.encode("hello");
-    printi(str.cmp(e, "aGVsbG8=") == 0 ? 1 : 0); print(" "); // 1
+    print(str.cmp(e, "aGVsbG8=") == 0 ? 1 : 0); print(" "); // 1
     string d = b64.decode(e);
-    printi(str.cmp(d, "hello") == 0 ? 1 : 0); print(" ");    // 1
-    printi(str.cmp(b64.decode("aGVsbG8="), "hello") == 0 ? 1 : 0); print(" "); // 1
+    print(str.cmp(d, "hello") == 0 ? 1 : 0); print(" ");    // 1
+    print(str.cmp(b64.decode("aGVsbG8="), "hello") == 0 ? 1 : 0); print(" "); // 1
 
     // ---- json ----
     // Extract values from a JSON string by key.
     string js = "{\"name\":\"alice\",\"age\":30}";
     string name = json.get(js, "name");
-    printi(str.cmp(name, "alice") == 0 ? 1 : 0); print(" "); // 1
-    printi(json.geti(js, "age") == 30 ? 1 : 0); print(" ");  // 1
+    print(str.cmp(name, "alice") == 0 ? 1 : 0); print(" "); // 1
+    print(json.geti(js, "age") == 30 ? 1 : 0); print(" ");  // 1
     // A missing key yields the empty string.
-    printi(strlen(json.get(js, "missing")) == 0 ? 1 : 0); print(" "); // 1
+    print(strlen(json.get(js, "missing")) == 0 ? 1 : 0); print(" "); // 1
 
     // ---- env ----
     // A present variable is non-null; an absent one is null.
-    printi(env.get("PATH") != null ? 1 : 0); print(" ");    // 1 (usually)
-    printi(env.get("FLINT_SIO_NOPE_XYZ") == null ? 1 : 0); print(" "); // 1
+    print(env.get("PATH") != null ? 1 : 0); print(" ");    // 1 (usually)
+    print(env.get("FLINT_SIO_NOPE_XYZ") == null ? 1 : 0); print(" "); // 1
 
     // ---- log ----
     // Writes a tagged line to stderr (shown in the captured output).
@@ -35,7 +35,7 @@ int main() {
 
     // ---- file I/O via std.File ----
     // writeAll returns the number of bytes written; size() reports them back.
-    printi(File.writeAll("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
-    printi(File.size("/tmp/flint_sysio.txt") == 6 ? 1 : 0); print(" ");               // 1
+    print(File.writeAll("/tmp/flint_sysio.txt", "raw io") == 6 ? 1 : 0); print(" "); // 1
+    print(File.size("/tmp/flint_sysio.txt") == 6 ? 1 : 0); print(" ");               // 1
     return 0;
 }

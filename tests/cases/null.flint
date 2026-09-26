@@ -6,19 +6,19 @@ class Point {
 int main() {
     Point p = null;
     if (p == null) {
-        printi(0);
+        print(0);
     } else {
-        printi(1);
+        print(1);
     }
     print("\n");
     p = new Point(1, 2);
     if (p != null) {
-        printi(p.x + p.y);
+        print(p.x + p.y);
     }
     print("\n");
     *byte b = null;
     if (b == null) {
-        printi(7);
+        print(7);
     }
     print("\n");
     return 0;

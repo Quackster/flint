@@ -10,7 +10,7 @@ int main() {
     int x = 10;
     *int p = &x;
     *p = 99;
-    printi(x);                     // 99
+    print(x);                     // 99
     print("\n");
     // dynamic array over alloc(); fib[i] is an 8-byte slot
     int n = 5;
@@ -28,19 +28,19 @@ int main() {
         s = s + fib[i];
         i = i + 1;
     }
-    printi(s);                     // 0+1+1+2+3 = 7
+    print(s);                     // 0+1+1+2+3 = 7
     print("\n");
     free(fib);
     // sub-word little-endian access into a buffer
     *byte buf = alloc(16);
     sys.byteStore(buf + 8, 65);
-    printi(sys.byteLoad(buf + 8));   // 65 ('A')
+    print(sys.byteLoad(buf + 8));   // 65 ('A')
     print("\n");
     sys.shortStore(buf, 1000);
-    printi(sys.shortLoad(buf));      // 1000
+    print(sys.shortLoad(buf));      // 1000
     print("\n");
     sys.intStore(buf + 12, 0x12345678);
-    printi(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
+    print(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
     print("\n");
     free(buf);
     // memcpy: copy 16 bytes
@@ -49,18 +49,18 @@ int main() {
     src[1] = 222;
     *byte dst = alloc(16);
     memcpy(dst, src, 16);
-    printi(dst[0] * 1000 + dst[1]);   // 111222
+    print(dst[0] * 1000 + dst[1]);   // 111222
     print("\n");
     free(src);
     free(dst);
     // generic syscall escape hatch: getpid (39), open (2), close (3)
     int pid = sys.syscall(39, 0, 0, 0, 0, 0);
-    printi(pid > 0 ? 1 : 0);        // 1
+    print(pid > 0 ? 1 : 0);        // 1
     print("\n");
     int fd = sys.syscall(2, "/dev/null", 0, 0, 0, 0);
-    printi(fd >= 0 ? 1 : 0);        // 1
+    print(fd >= 0 ? 1 : 0);        // 1
     print("\n");
-    printi(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
+    print(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
     print("\n");
     return 0;
 }

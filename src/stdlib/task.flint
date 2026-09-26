@@ -18,8 +18,8 @@
 // Usage:
 //   import std.Task;
 //   Task t = worker(5);      // worker is an `async int` function
-//   printi(t.join());        // the value worker returned
-//   printi(await worker(5)); // same, in one step
+//   print(t.join());        // the value worker returned
+//   print(await worker(5)); // same, in one step
 package std;
 class Task {
     // The thread id of the worker (set by the compiler on the call).

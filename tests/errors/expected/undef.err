@@ -1,3 +1,3 @@
-error[2:12]: undefined variable 'nosuchvar'
-  |     printi(nosuchvar);
-  |            ^
+error[2:11]: undefined variable 'nosuchvar'
+  |     print(nosuchvar);
+  |           ^

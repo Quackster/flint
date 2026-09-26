@@ -10,21 +10,21 @@ int main() {
     // writeAll creates/truncates the file; returns the byte count
     // written (or a negative errno on failure).
     int w = File.writeAll(p, "hello file");
-    printi(w > 0 ? 1 : 0); print(" ");
-    printi(File.exists(p)); print(" ");          // 1
-    printi(File.size(p)); print(" ");           // 10
+    print(w > 0 ? 1 : 0); print(" ");
+    print(File.exists(p)); print(" ");          // 1
+    print(File.size(p)); print(" ");           // 10
     string back = File.readAll(p);
-    printi(str.cmp(back, "hello file") == 0 ? 1 : 0); print(" "); // 1
+    print(str.cmp(back, "hello file") == 0 ? 1 : 0); print(" "); // 1
     File.append(p, "!");
-    printi(File.size(p)); print(" ");           // 11
+    print(File.size(p)); print(" ");           // 11
     // copy then rename then delete
     File.copy(p, "/tmp/flint_file_lib_copy.txt");
-    printi(File.exists("/tmp/flint_file_lib_copy.txt")); print(" "); // 1
+    print(File.exists("/tmp/flint_file_lib_copy.txt")); print(" "); // 1
     File.rename("/tmp/flint_file_lib_copy.txt", "/tmp/flint_file_lib_moved.txt");
-    printi(File.exists("/tmp/flint_file_lib_moved.txt")); print(" "); // 1
-    printi(File.exists("/tmp/flint_file_lib_copy.txt")); print(" "); // 0 (gone)
+    print(File.exists("/tmp/flint_file_lib_moved.txt")); print(" "); // 1
+    print(File.exists("/tmp/flint_file_lib_copy.txt")); print(" "); // 0 (gone)
     File.delete("/tmp/flint_file_lib_moved.txt");
     File.delete(p);
-    printi(File.exists(p)); print("\n");         // 0 (deleted)
+    println(File.exists(p));         // 0 (deleted)
     return 0;
 }

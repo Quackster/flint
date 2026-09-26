@@ -8,15 +8,15 @@ int main() {
     int len = strlen(val);
     // Check length is 5 and first char matches via str comparison
     int is_alice = (len == 5) && (str.cmp(val, "alice") == 0) ? 1 : 0;
-    printi(is_alice); print("\n");
+    println(is_alice);
     
     // Extract "age" -> should be 30
     int age = json.geti(json, "age");
-    printi(age == 30 ? 1 : 0); print("\n");
+    println(age == 30 ? 1 : 0);
     
     // Non-existent key -> should return ""
     *byte missing = json.get(json, "missing");
-    printi(strlen(missing) == 0 ? 1 : 0); print("\n");
+    println(strlen(missing) == 0 ? 1 : 0);
     
     return 0;
 }

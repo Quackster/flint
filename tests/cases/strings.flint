@@ -2,7 +2,7 @@ int main() {
     print("strings work");
     print("\n");
     *byte s = "hello";
-    printi(strlen(s));
+    print(strlen(s));
     print("\n");
     *byte a = "ab";
     *byte b = "cd";

@@ -464,6 +464,32 @@ flint_printi64:
     ret
     .size flint_printi64, .-flint_printi64
 
+    .globl flint_println_str
+    .type flint_println_str, @function
+# flint_println_str(s): rdi = s. Prints s then a newline to stdout.
+flint_println_str:
+    call flint_printstr
+    lea .Lprint_nl(%rip), %rsi
+    mov $1, %rdi              # fd = 1 (stdout)
+    mov $1, %rdx             # len = 1
+    mov $1, %rax             # SYS_write
+    syscall
+    ret
+    .size flint_println_str, .-flint_println_str
+
+    .globl flint_println_i64
+    .type flint_println_i64, @function
+# flint_println_i64(n): rdi = n. Prints n then a newline to stdout.
+flint_println_i64:
+    call flint_printi64
+    lea .Lprint_nl(%rip), %rsi
+    mov $1, %rdi              # fd = 1 (stdout)
+    mov $1, %rdx             # len = 1
+    mov $1, %rax             # SYS_write
+    syscall
+    ret
+    .size flint_println_i64, .-flint_println_i64
+
     .globl flint_itoa
     .type flint_itoa, @function
 # flint_itoa(n): buf = alloc(digits(n) + 1); write itoa(n) into buf; return buf.
@@ -2568,6 +2594,8 @@ flint_str_format:
     .Ljson_empty:
     .string ""
     .Llog_nl:
+    .string "\n"
+    .Lprint_nl:
     .string "\n"
 
     .section .text

@@ -23,7 +23,7 @@ class B {
 int main() {
     A a = new A();
     B b = new B();
-    printi(a.val() + b.val());
+    print(a.val() + b.val());
     print("\n");
     return 0;
 }

@@ -10,17 +10,17 @@ class User {
 }
 int main() {
     User u = new User(30, "bob", 100);
-    printi(u.getAge());
+    print(u.getAge());
     print("\n");
     print(u.getName());
     print("\n");
     u.setName("alice");
     print(u.getName());
     print("\n");
-    printi(u.getScore());
+    print(u.getScore());
     print("\n");
     u.setScore(200);
-    printi(u.getScore());
+    print(u.getScore());
     print("\n");
     return 0;
 }

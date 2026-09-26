@@ -11,7 +11,7 @@ interface OnLog {
 // A handler that prints to stdout.
 class Console implements OnLog {
     void log(int level, string msg) {
-        printi(level);
+        print(level);
         print(": ");
         print(msg);
         print("\n");
@@ -56,7 +56,7 @@ int main() {
     // += again replaces the current handler (the old one is released).
     app.onLog += counter;
     app.emit(2, "counted");
-    printi(counter.n);
+    print(counter.n);
     print("\n");
     return 0;
 }

@@ -22,16 +22,16 @@ class Dog extends Animal {
 }
 int main() {
     Animal a = new Dog(5, 10);
-    printi(a.speak());
+    print(a.speak());
     print("\n");
-    printi(a.id);
+    print(a.id);
     print("\n");
     Dog d = (Dog) a;
-    printi(d.bark());
+    print(d.bark());
     print("\n");
-    printi(a instanceof Dog);
+    print(a instanceof Dog);
     print("\n");
-    printi(a instanceof Animal);
+    print(a instanceof Animal);
     print("\n");
     return 0;
 }

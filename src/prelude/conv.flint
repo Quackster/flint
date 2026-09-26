@@ -3,15 +3,12 @@
 //   atoi(s) -> int   parse a signed decimal integer (skips leading spaces,
 //                    accepts an optional leading '-')
 //
-// The reverse direction (itoa) is provided by `printi`, which formats an int in
-// decimal and writes it to stdout.
+// The reverse direction (itoa) is provided by `print`/`println`, which format
+// an int argument in decimal and write it to stdout.
 int main() {
-    printi(atoi("42"));
-    print("\n");
-    printi(atoi("-17") * 2);
-    print("\n");
+    println(atoi("42"));
+    println(atoi("-17") * 2);
     int x = atoi("  100");
-    printi(x + atoi("23"));
-    print("\n");
+    println(x + atoi("23"));
     return 0;
 }

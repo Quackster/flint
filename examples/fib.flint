@@ -6,7 +6,6 @@ int fib(int n) {
 }
 
 int main() {
-    printi(fib(10));
-    print("\n");
+    println(fib(10));
     return 0;
 }

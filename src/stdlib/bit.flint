@@ -2,7 +2,7 @@
 //
 // Usage:
 //   import std.Bit;
-//   printi(Bit.popcount(0xff));   // 8
+//   print(Bit.popcount(0xff));   // 8
 package std;
 class Bit {
     static int popcount(int x) {

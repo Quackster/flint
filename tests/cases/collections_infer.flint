@@ -10,21 +10,21 @@ int main() {
     // hashset with string elements (kind = 1)
     HashSet<string> s = new HashSet<string>();
     s.add("hello"); s.add("world"); s.add("hello");
-    printi(s.size()); print(" ");
-    printi(s.contains("world")); print(" ");
-    printi(s.contains("nope")); print(" ");
+    print(s.size()); print(" ");
+    print(s.contains("world")); print(" ");
+    print(s.contains("nope")); print(" ");
     s.remove("world");
-    printi(s.contains("world")); print("\n");
+    println(s.contains("world"));
 
     // int-keyed map
     HashMap<int, int> m = new HashMap<int, int>();
     m.put(1, 10);
     m.put(2, 20);
-    printi(m.size()); print(" ");
-    printi(m.get(1)); print(" ");
-    printi(m.get(2)); print(" ");
-    printi(m.contains(2)); print(" ");
-    printi(m.contains(1)); print("\n");
+    print(m.size()); print(" ");
+    print(m.get(1)); print(" ");
+    print(m.get(2)); print(" ");
+    print(m.contains(2)); print(" ");
+    println(m.contains(1));
 
     // string values (vkind = 1); get() returns a string
     HashMap<int, string> d = new HashMap<int, string>();
@@ -33,31 +33,31 @@ int main() {
     string w = d.get(2);
     print(w); print(" ");
     int missing = d.get(9);
-    printi(missing); print("\n");
+    println(missing);
 
     // {...} equivalent: build a set of ints
     HashSet<int> ls = new HashSet<int>();
     ls.add(3); ls.add(4); ls.add(5);
-    printi(ls.size()); print(" ");
-    printi(ls.contains(4)); print("\n");
+    print(ls.size()); print(" ");
+    println(ls.contains(4));
 
     // build a string-keyed map (int values)
     HashMap<string, int> lm = new HashMap<string, int>();
     lm.put("seven", 7); lm.put("eight", 8);
-    printi(lm.size()); print(" ");
-    printi(lm.get("eight")); print(" ");
-    printi(lm.get("seven")); print("\n");
+    print(lm.size()); print(" ");
+    print(lm.get("eight")); print(" ");
+    println(lm.get("seven"));
 
     // [...] equivalent: build a list of ints
     List<int> li = new List<int>();
     li.add(10); li.add(20); li.add(30);
-    printi(li.size()); print(" ");
-    printi(li.get(2)); print("\n");
+    print(li.size()); print(" ");
+    println(li.get(2));
 
     // keys() / values() return a fresh List
     List<int> ks = m.keys();
-    printi(ks.size()); print("\n");
+    println(ks.size());
     List<int> vs = m.values();
-    printi(vs.size()); print("\n");
+    println(vs.size());
     return 0;
 }

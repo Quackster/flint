@@ -8,8 +8,8 @@ int main() {
     print(Path.ext("/a/b/c.txt")); print(" ");    // txt (no dot)
     print(Path.join("/a/b", "c.txt")); print(" "); // /a/b/c.txt
     print(Path.parent("/a/b/c.txt")); print(" ");  // /a/b
-    printi(Path.isAbsolute("/a/b")); print(" ");  // 1
-    printi(Path.isAbsolute("a/b")); print(" ");   // 0
+    print(Path.isAbsolute("/a/b")); print(" ");  // 1
+    print(Path.isAbsolute("a/b")); print(" ");   // 0
     print(Path.normalize("/a/b/../c/./d")); print("\n"); // a/c/d (relative form)
     return 0;
 }

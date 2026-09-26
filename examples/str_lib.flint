@@ -6,11 +6,11 @@ int main() {
     print(Str.lower("FlInT")); print(" ");      // flint
     print(Str.reverse("abc")); print(" ");      // cba
     print(Str.trim("  hi  ")); print(" ");     // hi
-    printi(Str.count("banana", "an")); print(" "); // 2
-    printi(Str.contains("banana", "nana")); print(" "); // 1
-    printi(Str.lastIndexOf("banana", "an")); print(" "); // 3 ("an" at index 3)
-    printi(Str.startsWith("flint", "fli")); print(" "); // 1
-    printi(Str.endsWith("flint", "nt")); print(" "); // 1
+    print(Str.count("banana", "an")); print(" "); // 2
+    print(Str.contains("banana", "nana")); print(" "); // 1
+    print(Str.lastIndexOf("banana", "an")); print(" "); // 3 ("an" at index 3)
+    print(Str.startsWith("flint", "fli")); print(" "); // 1
+    print(Str.endsWith("flint", "nt")); print(" "); // 1
     print(Str.replaceAll("a-b-c", "-", "+")); print(" "); // a+b+c
     print(Str.repeat("ab", 3)); print(" ");    // ababab
     print(Str.rjust("7", 5, 48)); print(" ");  // 00007  (48 is '0')

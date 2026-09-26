@@ -9,89 +9,89 @@ int main() {
     // ---- List of ints ----
     List<int> li = new List<int>();
     li.add(10); li.add(20); li.add(30);
-    printi(li.size()); print(" ");
-    printi(li.get(1)); print(" ");
+    print(li.size()); print(" ");
+    print(li.get(1)); print(" ");
     li.add(40);
-    printi(li.size()); print(" ");
+    print(li.size()); print(" ");
     li.set(0, 99);
-    printi(li.get(0)); print(" ");
-    printi(li.contains(20)); print(" ");
-    printi(li.contains(77)); print(" ");
+    print(li.get(0)); print(" ");
+    print(li.contains(20)); print(" ");
+    print(li.contains(77)); print(" ");
     li.remove(1);
-    printi(li.get(1)); print("\n");
+    println(li.get(1));
     li.clear();
-    printi(li.size()); print("\n");
+    println(li.size());
 
     // ---- List of strings ----
     List<string> ls = new List<string>();
     ls.add("a"); ls.add("b"); ls.add("a");
-    printi(ls.size()); print(" ");
-    printi(ls.contains("a")); print(" ");
-    printi(ls.contains("z")); print(" ");
+    print(ls.size()); print(" ");
+    print(ls.contains("a")); print(" ");
+    print(ls.contains("z")); print(" ");
     print(ls.get(1)); print("\n");
 
     // ---- HashMap int -> int ----
     HashMap<int, int> m = new HashMap<int, int>();
     m.put(1, 100); m.put(2, 200); m.put(1, 150);
-    printi(m.size()); print(" ");
-    printi(m.get(1)); print(" ");
-    printi(m.get(2)); print(" ");
-    printi(m.get(3)); print(" ");
-    printi(m.contains(2)); print(" ");
-    printi(m.contains(9)); print(" ");
+    print(m.size()); print(" ");
+    print(m.get(1)); print(" ");
+    print(m.get(2)); print(" ");
+    print(m.get(3)); print(" ");
+    print(m.contains(2)); print(" ");
+    print(m.contains(9)); print(" ");
     m.remove(1);
-    printi(m.size()); print("\n");
+    println(m.size());
     m.clear();
-    printi(m.size()); print("\n");
+    println(m.size());
 
     // ---- HashMap string -> int ----
     HashMap<string, int> d = new HashMap<string, int>();
     d.put("apple", 1); d.put("banana", 2); d.put("cherry", 3);
-    printi(d.size()); print(" ");
-    printi(d.get("banana")); print(" ");
-    printi(d.get("apple")); print(" ");
-    printi(d.get("grape")); print(" ");
-    printi(d.contains("cherry")); print(" ");
+    print(d.size()); print(" ");
+    print(d.get("banana")); print(" ");
+    print(d.get("apple")); print(" ");
+    print(d.get("grape")); print(" ");
+    print(d.contains("cherry")); print(" ");
     d.remove("banana");
-    printi(d.contains("banana")); print(" ");
-    printi(d.size()); print("\n");
+    print(d.contains("banana")); print(" ");
+    println(d.size());
     d.clear();
-    printi(d.size()); print("\n");
+    println(d.size());
 
     // ---- HashSet of ints ----
     HashSet<int> s = new HashSet<int>();
     s.add(5); s.add(10); s.add(15); s.add(10);
-    printi(s.size()); print(" ");
-    printi(s.contains(10)); print(" ");
-    printi(s.contains(99)); print(" ");
+    print(s.size()); print(" ");
+    print(s.contains(10)); print(" ");
+    print(s.contains(99)); print(" ");
     s.remove(10);
-    printi(s.contains(10)); print(" ");
-    printi(s.size()); print("\n");
+    print(s.contains(10)); print(" ");
+    println(s.size());
     s.clear();
-    printi(s.size()); print("\n");
+    println(s.size());
 
     // ---- HashSet of strings ----
     HashSet<string> ss = new HashSet<string>();
     ss.add("one"); ss.add("two"); ss.add("one");
-    printi(ss.size()); print(" ");
-    printi(ss.contains("two")); print(" ");
-    printi(ss.contains("nine")); print(" ");
+    print(ss.size()); print(" ");
+    print(ss.contains("two")); print(" ");
+    print(ss.contains("nine")); print(" ");
     ss.remove("two");
-    printi(ss.contains("two")); print(" ");
-    printi(ss.size()); print("\n");
+    print(ss.contains("two")); print(" ");
+    println(ss.size());
     ss.clear();
-    printi(ss.size()); print("\n");
+    println(ss.size());
 
     // ---- Queue of ints ----
     Queue<int> q = new Queue<int>();
     q.push(1); q.push(2); q.push(3);
-    printi(q.size()); print(" ");
-    printi(q.peek()); print(" ");
-    printi(q.pop()); print(" ");
-    printi(q.pop()); print(" ");
-    printi(q.size()); print(" ");
+    print(q.size()); print(" ");
+    print(q.peek()); print(" ");
+    print(q.pop()); print(" ");
+    print(q.pop()); print(" ");
+    print(q.size()); print(" ");
     q.clear();
-    printi(q.size()); print("\n");
+    println(q.size());
 
     return 0;
 }

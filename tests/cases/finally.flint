@@ -4,25 +4,25 @@ int fin_ret() {
     } catch (int e) {
         return e;
     } finally {
-        printi(3); print("\n");
+        println(3);
     }
 }
 int main() {
     try {
-        printi(1); print("\n");
+        println(1);
     } catch (int e) {
-        printi(2); print("\n");
+        println(2);
     } finally {
-        printi(3); print("\n");
+        println(3);
     }
     try {
         throw 42;
     } catch (int e) {
-        printi(e); print("\n");
+        println(e);
     } finally {
-        printi(3); print("\n");
+        println(3);
     }
     int x = fin_ret();
-    printi(x); print("\n");
+    println(x);
     return 0;
 }

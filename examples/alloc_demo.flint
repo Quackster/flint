@@ -16,7 +16,7 @@ int main() {
     int j = 0;
     int sum = 0;
     while (j < n) {
-        printi(fib[j]);
+        print(fib[j]);
         if (j + 1 < n) {
             print(" ");
         }
@@ -24,7 +24,7 @@ int main() {
         j = j + 1;
     }
     print("\nsum=");
-    printi(sum);
+    print(sum);
     print("\n");
     Mem.freeInt(fib);
     return 0;

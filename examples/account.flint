@@ -19,13 +19,13 @@ int main() {
     Account a = new Account("alice", 100);
     print(a.getOwner());            // alice
     print("\n");
-    printi(a.getBalance());       // 100
+    print(a.getBalance());       // 100
     print("\n");
     a.deposit(50);
-    printi(a.getBalance());       // 150
+    print(a.getBalance());       // 150
     print("\n");
     a.setBalance(7);
-    printi(a.getBalance());       // 7
+    print(a.getBalance());       // 7
     print("\n");
     return 0;
 }

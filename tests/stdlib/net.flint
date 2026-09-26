@@ -6,28 +6,28 @@ import std.Socket;
 int main() {
     // bindPort: 0.0.0.0:port
     int s1 = Socket.stream();
-    printi(Socket.bindPort(s1, 7777));
+    print(Socket.bindPort(s1, 7777));
     print(" ");
     Socket.close(s1);
     // bindHost: a specific "a.b.c.d":port
     int s2 = Socket.stream();
-    printi(Socket.bindHost(s2, "127.0.0.1", 7778));
+    print(Socket.bindHost(s2, "127.0.0.1", 7778));
     print(" ");
     Socket.close(s2);
     // a second bind to the same port right after close
     int s3 = Socket.stream();
-    printi(Socket.bindHost(s3, "127.0.0.1", 7778));
+    print(Socket.bindHost(s3, "127.0.0.1", 7778));
     print(" ");
     Socket.close(s3);
     // invalid addresses never reach the kernel
     int s4 = Socket.stream();
-    printi(Socket.bindHost(s4, "nope", 7779));
+    print(Socket.bindHost(s4, "nope", 7779));
     print(" ");
-    printi(Socket.bindHost(s4, "1.2.3", 7779));
+    print(Socket.bindHost(s4, "1.2.3", 7779));
     print(" ");
-    printi(Socket.bindHost(s4, "999.1.1.1", 7779));
+    print(Socket.bindHost(s4, "999.1.1.1", 7779));
     print(" ");
-    printi(Socket.bindHost(s4, "1.2.3.4.5", 7779));
+    print(Socket.bindHost(s4, "1.2.3.4.5", 7779));
     print("\n");
     Socket.close(s4);
     return 0;

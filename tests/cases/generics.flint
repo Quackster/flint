@@ -14,17 +14,17 @@ class Pair<A, B> {
 int main() {
     // generic class, int instantiation
     Vessel<int> b = new Vessel<int>(41);
-    printi(b.v);
+    print(b.v);
     print("\n");
 
     // generic function with inference
     int x = identity(7);
-    printi(x);
+    print(x);
     print("\n");
 
     // generic function with explicit type args
     int y = identity<int>(9);
-    printi(y);
+    print(y);
     print("\n");
 
     // generic class, string instantiation
@@ -34,16 +34,16 @@ int main() {
 
     // two type parameters
     Pair<int, string> p = new Pair<int, string>(5, "ok");
-    printi(p.a);
+    print(p.a);
     print(" ");
     print(p.b);
     print("\n");
 
     // nested instantiation
     Vessel<Pair<int, int>> np = new Vessel<Pair<int, int>>(new Pair<int, int>(3, 4));
-    printi(np.v.a);
+    print(np.v.a);
     print(",");
-    printi(np.v.b);
+    print(np.v.b);
     print("\n");
 
     return 0;

@@ -3,13 +3,13 @@ int main() {
     print("\n");
     print("a" + (string)65 + (string)66);
     print("\n");
-    printi(strlen((string)0) == 0 ? 1 : 0);
+    print(strlen((string)0) == 0 ? 1 : 0);
     print("\n");
     string w = (string)65;
     w[0] = 66;
     print(w);
     print("\n");
-    printi(strlen((string)255) == 1 ? 1 : 0);
+    print(strlen((string)255) == 1 ? 1 : 0);
     print("\n");
     return 0;
 }

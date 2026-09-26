@@ -11,17 +11,17 @@ enum Status {
 
 int main() {
     // sequential values start at 0
-    printi(Color.Red == 0 ? 1 : 0); print("\n");
-    printi(Color.Green == 1 ? 1 : 0); print("\n");
-    printi(Color.Blue == 2 ? 1 : 0); print("\n");
+    println(Color.Red == 0 ? 1 : 0);
+    println(Color.Green == 1 ? 1 : 0);
+    println(Color.Blue == 2 ? 1 : 0);
     // explicit value, then sequential from there
-    printi(Status.Active == 10 ? 1 : 0); print("\n");
-    printi(Status.Inactive == 11 ? 1 : 0); print("\n");
+    println(Status.Active == 10 ? 1 : 0);
+    println(Status.Inactive == 11 ? 1 : 0);
     // usable in expressions
     int x = Color.Blue + 1;
-    printi(x == 3 ? 1 : 0); print("\n");
+    println(x == 3 ? 1 : 0);
     // typed declaration
     Color c = Color.Green;
-    printi(c == 1 ? 1 : 0); print("\n");
+    println(c == 1 ? 1 : 0);
     return 0;
 }

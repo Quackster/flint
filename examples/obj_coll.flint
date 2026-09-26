@@ -20,38 +20,38 @@ int main() {
     Box b2 = new Box(2);
     b.add(a);
     b.add(b2);
-    printi(b.size());             // 2
+    print(b.size());             // 2
     print("\n");
     // reading back: the collection's reference keeps the object alive
     Box r1 = b.get(0);
-    printi(r1.n);              // 1
+    print(r1.n);              // 1
     print("\n");
     Box r2 = b.get(1);
-    printi(r2.n);              // 2
+    print(r2.n);              // 2
     print("\n");
     // the original references still work alongside the collection's
-    printi(a.n);              // 1
+    print(a.n);              // 1
     print("\n");
-    printi(b2.n);             // 2
+    print(b2.n);             // 2
     print("\n");
     // a map of objects, keyed by int
     HashMap<int, Box> m = new HashMap<int, Box>();
     m.put(10, new Box(3));
     m.put(20, new Box(4));
-    printi(m.size());             // 2
+    print(m.size());             // 2
     print("\n");
     Box v = m.get(20);
-    printi(v.n);              // 4
+    print(v.n);              // 4
     print("\n");
     // a queue of objects
     Queue<Box> q = new Queue<Box>();
     q.push(new Box(5));
     q.push(new Box(6));
     Box f = q.pop();
-    printi(f.n);              // 5 (FIFO)
+    print(f.n);              // 5 (FIFO)
     print("\n");
     Box s = q.pop();
-    printi(s.n);              // 6
+    print(s.n);              // 6
     print("\n");
     return 0;
 }

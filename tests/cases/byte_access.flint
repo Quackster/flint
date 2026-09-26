@@ -3,17 +3,17 @@ int main() {
     *byte buf = alloc(16);
     sys.byteStore(buf, 0xAB);
     int b = sys.byteLoad(buf);
-    printi(b == 0xAB ? 1 : 0); print("\n");
+    println(b == 0xAB ? 1 : 0);
 
     // shortLoad / shortStore
     sys.shortStore(buf, 0x1234);
     int s = sys.shortLoad(buf);
-    printi(s == 0x1234 ? 1 : 0); print("\n");
+    println(s == 0x1234 ? 1 : 0);
 
     // intLoad / intStore
     sys.intStore(buf, 0xDEADBEEF);
     int i = sys.intLoad(buf);
-    printi(i == 0xDEADBEEF ? 1 : 0); print("\n");
+    println(i == 0xDEADBEEF ? 1 : 0);
 
     // byte-level wire encoding: pack 3 bytes into a slot, read them back
     sys.byteStore(buf, 0x01);
@@ -22,7 +22,7 @@ int main() {
     int b0 = sys.byteLoad(buf);
     int b1 = sys.byteLoad(buf + 1);
     int b2 = sys.byteLoad(buf + 2);
-    printi(b0 == 1 && b1 == 2 && b2 == 3 ? 1 : 0); print("\n");
+    println(b0 == 1 && b1 == 2 && b2 == 3 ? 1 : 0);
 
     free(buf);
     return 0;

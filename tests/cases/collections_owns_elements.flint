@@ -17,18 +17,18 @@ int main() {
         List<Box> l = new List<Box>();
         l.add(a);                 // retains a
     }
-    printi(a.id());
+    print(a.id());
     print("\n");                   // 1: a survived l's destruction
-    printi(Box.destroyed);
+    print(Box.destroyed);
     print("\n");                   // 0: a is still referenced, not destroyed
     if (1) {
         HashMap<int, Box> m = new HashMap<int, Box>();
         m.put(1, a);
         List<Box> v = m.values(); // values() retains a
     }
-    printi(a.id());
+    print(a.id());
     print("\n");                   // 1: a survived m's and v's destruction
-    printi(Box.destroyed);
+    print(Box.destroyed);
     print("\n");                   // 0: still referenced by main
     return 0;
 }

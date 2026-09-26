@@ -20,13 +20,13 @@ class Circle extends Shape {
 }
 int main() {
     Shape c = new Circle(7, 3);
-    printi(c.area());
+    print(c.area());
     print("\n");
-    printi(c.getid());
+    print(c.getid());
     print("\n");
-    printi(c instanceof Circle);
+    print(c instanceof Circle);
     print("\n");
-    printi(c instanceof Shape);
+    print(c instanceof Shape);
     print("\n");
     return 0;
 }

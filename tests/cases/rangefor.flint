@@ -6,7 +6,7 @@ int main() {
     for (int x : a) {
         s += x;
     }
-    printi(s);
+    print(s);
     print("\n");
 
     int g[][] = [[1, 2, 3], [4, 5, 6]];
@@ -16,7 +16,7 @@ int main() {
             t += y;
         }
     }
-    printi(t);
+    print(t);
     print("\n");
 
     // an inner decl shadows the loop variable
@@ -25,7 +25,7 @@ int main() {
         int x = 100;
         u += x;
     }
-    printi(u);
+    print(u);
     print("\n");
     return 0;
 }

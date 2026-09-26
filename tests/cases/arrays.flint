@@ -26,42 +26,42 @@ int grid(int g[][]) {
 
 int main() {
     int a[] = [10, 20, 30, 40];
-    printi(sum(a));
+    print(sum(a));
     print("\n");
 
     a[1] = 99;
-    printi(a[1]);
+    print(a[1]);
     print("\n");
 
     a[2]++;
-    printi(a[2]);
+    print(a[2]);
     print("\n");
 
     *int p = &a[0];
     *p = 5;
-    printi(a[0]);
+    print(a[0]);
     print("\n");
 
     int g[][] = [[1, 2, 3], [4, 5, 6]];
-    printi(g[1][2]);
+    print(g[1][2]);
     print("\n");
-    printi(grid(g));
+    print(grid(g));
     print("\n");
 
     int t[][][] = [[[1, 2], [3, 4]]];
-    printi(t[0][1][0]);
+    print(t[0][1][0]);
     print("\n");
 
     int b[] = make();
-    printi(b[1]);
+    print(b[1]);
     print("\n");
 
     Mat m = new Mat(2);
     m.data = [10, 20, 30];
-    printi(m.data[1]);
+    print(m.data[1]);
     print("\n");
     m.data[0] = 1;
-    printi(m.data[0] + m.rows);
+    print(m.data[0] + m.rows);
     print("\n");
     return 0;
 }

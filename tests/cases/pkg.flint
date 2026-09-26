@@ -10,7 +10,7 @@ class Greeter {
 
 int main() {
     com.example.Greeter g = new com.example.Greeter();
-    printi(g.hello());
+    print(g.hello());
     print("\n");
     return 0;
 }

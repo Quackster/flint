@@ -24,7 +24,7 @@ int main() {
     c.set("host", "localhost");
     c.set("port", "8080");
     c.set("debug", "1");
-    printi(c.table.size());      // 3
+    print(c.table.size());      // 3
     print("\n");
     print(c.get("host", "?"));   // localhost
     print("\n");
@@ -35,12 +35,12 @@ int main() {
     c.set("debug", "0");        // update over an existing key
     print(c.get("debug", "?"));  // 0
     print("\n");
-    printi(c.table.contains("port"));   // 1
+    print(c.table.contains("port"));   // 1
     print("\n");
     c.table.remove("host");
-    printi(c.table.contains("host"));   // 0
+    print(c.table.contains("host"));   // 0
     print("\n");
-    printi(c.table.size());      // 2
+    print(c.table.size());      // 2
     print("\n");
     return 0;
 }

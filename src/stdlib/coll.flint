@@ -44,10 +44,10 @@
 //   import std.HashMap;
 //   List<int> xs = new List<int>();
 //   xs.add(41);
-//   printi(xs.get(0));
+//   print(xs.get(0));
 //   HashMap<string, int> m = new HashMap<string, int>();
 //   m.put("a", 1);
-//   printi(m.get("a"));
+//   print(m.get("a"));
 package std;
 abstract class Collection {
     *int slots;

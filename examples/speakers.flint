@@ -32,17 +32,17 @@ int loudest(Speaker s) {
 int main() {
     Speaker r = new Robot(3);
     Speaker h = new Human(5);
-    printi(r.speak());            // 30
+    print(r.speak());            // 30
     print("\n");
-    printi(h.speak());            // 105
+    print(h.speak());            // 105
     print("\n");
-    printi(loudest(r));         // 30
+    print(loudest(r));         // 30
     print("\n");
-    printi(r instanceof Robot);  // 1
+    print(r instanceof Robot);  // 1
     print("\n");
-    printi(r instanceof Speaker);  // 1 (interface test)
+    print(r instanceof Speaker);  // 1 (interface test)
     print("\n");
-    printi(h instanceof Robot);  // 0
+    print(h instanceof Robot);  // 0
     print("\n");
     return 0;
 }
