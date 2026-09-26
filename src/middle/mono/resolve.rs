@@ -44,6 +44,13 @@ impl<'a> Mono<'a> {
                     Ok(Ty::Struct(self.struct_new[idx]))
                 }
             }
+            Ty::Ptr(inner) => {
+                let ni = match inner {
+                    Some(t) => Some(Box::new(self.resolve_type(t, subst)?)),
+                    None => None,
+                };
+                Ok(Ty::Ptr(ni))
+            }
             other => Ok(other.clone()),
         }
     }

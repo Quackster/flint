@@ -1,0 +1,6 @@
+class Box {}
+int main() {
+    int x = 0;
+    *Box p = &x;
+    return 0;
+}

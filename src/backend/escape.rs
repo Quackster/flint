@@ -280,7 +280,7 @@ impl<'p> Analyzer<'p> {
                 Some(Ty::Int)
             }
             Expr::StructLit { name, .. } => self.struct_idx.get(name).map(|&i| Ty::Struct(i)),
-            Expr::Null { .. } => Some(Ty::Ptr),
+            Expr::Null { .. } => Some(Ty::Ptr(None)),
             _ => None,
         }
     }

@@ -98,7 +98,8 @@ pub struct EnumDef {
 pub enum Ty {
     Int, // all int keywords collapse to a 64-bit integer in v1
     Bool,
-    Ptr, // *T
+    Ptr(Option<Box<Ty>>), // *T: Some(pointee) when written in source, None =
+                         // untyped (null, alloc, @fn; conforms to any *T)
     Str, // NUL-terminated string (a pointer)
     Array, // `T a[]` / `T a[][]`: pointer to 8-byte array slots (v1: rank untracked)
     Void,

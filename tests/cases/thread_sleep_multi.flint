@@ -4,10 +4,9 @@
 import std.Task;
 import std.Thread;
 import std.Time;
-import std.Mem;
 
 // Worker: sleep for `ms`, then record its actual elapsed time in elapsed[idx].
-async void sleeper(int elapsed, int idx, int ms) {
+async void sleeper(int elapsed[], int idx, int ms) {
     int t0 = Time.millis();
     Thread.sleep(ms);
     elapsed[idx] = Time.millis() - t0;
@@ -18,7 +17,7 @@ int main() {
     int ms1 = 200;
     int ms2 = 300;
     int ms3 = 400;
-    *int elapsed = Mem.intArray(4);
+    int elapsed[] = [0, 0, 0, 0];
     int t0 = Time.millis();
     Task a = sleeper(elapsed, 0, ms0);
     Task b = sleeper(elapsed, 1, ms1);
@@ -41,6 +40,5 @@ int main() {
     // Simultaneous: the batch took ~the longest (400), not the sum (1000).
     printi(total < 900 ? 1 : 0);
     print("\n");
-    Mem.freeInt(elapsed);
     return 0;
 }

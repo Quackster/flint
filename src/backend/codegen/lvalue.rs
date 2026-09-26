@@ -87,6 +87,49 @@ impl Ctx<'_> {
         }
     }
 
+    /// The value type stored at an lvalue, used to type `&x` (e.g. `&s`
+    /// for `string s` is a `*string`). Falls back to `int` where the type
+    /// is not known (v1: trust the programmer; `emit_lvalue_addr` still
+    /// diagnoses genuinely invalid lvalues).
+    pub(crate) fn lvalue_value_type(&self, e: &Expr, frame: &Frame) -> CompileResult<Ty> {
+        match e {
+            Expr::Ident { name, .. } => {
+                if let Some(l) = frame.find(name) {
+                    return Ok(l.ty.clone());
+                }
+                Ok(Ty::Int)
+            }
+            Expr::Field { base, name, .. } => match self.base_struct_idx(base, frame) {
+                Ok(sidx) => self.struct_field_type(sidx, name),
+                Err(_) => Ok(Ty::Int),
+            },
+            // `*p = ...`: the stored value is the pointee of p (v1: rank is
+            // untracked, so `a[i] = ...` targets stay untyped `int`)
+            Expr::Deref { e: inner, .. } => match self.static_expr_type(inner, frame) {
+                Ok(Ty::Ptr(Some(p))) => Ok(*p),
+                _ => Ok(Ty::Int),
+            },
+            _ => Ok(Ty::Int),
+        }
+    }
+
+    /// Best-effort static type of an expression without codegen.
+    fn static_expr_type(&self, e: &Expr, frame: &Frame) -> CompileResult<Ty> {
+        match e {
+            Expr::Ident { name, .. } => {
+                if let Some(l) = frame.find(name) {
+                    return Ok(l.ty.clone());
+                }
+                Ok(Ty::Int)
+            }
+            Expr::Field { base, name, .. } => match self.base_struct_idx(base, frame) {
+                Ok(sidx) => self.struct_field_type(sidx, name),
+                Err(_) => Ok(Ty::Int),
+            },
+            _ => Ok(Ty::Int),
+        }
+    }
+
     /// Resolve a class name (as written in source) to its struct index. The
     /// monomorphizer prefixes the package to mangled class names
     /// (`std_Math`), so also try the `<pkg>_<name>` form.

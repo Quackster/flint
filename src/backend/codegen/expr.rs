@@ -38,7 +38,7 @@ impl Ctx<'_> {
             Expr::Null { .. } => {
                 self.emit("\txor %rax, %rax");
                 self.emit("\tpush %rax");
-                Ok(Ty::Ptr)
+                Ok(Ty::Ptr(None))
             }
             Expr::Cond {
                 cond,
@@ -148,8 +148,8 @@ impl Ctx<'_> {
                 // `Str + Int`, and `Ptr + Int` stay pointer arithmetic.
                 let str_concat = *op == BinOp::Add
                     && ((lt == Ty::Str && rt == Ty::Str)
-                        || (lt == Ty::Str && rt == Ty::Ptr)
-                        || (lt == Ty::Ptr && rt == Ty::Str));
+                        || (lt == Ty::Str && matches!(rt, Ty::Ptr(_)))
+                        || (matches!(lt, Ty::Ptr(_)) && rt == Ty::Str));
                 // `==` / `!=` on two strings compare contents, not pointers;
                 // a `string` variable vs `null` (Ty::Ptr) stays a pointer test.
                 let str_cmp = matches!(*op, BinOp::Eq | BinOp::Ne)
@@ -208,13 +208,13 @@ impl Ctx<'_> {
                     UnOp::FnAddr => {
                         // Should not reach here; FnAddr is handled in the Expr::FnAddr case
                         self.emit("\tmov %rsp, %rax");
-                        Ok(Ty::Ptr)
+                        Ok(Ty::Ptr(None))
                     }
                     UnOp::Addr => {
                         // value is at (%rsp); replace it with its own address
                         self.emit("\tmov %rsp, %rax");
                         self.emit("\tmov %rax, (%rsp)");
-                        Ok(Ty::Ptr)
+                        Ok(Ty::Ptr(None))
                     }
                 }
             }
@@ -250,9 +250,11 @@ impl Ctx<'_> {
                         "cannot take the address of 'this'; it is managed",
                     ));
                 }
-                // address of the inner lvalue (not a temp copy)
+                // address of the inner lvalue (not a temp copy); the result
+                // is typed by the pointee (e.g. &s for `string s` is *string)
+                let val_ty = self.lvalue_value_type(inner, frame)?;
                 self.emit_lvalue_addr(inner, frame)?;
-                Ok(Ty::Ptr)
+                Ok(Ty::Ptr(Some(Box::new(val_ty))))
             }
             Expr::FnAddr { e: inner, span } => {
                 // Take the address of a function. The inner expression must be an identifier
@@ -262,7 +264,7 @@ impl Ctx<'_> {
                     let mangled = self.lookup_func_name(name);
                     self.emit(&format!("\tlea {}(%rip), %rax", mangled));
                     self.emit("\tpush %rax");
-                    Ok(Ty::Ptr)
+                    Ok(Ty::Ptr(None))
                 } else {
                     Err(CompileError::new(
                         *span,
@@ -282,7 +284,11 @@ impl Ctx<'_> {
                 }
                 self.emit("\tmovq (%rdi), %rax");
                 self.emit("\tpush %rax");
-                if matches!(t, Ty::Ptr) {
+                // a typed pointer dereferences to its pointee; an untyped
+                // one (alloc, null) dereferences to int
+                if let Ty::Ptr(Some(p)) = &t {
+                    Ok((**p).clone())
+                } else if matches!(t, Ty::Ptr(None)) {
                     Ok(Ty::Int)
                 } else {
                     Ok(t)
@@ -294,7 +300,7 @@ impl Ctx<'_> {
             Expr::Index { base, idx, .. } => {
                 let bty = self.gen_expr_ro(base, frame)?;
                 self.gen_expr_ro(idx, frame)?;
-                if !matches!(bty, Ty::Ptr | Ty::Str | Ty::Array) {
+                if !matches!(bty, Ty::Ptr(_) | Ty::Str | Ty::Array) {
                     return Err(CompileError::new(
                         e_span(e),
                         format!("cannot index a {} value", ty_name(&bty)),
@@ -377,7 +383,7 @@ impl Ctx<'_> {
                 self.emit("\tpop %rax"); // block = the value
                 self.emit("\tpush %rax");
                 let _ = span;
-                Ok(Ty::Ptr)
+                Ok(Ty::Ptr(None))
             }
             Expr::Lambda { span, .. } => Err(CompileError::new(
                 *span,

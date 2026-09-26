@@ -44,7 +44,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "sys.brk" | "brk" => Some(Builtin {
             target: "flint_brk",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "sys.socket" | "socket" => Some(Builtin {
@@ -80,13 +80,13 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "sys.sockaddr" | "sockaddr" => Some(Builtin {
             target: "flint_sockaddr",
             arity: 5,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "sys.alloc" | "alloc" | "mem.alloc" => Some(Builtin {
             target: "flint_alloc",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "sys.free" | "free" | "mem.free" => Some(Builtin {
@@ -154,25 +154,25 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "str.copy" | "strcpy" => Some(Builtin {
             target: "flint_strcopy",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "str.concat" | "concat" => Some(Builtin {
             target: "flint_strconcat",
             arity: 2,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "str.concati" | "concati" => Some(Builtin {
             target: "flint_strconcati",
             arity: 2,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "str.itoa" | "itoa" => Some(Builtin {
             target: "flint_itoa",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "time.millis" | "time.now" | "time" => Some(Builtin {
@@ -196,13 +196,13 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "env.get" | "getenv" => Some(Builtin {
             target: "flint_env_get",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "str.substring" => Some(Builtin {
             target: "flint_str_substring",
             arity: 3,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "str.indexOf" => Some(Builtin {
@@ -214,19 +214,19 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "str.replace" => Some(Builtin {
             target: "flint_str_replace",
             arity: 3,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "b64.encode" => Some(Builtin {
             target: "flint_b64_encode",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "b64.decode" => Some(Builtin {
             target: "flint_b64_decode",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "log.info" => Some(Builtin {
@@ -309,7 +309,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "sys.mmap" => Some(Builtin {
             target: "flint_mmap",
             arity: 6,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "sys.munmap" => Some(Builtin {
@@ -438,7 +438,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "json.get" => Some(Builtin {
             target: "flint_json_get",
             arity: 2,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         "json.geti" => Some(Builtin {
@@ -452,7 +452,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "str.format" => Some(Builtin {
             target: "flint_str_format",
             arity: 5,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         // Retain a class value regardless of its static type (lambda
@@ -460,7 +460,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
         "mem.retainVal" => Some(Builtin {
             target: "flint_retain_val",
             arity: 1,
-            ret: Ty::Ptr,
+            ret: Ty::Ptr(None),
             noreturn: false,
         }),
         // Call a closure: sys.fnCall2(block, a) invokes the lifted function

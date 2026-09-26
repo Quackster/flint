@@ -4,6 +4,7 @@ use crate::span::Span;
 
 use crate::backend::escape::LocalKind;
 use super::{Ctx, Frame, Local, struct_idx_of};
+use super::call::check_ptr_conforms;
 
 impl Ctx<'_> {
     pub(crate) fn gen_block(&mut self, block: &Block, frame: &mut Frame) -> CompileResult<()> {
@@ -128,7 +129,7 @@ impl Ctx<'_> {
 
     pub(crate) fn gen_stmt(&mut self, stmt: &Stmt, frame: &mut Frame) -> CompileResult<()> {
         match stmt {
-            Stmt::Decl { name, value, .. } => {
+            Stmt::Decl { span, name, value, .. } => {
                 // slot was pre-allocated by prewalk_decls
                 let (loff, lkind, lregion, lsidx, lty) = {
                     let l = frame
@@ -145,8 +146,9 @@ impl Ctx<'_> {
                 if matches!(lty, Ty::Str) {
                     self.str_copy = true;
                 }
-                self.gen_expr(value, frame)?;
+                let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
+                check_ptr_conforms(&vty, &Some(lty.clone()), *span, "cannot assign")?;
                 self.maybe_retain(value, frame);
                 let is_iface = matches!(lty, Ty::Interface(_));
                 if lkind == LocalKind::Heap || is_iface {
@@ -197,7 +199,7 @@ impl Ctx<'_> {
                 }
                 Ok(())
             }
-            Stmt::Assign { target, value, .. } => {
+            Stmt::Assign { span, target, value, .. } => {
                 // a `string` target stores a fresh writable copy of a literal
                 let saved = self.str_copy;
                 if self.assign_target_is_str(target, frame)? {
@@ -205,6 +207,10 @@ impl Ctx<'_> {
                 }
                 let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
+                // a typed-pointer target (e.g. `*Box p`) checks its value
+                if let Ok(tty) = self.lvalue_value_type(target, frame) {
+                    check_ptr_conforms(&vty, &Some(tty), *span, "cannot assign")?;
+                }
                 self.maybe_retain(value, frame);
                 // class target: release the old reference before storing
                 let target_class = self.assign_target_class(target, frame)?;
@@ -544,6 +550,18 @@ impl Ctx<'_> {
             }
             Stmt::Return { value, .. } => match value {
                 Some(v) => {
+                    // `return &x` for a local/parameter x: the frame dies with
+                    // the function, so the address would dangle
+                    if let Expr::AddrOf { span: aspan, e: inner } = v.as_ref() {
+                        if let Expr::Ident { name, .. } = inner.as_ref() {
+                            if frame.find(name).is_some() {
+                                return Err(CompileError::new(
+                                    *aspan,
+                                    "cannot return the address of a local; it dies when the function returns",
+                                ));
+                            }
+                        }
+                    }
                     // a `string` return stores a fresh writable copy of a literal
                     let saved = self.str_copy;
                     if frame.ret_type == Some(Ty::Str) {

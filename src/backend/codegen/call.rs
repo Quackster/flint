@@ -6,6 +6,45 @@ use crate::backend::layout;
 use super::builtin::builtin_for;
 use super::{ARGREGS, Ctx, Frame, getter_name, mangle, setter_name, struct_idx_of, ty_name};
 
+/// Whether `arg` may be used where a `*pointee` is expected. Only
+/// pointer-typed params/decls are checked; `int` arguments always conform
+/// (a 64-bit int is the universal pointer holder in v1).
+pub(crate) fn pointer_conforms(arg: &Ty, pointee: &Ty) -> bool {
+    match arg {
+        Ty::Ptr(None) => true, // untyped (alloc, null): conforms to any *T
+        Ty::Ptr(Some(t)) => t.as_ref() == pointee,
+        // a string is a byte buffer: ok for *string and *byte/*char/...
+        Ty::Str => matches!(*pointee, Ty::Str | Ty::Int),
+        Ty::Array => *pointee == Ty::Int, // int-slot block
+        Ty::Int => true,
+        _ => false,
+    }
+}
+
+/// Check a typed-pointer param/decl against the argument/value type.
+/// `None` pointee (untyped) is never checked.
+pub(crate) fn check_ptr_conforms(
+    aty: &Ty,
+    pty: &Option<Ty>,
+    span: Span,
+    what: &str,
+) -> CompileResult<()> {
+    if let Some(Ty::Ptr(Some(pt))) = pty {
+        if !pointer_conforms(aty, pt.as_ref()) {
+            return Err(CompileError::new(
+                span,
+                format!(
+                    "{} {} where {} is expected",
+                    what,
+                    ty_name(aty),
+                    format!("*{}", ty_name(pt))
+                ),
+            ));
+        }
+    }
+    Ok(())
+}
+
 impl Ctx<'_> {
     pub(crate) fn gen_call(
         &mut self,
@@ -92,7 +131,8 @@ impl Ctx<'_> {
         let saved = self.str_copy;
         for (i, a) in args.iter().enumerate() {
             self.str_copy = f.params[i].1.as_ref() == Some(&Ty::Str);
-            self.gen_expr(a, frame)?;
+            let aty = self.gen_expr(a, frame)?;
+            check_ptr_conforms(&aty, &f.params[i].1, span, "cannot pass")?;
             self.maybe_retain(a, frame);
         }
         self.str_copy = saved;
@@ -171,7 +211,8 @@ impl Ctx<'_> {
                 let saved = self.str_copy;
                 for (i, a) in args.iter().enumerate() {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-                    self.gen_expr(a, frame)?;
+                    let aty = self.gen_expr(a, frame)?;
+                    check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
                     self.maybe_retain(a, frame);
                 }
                 self.str_copy = saved;
@@ -221,7 +262,8 @@ impl Ctx<'_> {
                 let saved = self.str_copy;
                 for (i, a) in args.iter().enumerate() {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-                    self.gen_expr(a, frame)?;
+                    let aty = self.gen_expr(a, frame)?;
+                    check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
                     self.maybe_retain(a, frame);
                 }
                 self.str_copy = saved;
@@ -308,7 +350,8 @@ impl Ctx<'_> {
                     // setter: this + value (callee owns both references)
                     self.gen_expr(base, frame)?;
                     self.maybe_retain(base, frame);
-                    self.gen_expr(&args[0], frame)?;
+                    let aty = self.gen_expr(&args[0], frame)?;
+                    check_ptr_conforms(&aty, &Some(f.ty.clone()), span, "cannot pass")?;
                     self.maybe_retain(&args[0], frame);
                     self.pop_args(2);
                     let mangled = mangle(&class_def.name, &sname);
@@ -365,7 +408,8 @@ impl Ctx<'_> {
         let saved = self.str_copy;
         for (i, a) in args.iter().enumerate() {
             self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-            self.gen_expr(a, frame)?;
+            let aty = self.gen_expr(a, frame)?;
+            check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
             self.maybe_retain(a, frame);
         }
         self.str_copy = saved;

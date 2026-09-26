@@ -86,7 +86,7 @@ impl<'a> Mono<'a> {
         match ty {
             Ty::Int => "int".to_string(),
             Ty::Bool => "bool".to_string(),
-            Ty::Ptr => "ptr".to_string(),
+            Ty::Ptr(_) => "ptr".to_string(),
             Ty::Str => "string".to_string(),
             Ty::Array => "array".to_string(),
             Ty::Void => "void".to_string(),

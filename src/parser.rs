@@ -672,11 +672,11 @@ impl<'a> Parser<'a> {
 
     fn parse_type(&mut self) -> CompileResult<Ty> {
         let span = self.cur().span;
-        // pointer type: '*' type
+        // pointer type: '*' type — the pointee is tracked (*int vs *string)
         if self.at(&Tok::Star) {
             self.bump();
-            let _inner = self.parse_type()?;
-            return Ok(Ty::Ptr);
+            let inner = self.parse_type()?;
+            return Ok(Ty::Ptr(Some(Box::new(inner))));
         }
         // Qualified type name: `a.b.C` (an Ident followed by a Dot).
         if matches!(self.cur().kind, Tok::Ident(_))

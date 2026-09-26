@@ -78,7 +78,7 @@ impl<'a> Lookup<'a> {
         match e {
             Expr::Int { .. } | Expr::Bool { .. } | Expr::EnumVariant { .. } => Some(Ty::Int),
             Expr::Str { .. } => Some(Ty::Str),
-            Expr::Null { .. } => Some(Ty::Ptr),
+            Expr::Null { .. } => Some(Ty::Ptr(None)),
             Expr::ArrayLit { .. } => Some(Ty::Array),
             Expr::Ident { name, .. } => known.get(name).cloned(),
             Expr::StructLit { name, type_args, .. } => {
@@ -893,7 +893,7 @@ fn desugar_stmt(
                 let name = format!("{}__lambda{}", base, n);
                 let fn_name = mangle_symbol(pkg, &name);
                 let params: Vec<(String, Option<Ty>, Span)> = {
-                    let mut p = vec![("ctx".to_string(), Some(Ty::Ptr), *span)];
+                    let mut p = vec![("ctx".to_string(), Some(Ty::Ptr(None)), *span)];
                     p.extend(lparams.iter().cloned());
                     p
                 };

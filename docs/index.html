@@ -1727,9 +1727,22 @@ little-endian access and a generic syscall.</p></div>
 <h2>Key points</h2>
 <ul>
 <li><b>Pointer type</b> is a leading <code>*</code>: <code>*int p</code>,
-<code>*byte buf</code>. <code>&amp;x</code> is address-of;
-<code>*p</code> dereferences; <code>buf[i]</code> reads/writes the
-8-byte slot at <code>i</code>.</li>
+<code>*byte buf</code>. <code>&amp;x</code> is address-of (it is typed by
+the pointee: <code>&amp;s</code> for a <code>string s</code> is a
+<code>*string</code>); <code>*p</code> dereferences (a typed pointer
+yields its pointee); <code>buf[i]</code> reads/writes the 8-byte slot
+at <code>i</code>.</li>
+<li><b>Pointee checking:</b> a <code>*T</code> parameter, declaration or
+assignment target is checked against the value's pointee — passing or
+storing a <code>*string</code> where a <code>*int</code> is expected is
+a compile error. <code>alloc</code>, <code>null</code> and
+<code>@fn</code> are untyped and conform to any <code>*T</code>; an
+<code>int</code> argument always conforms (a 64-bit int is a pointer
+holder); a <code>string</code> conforms to <code>*string</code> and
+<code>*byte</code>.</li>
+<li><b>No dangling returns:</b> <code>return &amp;x</code> for a local or
+parameter <code>x</code> is a compile error — the address would outlive
+the frame. (Other lifetime cases are the programmer's in v1.)</li>
 <li><b>Heap:</b> <code>alloc(n)</code> / <code>free(p)</code> /
 <code>memcpy(dst, src, n)</code>.</li>
 <li><b>Sub-word little-endian access:</b>

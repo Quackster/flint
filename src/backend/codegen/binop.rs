@@ -32,12 +32,15 @@ impl Ctx<'_> {
             BinOp::Eq | BinOp::Ne | BinOp::Lt | BinOp::Gt | BinOp::Le | BinOp::Ge
         );
         let (lt, rt) = (as_cmp_ty(lt), as_cmp_ty(rt));
-        let is_ptr = lt == Ty::Ptr || rt == Ty::Ptr || lt == Ty::Str || rt == Ty::Str;
+        let is_ptr = matches!(lt, Ty::Ptr(_))
+            || matches!(rt, Ty::Ptr(_))
+            || lt == Ty::Str
+            || rt == Ty::Str;
         // all reference-ish types compare as pointers (e.g. `p == null`)
         let ptrish = |t: &Ty| {
             matches!(
                 t,
-                Ty::Ptr | Ty::Str | Ty::Array | Ty::Struct(_) | Ty::Interface(_)
+                Ty::Ptr(_) | Ty::Str | Ty::Array | Ty::Struct(_) | Ty::Interface(_)
             )
         };
         if cmp {

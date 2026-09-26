@@ -51,7 +51,7 @@ impl<'a> Mono<'a> {
             Expr::Int { .. } => Ok(Ty::Int),
             Expr::Bool { .. } => Ok(Ty::Bool),
             Expr::Str { .. } => Ok(Ty::Str),
-            Expr::Null { .. } => Ok(Ty::Ptr),
+            Expr::Null { .. } => Ok(Ty::Ptr(None)),
             Expr::Ident { name, .. } => self
                 .cur_locals
                 .get(name)

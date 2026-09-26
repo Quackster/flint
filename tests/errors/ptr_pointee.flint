@@ -1,0 +1,8 @@
+void takesInt(*int p) {
+    *p = 1;
+}
+int main() {
+    string s = "hi";
+    takesInt(&s);
+    return 0;
+}

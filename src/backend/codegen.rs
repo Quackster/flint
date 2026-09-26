@@ -67,19 +67,20 @@ pub(crate) fn setter_name(field: &str) -> String {
     format!("set{}", field_to_pascal(field))
 }
 
-fn ty_name(ty: &Ty) -> &'static str {
+fn ty_name(ty: &Ty) -> String {
     match ty {
-        Ty::Int => "int",
-        Ty::Bool => "bool",
-        Ty::Ptr => "*ptr",
-        Ty::Str => "*str",
-        Ty::Array => "array",
-        Ty::Void => "void",
-        Ty::Struct(_) => "class",
-        Ty::Interface(_) => "interface",
-        Ty::Enum(_) => "int",
-        Ty::Param(_) => "param",
-        Ty::Inst(_, _) => "class",
+        Ty::Int => "int".to_string(),
+        Ty::Bool => "bool".to_string(),
+        Ty::Ptr(None) => "*ptr".to_string(),
+        Ty::Ptr(Some(t)) => format!("*{}", ty_name(t)),
+        Ty::Str => "string".to_string(),
+        Ty::Array => "array".to_string(),
+        Ty::Void => "void".to_string(),
+        Ty::Struct(_) => "class".to_string(),
+        Ty::Interface(_) => "interface".to_string(),
+        Ty::Enum(_) => "int".to_string(),
+        Ty::Param(_) => "param".to_string(),
+        Ty::Inst(_, _) => "class".to_string(),
     }
 }
 
