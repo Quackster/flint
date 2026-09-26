@@ -670,6 +670,48 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parse an optional `= default` following a parameter name. The
+    /// expression stops naturally at ',' / ')' (they are not operators).
+    /// Only constants are allowed: literals (int/bool/string/null),
+    /// enum variants, and dotted identifier chains naming a static field
+    /// (`Class.field` / `pkg.Class.field`). Calls, expressions, and bare
+    /// identifiers (a caller local or a function name) are rejected.
+    fn parse_param_default(&mut self) -> CompileResult<Option<Expr>> {
+        if self.at(&Tok::Assign) {
+            self.bump();
+            let e = self.parse_expr()?;
+            if !is_const_expr(&e) {
+                return Err(CompileError::new(
+                    expr_span(&e),
+                    "default values must be constants (a literal or a static field), not calls or expressions",
+                ));
+            }
+            Ok(Some(e))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// Default values may only be given to trailing parameters: once one
+    /// parameter carries a default, all following ones must too.
+    fn check_defaults_trailing(
+        &self,
+        params: &[(String, Option<Ty>, Span, Option<Expr>)],
+    ) -> CompileResult<()> {
+        let mut seen = false;
+        for p in params {
+            if p.3.is_some() {
+                seen = true;
+            } else if seen {
+                return Err(CompileError::new(
+                    p.2,
+                    "default values may only be given to trailing parameters",
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn parse_type(&mut self) -> CompileResult<Ty> {
         let span = self.cur().span;
         // pointer type: '*' type — the pointee is tracked (*int vs *string)
@@ -1250,7 +1292,13 @@ impl<'a> Parser<'a> {
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
             let pspan = self.cur().span;
-            params.push((pname, Some(pty), pspan));
+            if self.at(&Tok::Assign) {
+                return Err(CompileError::new(
+                    self.cur().span,
+                    "default values are not allowed on constructor parameters",
+                ));
+            }
+            params.push((pname, Some(pty), pspan, None));
             if self.at(&Tok::Comma) {
                 self.bump();
             }
@@ -1290,12 +1338,14 @@ impl<'a> Parser<'a> {
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
             let pspan = self.cur().span;
-            params.push((pname, Some(pty), pspan));
+            let pdef = self.parse_param_default()?;
+            params.push((pname, Some(pty), pspan, pdef));
             if self.at(&Tok::Comma) {
                 self.bump();
             }
         }
         self.expect(&Tok::RParen, "')'")?;
+        self.check_defaults_trailing(&params)?;
         // Abstract method: `;` instead of a `{ ... }` body.
         let (body, is_abstract) = if self.at(&Tok::Semicolon) {
             self.bump();
@@ -1360,12 +1410,14 @@ impl<'a> Parser<'a> {
                 let pname = self.expect_ident()?;
                 let pty = self.array_suffix(pty)?;
                 let pspan = self.cur().span;
-                params.push((pname, Some(pty), pspan));
+                let pdef = self.parse_param_default()?;
+                params.push((pname, Some(pty), pspan, pdef));
                 if self.at(&Tok::Comma) {
                     self.bump();
                 }
             }
             self.expect(&Tok::RParen, "')'")?;
+            self.check_defaults_trailing(&params)?;
             self.expect(&Tok::Semicolon, "';' after interface method")?;
             methods.push(MethodDef {
                 span,
@@ -1471,12 +1523,14 @@ impl<'a> Parser<'a> {
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
             let pspan = self.cur().span;
-            params.push((pname, Some(pty), pspan));
+            let pdef = self.parse_param_default()?;
+            params.push((pname, Some(pty), pspan, pdef));
             if self.at(&Tok::Comma) {
                 self.bump();
             }
         }
         self.expect(&Tok::RParen, "')'")?;
+        self.check_defaults_trailing(&params)?;
         let body = self.parse_block()?;
         self.type_params.truncate(saved_tp);
         Ok(FuncDef {
@@ -1501,6 +1555,12 @@ impl<'a> Parser<'a> {
             let pty = self.array_prefix(pty)?;
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
+            if self.at(&Tok::Assign) {
+                return Err(CompileError::new(
+                    self.cur().span,
+                    "default values are not allowed on lambda parameters",
+                ));
+            }
             params.push((pname, Some(pty), self.cur().span));
         } else {
             self.expect(&Tok::LParen, "'(' before lambda parameters")?;
@@ -1510,6 +1570,12 @@ impl<'a> Parser<'a> {
                 let pname = self.expect_ident()?;
                 let pty = self.array_suffix(pty)?;
                 let pspan = self.cur().span;
+                if self.at(&Tok::Assign) {
+                    return Err(CompileError::new(
+                        self.cur().span,
+                        "default values are not allowed on lambda parameters",
+                    ));
+                }
                 params.push((pname, Some(pty), pspan));
                 if self.at(&Tok::Comma) {
                     self.bump();
@@ -2478,6 +2544,33 @@ impl<'a> Parser<'a> {
                 format!("expected expression, found {:?}", other),
             )),
         }
+    }
+}
+
+/// True for a default-parameter constant: a literal (int/bool/string/
+/// null), an enum variant, a negated one of those, or a dotted
+/// identifier chain (`Class.field`, `pkg.Class.field`) naming a static
+/// field. A bare identifier (a caller local or a function name) is not
+/// a constant.
+fn is_const_expr(e: &Expr) -> bool {
+    match e {
+        Expr::Int { .. }
+        | Expr::Bool { .. }
+        | Expr::Str { .. }
+        | Expr::Null { .. }
+        | Expr::EnumVariant { .. } => true,
+        Expr::UnOp { op, e: inner, .. } => *op == UnOp::Neg && is_const_expr(inner),
+        // a chain has at least two segments: Field(Ident, ..) or deeper
+        Expr::Field { base, .. } => is_ident_or_field(base),
+        _ => false,
+    }
+}
+
+fn is_ident_or_field(e: &Expr) -> bool {
+    match e {
+        Expr::Ident { .. } => true,
+        Expr::Field { base, .. } => is_ident_or_field(base),
+        _ => false,
     }
 }
 

@@ -1,0 +1,65 @@
+// default_params: trailing parameters may carry default values; an omitted
+// trailing argument is evaluated from the default in the caller's context.
+int add(int a, int b = 10) {
+    return a + b;
+}
+int punct(string who, string mark = "?") {
+    return strlen(who) + strlen(mark);
+}
+class Consts {
+    static int fallback;
+}
+int fromStatic(int x = Consts.fallback) {
+    return x;
+}
+int neg(int x = -5) {
+    return x;
+}
+int show<T>(T v, int tag = 0) {
+    return tag;
+}
+async int adouble(int x, int pad = 0) {
+    return x * 2 + pad;
+}
+class Box {
+    int v;
+    public Box(int x) {
+        this.v = x;
+    }
+    public int scaled(int m, int base = 1) {
+        return this.v * m + base;
+    }
+    public static int make(int x, int y = 5) {
+        return x + y;
+    }
+}
+interface Greeter {
+    int hello(string who, int times = 1);
+}
+class G implements Greeter {
+    public int hello(string who, int times) {
+        return strlen(who) * times;
+    }
+}
+int main() {
+    println(add(1));            // 11
+    println(add(1, 2));        // 3
+    println(punct("abc"));     // 4
+    println(punct("abcd", "!")); // 5
+    Consts.fallback = 42;
+    println(fromStatic());     // 42 (static field default)
+    println(neg());            // -5 (negative literal default)
+    println(show(5));          // 0
+    println(show(5, 9));       // 9
+    println(await adouble(21)); // 42
+    println(await adouble(21, 5)); // 47
+    Box b = new Box(10);
+    println(b.scaled(3));      // 31
+    println(b.scaled(3, 100)); // 130
+    println(Box.make(1));      // 6
+    println(Box.make(1, 2));   // 3
+    Greeter g = new G();
+    println(g.hello("ab"));        // 2
+    println(g.hello("abcd", 2));   // 8
+    return 0;
+}

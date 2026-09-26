@@ -646,15 +646,23 @@ void increment(*int p) {
     *p = *p + 1;
 }
 
+// Default parameter values: trailing parameters may carry defaults; an
+// omitted trailing argument is taken from its default.
+int add(int a, int b = 10) {
+    return a + b;
+}
+
 int main() {
+    print(doubleIt(21)); print(" ");  // 42
     print(factorial(5)); print(" ");   // 120
     int x = 10;
     increment(&amp;x);              // &amp; = address-of
     print(x); print(" ");              // 11
-    println(1);
+    print(add(5)); print(" ");         // 15 (b defaults to 10)
+    print(add(5, 7));                 // 12 (explicit b overrides the default)
     return 0;
 }</code></pre></div>
-<div class="output"><span class="lbl">output (full example: doubleIt(21), factorial(5), increment, @)</span>42 120 11 1</div>
+<div class="output"><span class="lbl">output (full example: doubleIt(21), factorial(5), increment, @)</span>42 120 11 15 12</div>
 
 <h2>Key points</h2>
 <ul>
@@ -670,6 +678,14 @@ this is how a function is handed to <code>sys.threadCreate(@fn, arg)</code>.
 See <a href="concurrency.html">Concurrency</a>.</li>
  <li>Functions may <code>return</code> early; a <code>void</code> function needs
  no return.</li>
+ <li><b>Default parameter values:</b> trailing parameters may carry defaults —
+ <code>int add(int a, int b = 10)</code> is called as <code>add(5)</code> or
+ <code>add(5, 7)</code>. Defaults are allowed on functions and methods
+ (static and instance, including interface methods) but not on constructors
+ or lambda parameters. A default must be a <b>constant</b>: a literal
+ (int/bool/string/null), an enum variant, or a dotted reference to a static
+ field (<code>int f(int x = Consts.fallback)</code>). Calls (functions,
+ methods, constructors) and other expressions are rejected.</li>
  </ul>
 </section>
  <section id="lambdas" class="doc-section" data-label="Lambdas &amp; closures">

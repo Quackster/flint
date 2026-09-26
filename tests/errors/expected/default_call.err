@@ -1,0 +1,3 @@
+error[4:15]: default values must be constants (a literal or a static field), not calls or expressions
+  | int f(int x = source()) {
+  |               ^

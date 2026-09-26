@@ -1,0 +1,9 @@
+int source() {
+    return 42;
+}
+int f(int x = source()) {
+    return x;
+}
+int main() {
+    return f();
+}

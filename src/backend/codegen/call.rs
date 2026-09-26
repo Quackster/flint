@@ -2,6 +2,7 @@ use crate::ast::{Accessor, Expr, Program, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 use crate::backend::layout;
+use crate::middle::arity_msg;
 
 use super::builtin::builtin_for;
 use super::{ARGREGS, Ctx, Frame, getter_name, mangle, setter_name, struct_idx_of, ty_name};
@@ -131,15 +132,14 @@ impl Ctx<'_> {
             }
         };
         let f = &self.prog.funcs[idx];
-        if args.len() != f.params.len() {
+        // Omitted trailing arguments fall back to their default values,
+        // evaluated in the caller's context.
+        let nparams = f.params.len();
+        let min_req = f.params.iter().filter(|p| p.3.is_none()).count();
+        if args.len() < min_req || args.len() > nparams {
             return Err(CompileError::new(
                 span,
-                format!(
-                    "'{}' expects {} arguments, got {}",
-                    name,
-                    f.params.len(),
-                    args.len()
-                ),
+                arity_msg(name, min_req, nparams, args.len()),
             ));
         }
         // The callee owns the argument references it receives: retain copies
@@ -147,19 +147,26 @@ impl Ctx<'_> {
         // literals for `string` params get a fresh writable copy (the
         // callee may write through its parameters).
         let saved = self.str_copy;
-        for (i, a) in args.iter().enumerate() {
+        for i in 0..nparams {
             self.str_copy = f.params[i].1.as_ref() == Some(&Ty::Str);
-            let aty = self.gen_expr(a, frame)?;
-            check_ptr_conforms(&aty, &f.params[i].1, span, "cannot pass")?;
-            self.maybe_retain(a, frame);
+            if i < args.len() {
+                let aty = self.gen_expr(&args[i], frame)?;
+                check_ptr_conforms(&aty, &f.params[i].1, span, "cannot pass")?;
+                self.maybe_retain(&args[i], frame);
+            } else {
+                let d = f.params[i].3.as_ref().unwrap();
+                let aty = self.gen_expr(d, frame)?;
+                check_ptr_conforms(&aty, &f.params[i].1, span, "cannot pass")?;
+                self.maybe_retain(d, frame);
+            }
         }
         self.str_copy = saved;
         // `async` function: the call spawns the body on a worker thread and
         // evaluates to a std.Task.
         if f.is_async {
-            return self.gen_async_call(name, args.len(), span);
+            return self.gen_async_call(name, nparams, span);
         }
-        self.pop_args(args.len());
+        self.pop_args(nparams);
         self.emit(&format!("\tcall {}", name));
         if f.ret == Some(Ty::Void) || f.ret.is_none() {
             self.emit("\tmovq $0, %rax");
@@ -214,33 +221,48 @@ impl Ctx<'_> {
                 ));
             }
             if meth.is_static {
-                if args.len() != meth.params.len() {
+                // Omitted trailing arguments use their defaults.
+                let nparams = meth.params.len();
+                let min_req = meth.params.iter().filter(|p| p.3.is_none()).count();
+                if args.len() < min_req || args.len() > nparams {
                     return Err(CompileError::new(
                         span,
-                        format!(
-                            "static method '{}' expects {} args, got {}",
-                            method,
-                            meth.params.len(),
-                            args.len()
-                        ),
+                        if min_req == nparams {
+                            format!(
+                                "static method '{}' expects {} args, got {}",
+                                method, nparams, args.len()
+                            )
+                        } else {
+                            format!(
+                                "static method '{}' expects {} to {} args, got {}",
+                                method, min_req, nparams, args.len()
+                            )
+                        },
                     ));
                 }
                 // The callee owns the argument references it receives.
                 let saved = self.str_copy;
-                for (i, a) in args.iter().enumerate() {
+                for i in 0..nparams {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-                    let aty = self.gen_expr(a, frame)?;
-                    check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                    self.maybe_retain(a, frame);
+                    if i < args.len() {
+                        let aty = self.gen_expr(&args[i], frame)?;
+                        check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
+                        self.maybe_retain(&args[i], frame);
+                    } else {
+                        let d = meth.params[i].3.as_ref().unwrap();
+                        let aty = self.gen_expr(d, frame)?;
+                        check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
+                        self.maybe_retain(d, frame);
+                    }
                 }
                 self.str_copy = saved;
                 // `async` static method: runs on a worker thread; the call
                 // evaluates to a std.Task.
                 if meth.is_async {
                     let mangled = mangle(&class_def.name, method);
-                    return self.gen_async_call(&mangled, args.len(), span);
+                    return self.gen_async_call(&mangled, nparams, span);
                 }
-                self.pop_args(args.len());
+                self.pop_args(nparams);
                 let mangled = mangle(&class_def.name, method);
                 self.emit(&format!("\tcall {}", mangled));
                 if meth.ret == Some(Ty::Void) {
@@ -252,15 +274,20 @@ impl Ctx<'_> {
                     return Ok(meth.ret.clone().unwrap_or(Ty::Int));
                 }
             } else {
-                if args.len() != meth.params.len() {
+                // Omitted trailing arguments use their defaults.
+                let nparams = meth.params.len();
+                let min_req = meth.params.iter().filter(|p| p.3.is_none()).count();
+                if args.len() < min_req || args.len() > nparams {
                     return Err(CompileError::new(
                         span,
-                        format!(
-                            "method '{}' expects {} args, got {}",
-                            method,
-                            meth.params.len(),
-                            args.len()
-                        ),
+                        if min_req == nparams {
+                            format!("method '{}' expects {} args, got {}", method, nparams, args.len())
+                        } else {
+                            format!(
+                                "method '{}' expects {} to {} args, got {}",
+                                method, min_req, nparams, args.len()
+                            )
+                        },
                     ));
                 }
                 // An async instance method is dispatched statically through
@@ -278,14 +305,21 @@ impl Ctx<'_> {
                 self.gen_expr_ro(base, frame)?;
                 self.maybe_retain(base, frame);
                 let saved = self.str_copy;
-                for (i, a) in args.iter().enumerate() {
+                for i in 0..nparams {
                     self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-                    let aty = self.gen_expr(a, frame)?;
-                    check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                    self.maybe_retain(a, frame);
+                    if i < args.len() {
+                        let aty = self.gen_expr(&args[i], frame)?;
+                        check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
+                        self.maybe_retain(&args[i], frame);
+                    } else {
+                        let d = meth.params[i].3.as_ref().unwrap();
+                        let aty = self.gen_expr(d, frame)?;
+                        check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
+                        self.maybe_retain(d, frame);
+                    }
                 }
                 self.str_copy = saved;
-                let total = args.len() + 1;
+                let total = nparams + 1;
                 if total > 6 {
                     return Err(CompileError::new(
                         span,
@@ -409,29 +443,41 @@ impl Ctx<'_> {
                 )
             })?;
         let meth = &iface.methods[mi];
-        if args.len() != meth.params.len() {
+        // Omitted trailing arguments use their defaults.
+        let nparams = meth.params.len();
+        let min_req = meth.params.iter().filter(|p| p.3.is_none()).count();
+        if args.len() < min_req || args.len() > nparams {
             return Err(CompileError::new(
                 span,
-                format!(
-                    "interface method '{}' expects {} args, got {}",
-                    method,
-                    meth.params.len(),
-                    args.len()
-                ),
+                if min_req == nparams {
+                    format!("interface method '{}' expects {} args, got {}", method, nparams, args.len())
+                } else {
+                    format!(
+                        "interface method '{}' expects {} to {} args, got {}",
+                        method, min_req, nparams, args.len()
+                    )
+                },
             ));
         }
         // The callee owns the base and argument references it receives.
         self.gen_expr_ro(base, frame)?;
         self.maybe_retain(base, frame);
         let saved = self.str_copy;
-        for (i, a) in args.iter().enumerate() {
+        for i in 0..nparams {
             self.str_copy = meth.params[i].1.as_ref() == Some(&Ty::Str);
-            let aty = self.gen_expr(a, frame)?;
-            check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-            self.maybe_retain(a, frame);
+            if i < args.len() {
+                let aty = self.gen_expr(&args[i], frame)?;
+                check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
+                self.maybe_retain(&args[i], frame);
+            } else {
+                let d = meth.params[i].3.as_ref().unwrap();
+                let aty = self.gen_expr(d, frame)?;
+                check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
+                self.maybe_retain(d, frame);
+            }
         }
         self.str_copy = saved;
-        let total = args.len() + 1;
+        let total = nparams + 1;
         if total > 6 {
             return Err(CompileError::new(
                 span,

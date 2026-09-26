@@ -1,0 +1,8 @@
+class C {
+    public C(int x = 0) {
+    }
+}
+int main() {
+    C c = new C();
+    return 0;
+}

@@ -1,0 +1,11 @@
+class C {
+    public int m() {
+        return 1;
+    }
+    public int n(int x = this.m()) {
+        return x;
+    }
+}
+int main() {
+    return 0;
+}

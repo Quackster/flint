@@ -145,7 +145,7 @@ fn build_scope(
     lk: &Lookup,
     has_this: bool,
     this_idx: usize,
-    params: &[(String, Option<Ty>, Span)],
+    params: &[(String, Option<Ty>, Span, Option<Expr>)],
     body: &Block,
 ) -> Scope {
     let mut known: HashMap<String, Ty> = HashMap::new();
@@ -154,7 +154,7 @@ fn build_scope(
     if has_this {
         register_local(&mut known, &mut seen, &mut locals, "this", Some(Ty::Struct(this_idx)));
     }
-    for (p, t, _) in params {
+    for (p, t, _, _) in params {
         register_local(&mut known, &mut seen, &mut locals, p, t.clone());
     }
     fn walk(
@@ -753,7 +753,7 @@ fn lift_def(
     type_params: &[String],
     has_this: bool,
     this_idx: usize,
-    params: &[(String, Option<Ty>, Span)],
+    params: &[(String, Option<Ty>, Span, Option<Expr>)],
     body: &mut Block,
     lifted: &mut Vec<FuncDef>,
 ) -> CompileResult<()> {
@@ -892,9 +892,9 @@ fn desugar_stmt(
                 }
                 let name = format!("{}__lambda{}", base, n);
                 let fn_name = mangle_symbol(pkg, &name);
-                let params: Vec<(String, Option<Ty>, Span)> = {
-                    let mut p = vec![("ctx".to_string(), Some(Ty::Ptr(None)), *span)];
-                    p.extend(lparams.iter().cloned());
+                let params: Vec<(String, Option<Ty>, Span, Option<Expr>)> = {
+                    let mut p = vec![("ctx".to_string(), Some(Ty::Ptr(None)), *span, None)];
+                    p.extend(lparams.iter().map(|(n, t, s)| (n.clone(), t.clone(), *s, None)));
                     p
                 };
                 let mut body2 = Block {

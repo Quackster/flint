@@ -49,6 +49,16 @@ pub(crate) fn mangle_fqn(pkg: &str, name: &str) -> String {
 /// nested instantiations like `Vessel<Pair<int, string>>` are handled), and
 /// rewrites the AST so the backend only ever sees concrete `Ty::Struct`
 /// types and mangled names.
+/// Arity diagnostic for a value-argument call: an exact count when no
+/// parameter has a default, a range when trailing ones do.
+pub fn arity_msg(name: &str, min_req: usize, max: usize, got: usize) -> String {
+    if min_req == max {
+        format!("'{}' expects {} argument(s), got {}", name, max, got)
+    } else {
+        format!("'{}' expects {} to {} argument(s), got {}", name, min_req, max, got)
+    }
+}
+
 pub fn monomorphize(prog: &Program) -> CompileResult<Program> {
     let mut m = Mono {
         prog,

@@ -30,6 +30,11 @@ Follow the Java conventions the language is built around:
   `string s`, `*int buf`.
 - Control flow in C/Java form: `for (int i = 0; i < n; i = i + 1) { ... }`,
   `while`, `if`/`else`.
+- Trailing parameters may carry default values
+  (`void f(int a, int b = 0)`; called as `f(1)` or `f(1, 2)`). Defaults
+  must be constants (literals, enum variants, or `Class.staticField`
+  references) — no calls or expressions — and are not allowed on
+  constructors or lambda parameters.
 - Naming: classes `PascalCase` (`Num`, `Thread`); variables and fields
   `snake_case` (`grand_count`).
 - **Function naming: every function and method is `camelCase` — including the

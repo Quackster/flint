@@ -16,15 +16,12 @@ impl<'a> Mono<'a> {
             let f = &self.prog.funcs[fi];
             (f.name.clone(), f.params.clone())
         };
-        if args.len() != params.len() {
+        // Omitted trailing arguments fall back to their default values.
+        let min_req = params.iter().filter(|p| p.3.is_none()).count();
+        if args.len() < min_req || args.len() > params.len() {
             return Err(CompileError::new(
                 Span::new(0, 0),
-                format!(
-                    "function '{}' expects {} argument(s), got {}",
-                    name,
-                    params.len(),
-                    args.len()
-                ),
+                super::arity_msg(&name, min_req, params.len(), args.len()),
             ));
         }
         let mut out = Vec::new();
@@ -37,12 +34,27 @@ impl<'a> Mono<'a> {
                 }
             };
             if matches!(pt, Ty::Param(_)) {
-                out.push(self.expr_type(&args[i], subst)?);
+                let src = if i < args.len() { &args[i] } else { p.3.as_ref().unwrap() };
+                out.push(self.expr_type(src, subst)?);
             } else {
                 out.push(self.resolve_type(pt, subst)?);
             }
         }
-        Ok(out)
+        // One entry per type parameter (declaration order), inferred from
+        // the first parameter of that type. A type parameter that no
+        // parameter uses falls back to int.
+        let type_params = self.prog.funcs[fi].type_params.clone();
+        let mut res = Vec::new();
+        for name in &type_params {
+            let idx = params
+                .iter()
+                .position(|p| matches!(&p.1, Some(Ty::Param(n)) if n == name));
+            res.push(match idx {
+                Some(i) => out[i].clone(),
+                None => Ty::Int,
+            });
+        }
+        Ok(res)
     }
 
     /// Best-effort type of an expression, for type-argument inference.

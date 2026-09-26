@@ -51,7 +51,9 @@ pub struct MethodDef {
     /// abstract classes and interfaces; a concrete class must override it.
     pub is_abstract: bool,
     pub type_params: Vec<String>, // v1: always empty (no method-level generics)
-    pub params: Vec<(String, Option<Ty>, Span)>,
+    /// (name, ty, span, default); the default (only on trailing params) is
+    /// evaluated in the caller's context when the argument is omitted.
+    pub params: Vec<(String, Option<Ty>, Span, Option<Expr>)>,
     pub ret: Option<Ty>,
     pub body: Block,
 }
@@ -125,7 +127,9 @@ pub struct FuncDef {
     /// evaluates to a std.Task (join() for the result); the body itself is
     /// compiled as an ordinary function.
     pub is_async: bool,
-    pub params: Vec<(String, Option<Ty>, Span)>, // name, ty, span
+    /// (name, ty, span, default); the default (only on trailing params) is
+    /// evaluated in the caller's context when the argument is omitted.
+    pub params: Vec<(String, Option<Ty>, Span, Option<Expr>)>,
     pub ret: Option<Ty>,
     pub body: Block,
 }

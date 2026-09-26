@@ -17,6 +17,12 @@ void increment(*int p) {
     *p = *p + 1;
 }
 
+// Default parameter values: trailing parameters may carry defaults; an
+// omitted trailing argument is taken from its default.
+int add(int a, int b = 10) {
+    return a + b;
+}
+
 int main() {
     // basic call
     print(doubleIt(21)); print(" ");        // 42
@@ -28,6 +34,8 @@ int main() {
     print(x); print(" ");                  // 11
     // @ yields a function's address (an int); std.Thread.spawn takes it
     // int tid = Thread.spawn(@doubleIt, 0);
-    println(1);
+    // default parameter values (trailing parameters)
+    print(add(5)); print(" ");            // 15 (b defaults to 10)
+    print(add(5, 7));                    // 12 (explicit b overrides the default)
     return 0;
 }

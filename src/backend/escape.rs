@@ -578,7 +578,7 @@ impl<'p> Analyzer<'p> {
 /// Run escape analysis for one function or method body.
 pub fn plan_func(
     prog: &Program,
-    params: &[(String, Option<Ty>, Span)],
+    params: &[(String, Option<Ty>, Span, Option<Expr>)],
     body: &Block,
     is_method: bool,
     this_class: Option<usize>,
@@ -622,7 +622,7 @@ pub fn plan_func(
             a.name_idx.insert("this".to_string(), 0);
         }
     }
-    for (pname, pty, _) in params {
+    for (pname, pty, _, _) in params {
         let ty = pty.clone();
         let kind = match ty.as_ref() {
             Some(Ty::Struct(_)) => LocalKind::Heap,

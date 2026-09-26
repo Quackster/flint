@@ -28,7 +28,7 @@ impl Ctx<'_> {
         let mut frame = Frame::new(nparams);
         frame.ret_type = f.ret.clone();
         // store params into frame
-        for (i, (pname, pty, _)) in f.params.iter().enumerate() {
+        for (i, (pname, pty, _, _)) in f.params.iter().enumerate() {
             let reg = ARGREGS[i];
             let off = frame.param_slot(i);
             self.emit(&format!("\tmov {}, {}(%rbp)", reg, off));
@@ -128,7 +128,7 @@ impl Ctx<'_> {
                 region: None,
             });
         }
-        for (i, (pname, pty, _)) in meth.params.iter().enumerate() {
+        for (i, (pname, pty, _, _)) in meth.params.iter().enumerate() {
             let slot = if meth.is_static { i } else { i + 1 };
             let reg = ARGREGS[slot];
             let off = frame.param_slot(slot);

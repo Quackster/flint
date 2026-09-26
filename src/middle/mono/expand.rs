@@ -49,6 +49,11 @@ impl<'a> Mono<'a> {
             }
             self.cur_func_package = c.package.clone();
             self.cur_locals = locals;
+            for p in m.params.iter_mut() {
+                if let Some(d) = &mut p.3 {
+                    *d = self.resolve_expr(d, &subst)?;
+                }
+            }
             m.body = self.resolve_block(&m.body, &subst)?;
         }
         // Bake the element `kind` (0 int / 1 string / 2 object) into the
@@ -158,6 +163,11 @@ impl<'a> Mono<'a> {
         }
         self.cur_func_package = f.package.clone();
         self.cur_locals = locals;
+        for p in f.params.iter_mut() {
+            if let Some(d) = &mut p.3 {
+                *d = self.resolve_expr(d, &subst)?;
+            }
+        }
         f.body = self.resolve_block(&f.body, &subst)?;
         self.out.funcs[ni] = f;
         Ok(())
