@@ -1866,63 +1866,87 @@ flint_fcmp:
     .size flint_fcmp, .-flint_fcmp
 
 # Thread support: CLONE_VM with custom stack, per-thread pipe for join.
-# Supports up to 8 concurrent threads via a fixed pipe-fd table.
+# The per-tid tables (pipe fds, child pid, result) are built lazily on
+# the first thread_create and sized to the online CPU count
+# (flint_cpu_count); the tid counter slot-recycles past that cap.
     .data
-    .globl flint_thread_pipe_read
+    .globl flint_thread_pool
     .balign 8
-flint_thread_pipe_read:
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .globl flint_thread_pipe_write
+flint_thread_pool:
+    .quad 0            # 0 = unbuilt, 1 = building, 2 = ready
+    .globl flint_thread_n
     .balign 8
-flint_thread_pipe_write:
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
+flint_thread_n:
+    .quad 0            # pool cap: online CPU count
+    .globl flint_thread_pipe_read_p
+    .balign 8
+flint_thread_pipe_read_p:
+    .quad 0            # -> [n] read fds
+    .globl flint_thread_pipe_write_p
+    .balign 8
+flint_thread_pipe_write_p:
+    .quad 0            # -> [n] write fds
+    .globl flint_thread_pid_p
+    .balign 8
+flint_thread_pid_p:
+    .quad 0            # -> [n] child pids
+    .globl flint_thread_result_p
+    .balign 8
+flint_thread_result_p:
+    .quad 0            # -> [n] worker return values
     .globl flint_thread_next_id
     .balign 8
 flint_thread_next_id:
     .quad 0
-    .globl flint_thread_pid
-    .balign 8
-flint_thread_pid:
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
     .globl flint_wait_status
 flint_wait_status:
     .quad 0
-    .globl flint_thread_result
+    .globl flint_cpu_mask
     .balign 8
-flint_thread_result:
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
-    .quad 0; .quad 0; .quad 0; .quad 0
+flint_cpu_mask:
+    .zero 1024         # sched_getaffinity mask (1024 = up to 8192 CPUs)
     .globl flint_pipe_byte
 flint_pipe_byte:
     .byte 0
     .text
+
+    .globl flint_cpu_count
+    .type flint_cpu_count, @function
+# flint_cpu_count() -> int: the number of online CPU threads
+# (sched_getaffinity(0, 1024, mask) + popcount; 4 on failure).
+flint_cpu_count:
+    xor %edi, %edi            # pid = 0 (self)
+    mov $1024, %esi           # cpusetsize
+    lea flint_cpu_mask(%rip), %rdx
+    mov $204, %rax            # SYS_sched_getaffinity
+    syscall
+    js .Lcc_default           # -1 on error
+    lea flint_cpu_mask(%rip), %r10
+    xor %r9, %r9             # r9 = count
+    xor %r8, %r8             # r8 = word index
+.Lcc_word:
+    cmpq $16, %r8
+    jae .Lcc_done
+    movq 0(%r10, %r8, 8), %r11
+.Lcc_bit:
+    testq $1, %r11
+    jz .Lcc_next
+    inc %r9
+.Lcc_next:
+    shr $1, %r11
+    test %r11, %r11
+    jnz .Lcc_bit
+    inc %r8
+    jmp .Lcc_word
+.Lcc_done:
+    test %r9, %r9
+    jnz .Lcc_ret
+.Lcc_default:
+    movq $4, %r9
+.Lcc_ret:
+    mov %r9, %rax
+    ret
+    .size flint_cpu_count, .-flint_cpu_count
 
     .globl flint_thread_wrapper
     .type flint_thread_wrapper, @function
@@ -1942,10 +1966,10 @@ flint_thread_wrapper:
     # flintc calling style), so re-read the tid from the stack.
     mov 16(%rsp), %r12
     # Store the worker's return value so thread_join can hand it back
-    lea flint_thread_result(%rip), %r14
+    movq flint_thread_result_p(%rip), %r14
     movq %rax, 0(%r14, %r12, 8)
     # Signal done: write 1 byte to this thread's pipe
-    lea flint_thread_pipe_write(%rip), %r13  # r13 = &table
+    movq flint_thread_pipe_write_p(%rip), %r13  # r13 = &table
     movq 0(%r13, %r12, 8), %rdi             # rdi = write fd for tid
     lea flint_pipe_byte(%rip), %rsi          # buffer
     mov $1, %rdx               # count = 1
@@ -1973,16 +1997,58 @@ flint_thread_create:
     sub $32, %rsp         # slot index in it); save/restore around our use
     mov %rdi, %rbx        # rbx = fn
     mov %rsi, %r12        # r12 = arg
+    # The per-tid tables are sized to the online CPU count and built
+    # lazily by the first creator (flag 0 -> 1); the others wait for
+    # flag 2 (the pointer stores precede the flag, x86 TSO).
+.Lpool_wait:
+    movq flint_thread_pool(%rip), %rax
+    cmpq $2, %rax
+    je .Ltid_alloc            # ready
+    cmpq $1, %rax
+    je .Lpool_spin           # in progress
+    lea flint_thread_pool(%rip), %rdi
+    xor %rsi, %rsi
+    movq $1, %rdx
+    call flint_atomic_cas
+    test %eax, %eax
+    jz .Lpool_wait            # lost the build: re-check the flag
+    # We own the build (flag = 1): allocate the four tables
+    call flint_cpu_count
+    movq %rax, flint_thread_n(%rip)
+    movq %rax, %rdi
+    imulq $8, %rdi
+    call flint_alloc
+    movq %rax, flint_thread_pipe_read_p(%rip)
+    movq flint_thread_n(%rip), %rdi
+    imulq $8, %rdi
+    call flint_alloc
+    movq %rax, flint_thread_pipe_write_p(%rip)
+    movq flint_thread_n(%rip), %rdi
+    imulq $8, %rdi
+    call flint_alloc
+    movq %rax, flint_thread_pid_p(%rip)
+    movq flint_thread_n(%rip), %rdi
+    imulq $8, %rdi
+    call flint_alloc
+    movq %rax, flint_thread_result_p(%rip)
+    movq $2, %rax
+    movq %rax, flint_thread_pool(%rip)
+    jmp .Ltid_alloc
+    .Lpool_spin:
+    xor %edi, %edi
+    mov $100000, %esi        # 100us
+    call flint_nanosleep
+    jmp .Lpool_wait
     # Allocate a tid from the counter (atomic: concurrent thread_creates
     # run in parallel under CLONE_VM, so a plain read-modify-write races)
  .Ltid_alloc:
     movq flint_thread_next_id(%rip), %r13  # r13 = candidate tid
-    # Pool cap: 32 tids. When all are handed out, recycle the
-    # counter (back off, then CAS counter -> 0): the ids slot-
-    # recycle, matching the 32-cap task design; callers are
-    # expected to have joined the earlier threads before the pool
-    # wraps (a join of a recycled id races with its old pipe).
-    cmp $32, %r13
+    # Pool cap: the online CPU count (flint_thread_n). When all are
+    # handed out, recycle the counter (back off, then CAS counter -> 0):
+    # the ids slot-recycle, matching the task design; callers are
+    # expected to have joined the earlier threads before the pool wraps
+    # (a join of a recycled id races with its old pipe).
+    cmpq flint_thread_n(%rip), %r13
     jae .Ltid_wrap
     # CAS next_id: r13 -> r13+1 (retry if another process grabbed it first)
     lea flint_thread_next_id(%rip), %rdi
@@ -2001,9 +2067,9 @@ flint_thread_create:
     movl 16(%rsp), %r14d   # r14 = read fd
     movl 20(%rsp), %r15d   # r15 = write fd
     # Store in per-thread table
-    lea flint_thread_pipe_read(%rip), %r10
+    movq flint_thread_pipe_read_p(%rip), %r10
     movq %r14, 0(%r10, %r13, 8)   # table_read[tid] = read fd
-    lea flint_thread_pipe_write(%rip), %r10
+    movq flint_thread_pipe_write_p(%rip), %r10
     movq %r15, 0(%r10, %r13, 8)   # table_write[tid] = write fd
     # Allocate a new stack (8KB)
     mov $8192, %rdi
@@ -2026,7 +2092,7 @@ flint_thread_create:
     test %rax, %rax
     jz .Lthread_child
     # Parent: store child pid for reaping, then return tid
-    lea flint_thread_pid(%rip), %r10
+    movq flint_thread_pid_p(%rip), %r10
     movq %rax, 0(%r10, %r13, 8)   # pid_table[tid] = child pid
     mov -8(%rbp), %rbx
     leave
@@ -2046,7 +2112,7 @@ flint_thread_create:
     mov $100000, %esi        # 100us
     call flint_nanosleep
     lea flint_thread_next_id(%rip), %rdi
-    movq flint_thread_next_id(%rip), %rsi   # old = current (>= 32)
+    movq flint_thread_next_id(%rip), %rsi   # old = current (>= n)
     xor %rdx, %rdx              # new = 0
     call flint_atomic_cas
     jmp .Ltid_alloc
@@ -2060,7 +2126,7 @@ flint_thread_join:
     # rdi = tid (save it)
     mov %rdi, %r12          # r12 = tid
     # Blocking read from the pipe
-    lea flint_thread_pipe_read(%rip), %r10   # r10 = &table
+    movq flint_thread_pipe_read_p(%rip), %r10   # r10 = &table
     movq 0(%r10, %r12, 8), %rdi             # rdi = read fd for tid
     lea flint_pipe_byte(%rip), %rsi          # buffer
     mov $1, %rdx             # count = 1
@@ -2069,7 +2135,7 @@ flint_thread_join:
     mov $0, %rax             # SYS_read
     syscall
     # Reap the child: wait4(pid, &status, 0, NULL)
-    lea flint_thread_pid(%rip), %r10
+    movq flint_thread_pid_p(%rip), %r10
     movq 0(%r10, %r12, 8), %rdi             # rdi = child pid for tid
     lea flint_wait_status(%rip), %rsi        # rsi = &status
     xor %rdx, %rdx           # options = 0
@@ -2079,7 +2145,7 @@ flint_thread_join:
     mov $61, %rax            # SYS_wait4
     syscall
     # Return the worker's result value
-    lea flint_thread_result(%rip), %r10
+    movq flint_thread_result_p(%rip), %r10
     movq 0(%r10, %r12, 8), %rax
     ret
     .size flint_thread_join, .-flint_thread_join
