@@ -150,11 +150,19 @@ impl Ctx<'_> {
                     && ((lt == Ty::Str && rt == Ty::Str)
                         || (lt == Ty::Str && matches!(rt, Ty::Ptr(_)))
                         || (matches!(lt, Ty::Ptr(_)) && rt == Ty::Str));
-                // `==` / `!=` on two strings compare contents, not pointers;
-                // a `string` variable vs `null` (Ty::Ptr) stays a pointer test.
+                // `==` / `!=` on two string-ish operands (a declared `string`
+                // or an untyped pointer, which is how string builtins such
+                // as `env.get` / `json.get` / `b64.encode` are typed)
+                // compare contents, not pointers. Either operand being the
+                // `null` literal stays a pointer test (the null-check
+                // pattern); typed pointers (`*T`) never use strcmp.
+                let null_lit = matches!(l.as_ref(), Expr::Null { .. })
+                    || matches!(r.as_ref(), Expr::Null { .. });
+                let strish = |t: &Ty| matches!(t, Ty::Str) || matches!(t, Ty::Ptr(None));
                 let str_cmp = matches!(*op, BinOp::Eq | BinOp::Ne)
-                    && lt == Ty::Str
-                    && rt == Ty::Str;
+                    && !null_lit
+                    && strish(&lt)
+                    && strish(&rt);
                 self.check_binop_types(*op, lt, rt, *span)?;
                 self.emit("\tpop %rsi"); // r
                 self.emit("\tpop %rdi"); // l
@@ -474,6 +482,25 @@ impl Ctx<'_> {
                             ),
                         ));
                     }
+                }
+                // A `new` with an arity that matches neither the field count
+                // nor any constructor must not fall through to the
+                // field-init path (it would silently zero-fill the object
+                // and skip the constructor, e.g. `new Scores()` for a
+                // `Scores(string)` class with two fields).
+                if !is_ctor_call
+                    && fields.len() != s.fields.len()
+                    && s.methods.iter().any(|m| m.is_ctor)
+                {
+                    return Err(CompileError::new(
+                        e_span(e),
+                        format!(
+                            "class '{}' has no constructor with {} arg(s) (fields={})",
+                            name,
+                            fields.len(),
+                            s.fields.len()
+                        ),
+                    ));
                 }
                 // positional field-init path
                 self.emit_new_base(sidx, region);

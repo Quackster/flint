@@ -331,6 +331,11 @@ flint_len:
     .globl flint_strcmp
     .type flint_strcmp, @function
 flint_strcmp:
+    # NULL-safe: a NULL operand compares as the empty string
+    test %rdi, %rdi
+    je .Lsc_a_empty
+    test %rsi, %rsi
+    je .Lsc_b_empty
     xor %rax, %rax            # i
 .Lsc_loop:
     movzbl (%rdi, %rax), %ecx # a[i]
@@ -341,6 +346,16 @@ flint_strcmp:
     jz .Lsc_eq
     inc %rax
     jmp .Lsc_loop
+.Lsc_a_empty:
+    # a is NULL: equal only when b is also NULL (empty vs empty)
+    test %rsi, %rsi
+    je .Lsc_eq
+    movq $-1, %rax            # "" < b
+    ret
+.Lsc_b_empty:
+    # b is NULL and a is not: a > ""
+    movq $1, %rax
+    ret
 .Lsc_eq:
     xor %rax, %rax
     ret
@@ -1960,11 +1975,15 @@ flint_thread_create:
     mov %rsi, %r12        # r12 = arg
     # Allocate a tid from the counter (atomic: concurrent thread_creates
     # run in parallel under CLONE_VM, so a plain read-modify-write races)
-.Ltid_alloc:
+ .Ltid_alloc:
     movq flint_thread_next_id(%rip), %r13  # r13 = candidate tid
-    # Bounds check: max 32 threads
+    # Pool cap: 32 tids. When all are handed out, recycle the
+    # counter (back off, then CAS counter -> 0): the ids slot-
+    # recycle, matching the 32-cap task design; callers are
+    # expected to have joined the earlier threads before the pool
+    # wraps (a join of a recycled id races with its old pipe).
     cmp $32, %r13
-    jae .Lthread_too_many
+    jae .Ltid_wrap
     # CAS next_id: r13 -> r13+1 (retry if another process grabbed it first)
     lea flint_thread_next_id(%rip), %rdi
     mov %r13, %rsi                # old
@@ -2020,11 +2039,17 @@ flint_thread_create:
     leave
     movq $-1, %rax
     ret
-    .Lthread_too_many:
-    mov -8(%rbp), %rbx
-    leave
-    movq $-1, %rax
-    ret
+    .Ltid_wrap:
+    # Back off, then recycle the counter (CAS counter -> 0) and
+    # retry; concurrent creators that lost the CAS simply rescan.
+    xor %edi, %edi
+    mov $100000, %esi        # 100us
+    call flint_nanosleep
+    lea flint_thread_next_id(%rip), %rdi
+    movq flint_thread_next_id(%rip), %rsi   # old = current (>= 32)
+    xor %rdx, %rdx              # new = 0
+    call flint_atomic_cas
+    jmp .Ltid_alloc
     .size flint_thread_create, .-flint_thread_create
 
     .globl flint_thread_join
