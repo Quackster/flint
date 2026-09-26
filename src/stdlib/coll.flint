@@ -26,7 +26,11 @@
 //
 // Common API: `size()`, `isEmpty()`, `clear()`. `destroy()` runs when
 // the last reference drops (it drops the element references and frees
-// the slot array) — do not call it manually.
+// the slot array) — do not call it manually. `List`, `Queue`, and
+// `CopyOnWriteList` also have `filter(*int pred)`: the elements for
+// which the predicate closure is true, as a fresh `List<T>` (call a
+// predicate closure with `sys.fnCall2(pred, element)`; see
+// std/array's `Arrays.filter` for the raw-array form).
 //
 // `CopyOnWriteList` is the concurrent member: every mutator
 // (add / insert / set / remove / removeObject / clear) builds a fresh
@@ -257,6 +261,25 @@ class List<T> extends Collection {
         }
         return out;
     }
+    // The elements for which the predicate closure `pred` is true, in
+    // order, as a fresh List<T>. Call a predicate with `sys.fnCall2`
+    // (the closure block is the first argument, the element the second).
+    List<T> filter(*int pred) {
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[i];
+            // A class-typed element is retained for the predicate call
+            // (the predicate releases its copy on return; a no-op for
+            // int / string elements).
+            Collection.retainElem(this.kind, v);
+            if (sys.fnCall2(pred, v) == 1) {
+                out.add(v);
+            }
+            i = i + 1;
+        }
+        return out;
+    }
 }
 class Queue<T> extends Collection {
     int head;
@@ -308,6 +331,21 @@ class Queue<T> extends Collection {
         }
         this.count = 0;
         this.head = 0;
+    }
+    // The elements for which the predicate closure `pred` is true, in
+    // FIFO order, as a fresh List<T> (the queue itself is untouched).
+    List<T> filter(*int pred) {
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[(this.head + i) % this.cap];
+            Collection.retainElem(this.kind, v);
+            if (sys.fnCall2(pred, v) == 1) {
+                out.add(v);
+            }
+            i = i + 1;
+        }
+        return out;
     }
 }
 class HashSet<T> extends Collection {
@@ -784,6 +822,24 @@ class CopyOnWriteList<T> extends Collection {
             i = i - 1;
         }
         return -1;
+    }
+    // The elements for which the predicate closure `pred` is true, in
+    // order, as a fresh List<T> (readers never lock, so the list
+    // reflects the array as of this call).
+    List<T> filter(*int pred) {
+        int n = this.count;
+        *int a = this.slots;
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < n) {
+            int v = a[i];
+            Collection.retainElem(this.kind, v);
+            if (sys.fnCall2(pred, v) == 1) {
+                out.add(v);
+            }
+            i = i + 1;
+        }
+        return out;
     }
     // The COW "iterator": a fresh List<T> holding the elements as of
     // now; later mutations install new arrays and do not affect it.

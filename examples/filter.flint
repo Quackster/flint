@@ -1,0 +1,45 @@
+// Lambdas (closures) and the filter methods. A lambda is written
+// Java-style — `int x -> boolean { ... }` (single parameter),
+// `(int a, int b) -> int { ... }` (several), `() -> void { ... }`
+// (none) — and it captures the locals of the enclosing function by
+// value. A lambda value is passed to the filter methods / Arrays.filter
+// (the closure is called with sys.fnCall2 under the hood).
+//
+// Build:
+//   flintc src/stdlib/coll.flint src/stdlib/mem.flint src/stdlib/array.flint examples/filter.flint -o filter
+import std.List;
+import std.Arrays;
+void main() {
+    List<int> xs = new List<int>();
+    int i = 0;
+    while (i < 20) {
+        xs.add(i);
+        i = i + 1;
+    }
+    // A pure lambda.
+    List<int> evens = xs.filter(int x -> boolean {
+        return x % 2 == 0;
+    });
+    print("evens: " + evens.join(", ") + "\n");
+    // A lambda that captures a local (by value, at creation).
+    int limit = 10;
+    List<int> big = xs.filter(int x -> boolean {
+        return x > limit;
+    });
+    print("above " + str.itoa(limit) + ": " + big.join(", ") + "\n");
+    // A raw int array, filtered through std.Arrays.
+    int[] a = [3, 8, 15, 22, 31];
+    int[] over20 = Arrays.filter(a, int x -> boolean {
+        return x > 20;
+    });
+    print("over 20: ");
+    int j = 0;
+    while (j < len(over20)) {
+        if (j > 0) {
+            print(", ");
+        }
+        printi(over20[j]);
+        j = j + 1;
+    }
+    print("\n");
+}

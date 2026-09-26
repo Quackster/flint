@@ -350,6 +350,39 @@ impl Ctx<'_> {
                 self.emit("\tpush %rax");
                 Ok(self.struct_field_type(sidx, name)?)
             }
+            Expr::Closure { span, fn_name, captures } => {
+                // Allocate `[fn_ptr, cap0, ...]` and fill it.
+                let n = captures.len() + 1;
+                self.emit(&format!("\tmovq ${}, %rdi", n * 8));
+                self.emit("\tcall flint_alloc");
+                self.emit("\tpush %rax"); // block on the stack
+                self.emit("\tpop %r10"); // r10 = block (flint_alloc clobbers r10)
+                self.emit(&format!("\tlea {}(%rip), %rax", fn_name));
+                self.emit("\tmovq %rax, 0(%r10)");
+                self.emit("\tpush %r10"); // block under the capture values
+                for (i, cap) in captures.iter().enumerate() {
+                    self.gen_expr(cap, frame)?;
+                    self.emit("\tpop %r11"); // value
+                    if self.is_class_expr(cap, frame) {
+                        // class capture: retain it into a new reference that
+                        // the block owns (v1: the block's ref is never dropped)
+                        self.emit("\tmov %r11, %rdi");
+                        self.emit("\tcall flint_retain_val");
+                        self.emit("\tmov %rax, %r11");
+                    }
+                    self.emit("\tpop %r10"); // block
+                    self.emit(&format!("\tmov %r11, {}(%r10)", (i + 1) * 8));
+                    self.emit("\tpush %r10"); // block back
+                }
+                self.emit("\tpop %rax"); // block = the value
+                self.emit("\tpush %rax");
+                let _ = span;
+                Ok(Ty::Ptr)
+            }
+            Expr::Lambda { span, .. } => Err(CompileError::new(
+                *span,
+                "a lambda cannot be used directly; it is desugared into a closure",
+            )),
             Expr::StructLit { name, fields, .. } => {
                 let sidx = *self.struct_idx.get(name).ok_or_else(|| {
                     CompileError::new(e_span(e), format!("unknown class '{}'", name))
@@ -634,6 +667,17 @@ impl Ctx<'_> {
                 self.emit("\tpush %rax");
                 Ok(Ty::Bool)
             }
+        }
+    }
+
+    /// True when the expression evaluates to a managed (class) value.
+    fn is_class_expr(&self, e: &Expr, frame: &Frame) -> bool {
+        match e {
+            Expr::This { .. } => frame.this_class.is_some(),
+            Expr::Ident { name, .. } => frame
+                .find(name)
+                .map_or(false, |l| matches!(l.ty, Ty::Struct(_))),
+            _ => false,
         }
     }
 }

@@ -6,6 +6,8 @@
 //   strlen(s) -> int  byte length of a NUL-terminated string
 //   mem.retain(o) -> int  bump the refcount of a class object (o)
 //   mem.release(o)       drop one reference (a plain refcount decrement)
+//   mem.retainVal(o) -> int  null-guarded retain that returns o (the value
+//                           stays usable in a typed slot of any class)
 //
 // Pointers are 64-bit; a buffer from `alloc` is indexed as 8-byte elements:
 //   buf[i]  loads/stores the int at byte offset i*8.

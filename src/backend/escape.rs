@@ -358,6 +358,12 @@ impl<'p> Analyzer<'p> {
                 // used through the await; mark it like a plain use.
                 self.mark_expr(inner);
             }
+            Expr::Closure { captures, .. } => {
+                for c in captures {
+                    self.mark_expr(c);
+                }
+            }
+            Expr::Lambda { body, .. } => self.mark_block(body, 0),
             _ => {}
         }
     }

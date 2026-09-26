@@ -8,7 +8,7 @@ in Rust with zero external dependencies.
 library — lives at <https://h4bbo.net/flint>.**
 
 - Source: `*.flint`
-- Pipeline: `lexer -> parser -> monomorphize -> codegen -> .s -> as -> ld -e _start`
+- Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> codegen -> .s -> as -> ld -e _start`
 - Runtime: a hand-written freestanding `intrinsics.s` (raw `syscall`s, heap,
   refcount, threads, sockets, print helpers) linked in by the driver. The
   collections are ordinary stdlib classes (`src/stdlib/coll.flint`), not part
@@ -49,10 +49,14 @@ Tests: `cargo test` (Rust integration, end-to-end via the flintc binary) and
 
 ## Compiler architecture & layout
 
-Pipeline: `lexer -> parser -> monomorphize -> codegen -> .s -> as -> ld -e _start`.
+Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> codegen ->
+.s -> as -> ld -e _start`.
 
-- **middle/**: monomorphization (`ensure`, `expand`, `infer`, `resolve`,
-  `resolve_expr`): generic templates are expanded to concrete types/functions.
+- **middle/**: lambda desugaring (`lambda`): a lambda is lifted into a
+  function that takes its captures, and the lambda node is replaced by a
+  closure (a heap block holding the function pointer and the captures). Then
+  monomorphization (`ensure`, `expand`, `infer`, `resolve`, `resolve_expr`):
+  generic templates are expanded to concrete types/functions.
 - **backend/**: code generation (`codegen/`: `accessor`, `binop`, `builtin`,
   `call`, `ctx`, `expr`, `func`, `lvalue`, `new`, `stmt`) plus
   `escape.rs` (stack-vs-heap escape analysis), `layout.rs`, and `release.rs`.
@@ -66,16 +70,16 @@ src/
   backend/  mod.rs  codegen.rs  escape.rs  layout.rs  release.rs
     codegen/  accessor.rs  binop.rs  builtin.rs  call.rs
                 ctx.rs  expr.rs  func.rs  lvalue.rs  new.rs  stmt.rs
-  middle/   mod.rs  mono/  ensure.rs  expand.rs  infer.rs  mod.rs
-                resolve.rs  resolve_expr.rs
+  middle/   mod.rs  lambda.rs  mono/  ensure.rs  expand.rs  infer.rs
+                mod.rs  resolve.rs  resolve_expr.rs
   prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
-    stdlib/   bit.flint  checksum.flint  coll.flint  file.flint  gui.flint
-              image.flint  math.flint  mem.flint  net.flint  num.flint
-              path.flint  rand.flint  sort.flint  str.flint  sync.flint
-              task.flint  thread.flint  time.flint  widget.flint
+    stdlib/   array.flint  bit.flint  checksum.flint  coll.flint  file.flint
+              gui.flint  image.flint  math.flint  mem.flint  net.flint
+              num.flint  path.flint  rand.flint  sort.flint  str.flint
+              sync.flint  task.flint  thread.flint  time.flint  widget.flint
   intrinsics.s
 tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
-examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint
+examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint  filter.flint
             tcp_client.flint  tcp_server.flint  gui.flint  window_gui.flint
             form.flint  windows.flint
 ```

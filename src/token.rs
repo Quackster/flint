@@ -48,6 +48,7 @@ pub enum Tok {
     MinusEq,  // -=
     StarEq,   // *=
     SlashEq,  // /=
+    RArrow,   // -> (lambda)
 
     // keywords
     If,

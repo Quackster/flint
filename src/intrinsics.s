@@ -183,6 +183,31 @@ flint_retain:
     ret
     .size flint_retain, .-flint_retain
 
+    .globl flint_retain_val
+    .type flint_retain_val, @function
+# flint_retain_val(v): null-guarded retain; returns v in rax (so the value
+# stays usable in a typed slot of any class).
+flint_retain_val:
+    mov %rdi, %rax
+    test %rdi, %rdi
+    jz .Lretain_val_done
+    incq (%rdi)
+.Lretain_val_done:
+    ret
+    .size flint_retain_val, .-flint_retain_val
+
+    .globl flint_fn_call2
+    .type flint_fn_call2, @function
+# flint_fn_call2(block, a): invoke a closure. `block` is [fn_ptr][cap...];
+# the lifted function is called as fn(ctx = block, a).
+# args: rdi=block, rsi=a
+flint_fn_call2:
+    # rdi = closure block (ctx), rsi = the lambda's single argument;
+    # the lifted fn expects exactly (rdi=ctx, rsi=arg).
+    call *0(%rdi)
+    ret
+    .size flint_fn_call2, .-flint_fn_call2
+
     .globl flint_release
     .type flint_release, @function
 flint_release:

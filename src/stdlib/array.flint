@@ -1,0 +1,40 @@
+// std/array — helpers over raw int arrays (import std.Arrays).
+//
+// `filter(a, pred)` returns a fresh int array holding the elements for
+// which the predicate closure `pred` is true, in order. A predicate
+// closure is a lambda value (`int x -> boolean { ... }`) and is called
+// with `sys.fnCall2(pred, element)` (the closure block first, the
+// element second; the result is 0/1).
+//
+// Usage:
+//   import std.Arrays;
+//   int[] a = [1, 2, 3, 4];
+//   int[] evens = Arrays.filter(a, int x -> boolean { return x % 2 == 0; });
+package std;
+class Arrays {
+    // The elements of `a` for which `pred` is true, in order, as a
+    // fresh int array (slot 0 is the length header).
+    static int[] filter(int a[], *int pred) {
+        int n = len(a);
+        int m = 0;
+        int i = 0;
+        while (i < n) {
+            if (sys.fnCall2(pred, a[i]) == 1) {
+                m = m + 1;
+            }
+            i = i + 1;
+        }
+        *int out = Mem.intArray(m + 1);
+        sys.intStore(out, m);
+        i = 0;
+        int j = 0;
+        while (i < n) {
+            if (sys.fnCall2(pred, a[i]) == 1) {
+                sys.intStore(out + 8 * (j + 1), a[i]);
+                j = j + 1;
+            }
+            i = i + 1;
+        }
+        return out;
+    }
+}

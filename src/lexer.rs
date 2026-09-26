@@ -297,6 +297,9 @@ impl<'a> Lexer<'a> {
                 } else if self.peek() == Some(b'=') {
                     self.bump();
                     Tok::MinusEq
+                } else if self.peek() == Some(b'>') {
+                    self.bump();
+                    Tok::RArrow
                 } else {
                     Tok::Minus
                 }

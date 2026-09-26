@@ -1,0 +1,8 @@
+void main() {
+    int f = int x -> boolean {
+        return int y -> boolean {
+            return y > x;
+        };
+    };
+    printi(f);
+}

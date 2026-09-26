@@ -207,6 +207,7 @@ pub fn compile_sources(file_sources: &[String]) -> error::CompileResult<String> 
         merged.enums.append(&mut prog.enums);
         merged.imports.append(&mut prog.imports);
     }
+    let merged = middle::desugar_lambdas(&merged)?;
     let prog = middle::monomorphize(&merged)?;
     backend::generate(&prog)
 }

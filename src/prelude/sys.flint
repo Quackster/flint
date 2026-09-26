@@ -18,6 +18,11 @@
 //   sys.shortStore(*short ptr, int val) store 2 bytes (LE) to memory
 //   sys.intLoad(*int ptr) -> int        load 4 bytes (LE) from memory
 //   sys.intStore(*int ptr, int val)     store 4 bytes (LE) to memory
+//   sys.fnCall2(*int block, int a) -> int  call a closure: `block` is
+//                                         [fn_ptr][cap0][cap1]... and the
+//                                         lifted function is invoked as
+//                                         fn(ctx = block, a) (the single
+//                                         lambda argument in `a`)
 //
 // Syscall convention: rax = number, args in rdi rsi rdx r10 r8 r9 (4th is r10!),
 // `syscall` clobbers rcx and r11.

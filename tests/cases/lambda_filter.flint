@@ -1,0 +1,83 @@
+// Lambdas (closures) and the filter methods: pure lambdas, scalar
+// captures (int and string), and a `this` (class) capture, exercised
+// through List / Queue / CopyOnWriteList / Arrays.
+import std.List;
+import std.Queue;
+import std.CopyOnWriteList;
+import std.Arrays;
+class Pair {
+    int a;
+    public Pair(int x) {
+        this.a = x;
+    }
+    // The elements for which `x + this.a` is even; the lambda captures
+    // `this` (a class capture: a by-value snapshot, retained for each
+    // call of the predicate).
+    int sumEven(int[] xs) {
+        int[] out = Arrays.filter(xs, int x -> boolean {
+            return (x + this.a) % 2 == 0;
+        });
+        int total = 0;
+        int i = 0;
+        while (i < len(out)) {
+            total = total + out[i];
+            i = i + 1;
+        }
+        return total;
+    }
+}
+void main() {
+    // List + a pure lambda.
+    List<int> xs = new List<int>();
+    int i = 0;
+    while (i < 10) {
+        xs.add(i * 2);
+        i = i + 1;
+    }
+    List<int> evens = xs.filter(int x -> boolean {
+        return x % 4 == 0;
+    });
+    print(str.itoa(evens.size()) + "\n");
+    print(str.itoa(evens.get(0)) + "\n");
+    print(str.itoa(evens.get(evens.size() - 1)) + "\n");
+    // List + an int capture.
+    int limit = 8;
+    List<int> big = xs.filter(int x -> boolean {
+        return x > limit;
+    });
+    print(str.itoa(big.size()) + "\n");
+    // List + a string capture (strings are scalar captures).
+    string tag = "ab";
+    List<string> ws = new List<string>();
+    ws.add("abc");
+    ws.add("zz");
+    ws.add("xyab");
+    List<string> hit = ws.filter(string s -> boolean {
+        return str.indexOf(s, tag) != -1;
+    });
+    print(str.itoa(hit.size()) + "\n");
+    print(hit.get(0) + "\n");
+    // A class capture: a lambda inside a method captures `this`.
+    Pair p = new Pair(3);
+    int[] a = [5, 6, 7, 8, 9];
+    print(str.itoa(p.sumEven(a)) + "\n");
+    // Queue + a lambda.
+    Queue<int> q = new Queue<int>();
+    q.push(3);
+    q.push(4);
+    q.push(5);
+    List<int> qf = q.filter(int x -> boolean {
+        return x % 2 == 1;
+    });
+    print(str.itoa(qf.size()) + "\n");
+    // CopyOnWriteList + a lambda.
+    CopyOnWriteList<int> cow = new CopyOnWriteList<int>();
+    cow.add(2);
+    cow.add(7);
+    cow.add(11);
+    List<int> cf = cow.filter(int x -> boolean {
+        return x > 5;
+    });
+    print(str.itoa(cf.get(0)) + "\n");
+    print(str.itoa(cf.get(1)) + "\n");
+}

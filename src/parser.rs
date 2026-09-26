@@ -93,6 +93,74 @@ fn skip_type(j: usize, toks: &[Token]) -> Option<usize> {
     Some(total)
 }
 
+/// Best-effort: if `toks[off]` is a `(`, does it start a lambda parameter
+/// list (a comma-separated `Type ident ([])*` list terminated by `)` and
+/// followed by `->`)? Returns the index just past the `->`.
+fn lambda_param_list_at(toks: &[Token], off: usize) -> Option<usize> {
+    if toks.get(off).map(|t| &t.kind) != Some(&Tok::LParen) {
+        return None;
+    }
+    let mut k = off + 1;
+    if toks.get(k).map(|t| &t.kind) == Some(&Tok::RParen) {
+        // `() -> ...`
+        k += 1;
+        return (toks.get(k).map(|t| &t.kind) == Some(&Tok::RArrow)).then_some(k);
+    }
+    loop {
+        let tlen = skip_type(k, toks)?;
+        let mut k2 = k + tlen;
+        // optional C#-style `[]` prefix
+        while toks.get(k2).map(|t| &t.kind) == Some(&Tok::LBracket)
+            && toks.get(k2 + 1).map(|t| &t.kind) == Some(&Tok::RBracket)
+        {
+            k2 += 2;
+        }
+        if !matches!(toks.get(k2).map(|t| &t.kind), Some(Tok::Ident(_))) {
+            return None;
+        }
+        k = k2 + 1;
+        // optional C-style `[]` suffix
+        while toks.get(k).map(|t| &t.kind) == Some(&Tok::LBracket)
+            && toks.get(k + 1).map(|t| &t.kind) == Some(&Tok::RBracket)
+        {
+            k += 2;
+        }
+        match toks.get(k).map(|t| &t.kind) {
+            Some(&Tok::Comma) => k += 1,
+            Some(&Tok::RParen) => {
+                k += 1;
+                return (toks.get(k).map(|t| &t.kind) == Some(&Tok::RArrow)).then_some(k);
+            }
+            _ => return None,
+        }
+    }
+}
+
+/// Best-effort: does `Type ident ([])* ->` start at `toks[off]`?
+fn lambda_single_at(toks: &[Token], off: usize) -> bool {
+    let tlen = match skip_type(off, toks) {
+        Some(l) => l,
+        None => return false,
+    };
+    let mut k = off + tlen;
+    // optional C#-style `[]` prefix
+    while toks.get(k).map(|t| &t.kind) == Some(&Tok::LBracket)
+        && toks.get(k + 1).map(|t| &t.kind) == Some(&Tok::RBracket)
+    {
+        k += 2;
+    }
+    if !matches!(toks.get(k).map(|t| &t.kind), Some(Tok::Ident(_))) {
+        return false;
+    }
+    k += 1;
+    while toks.get(k).map(|t| &t.kind) == Some(&Tok::LBracket)
+        && toks.get(k + 1).map(|t| &t.kind) == Some(&Tok::RBracket)
+    {
+        k += 2;
+    }
+    toks.get(k).map(|t| t.kind == Tok::RArrow) == Some(true)
+}
+
 /// The name registry built by pre-scanning the source: class/interface/enum
 /// names (by fully-qualified name) plus class field names and the import
 /// list. Built once over all input files so that any file's expressions can
@@ -692,6 +760,24 @@ impl<'a> Parser<'a> {
         Ok(ty)
     }
 
+    /// Consume C#-style prefix `[]` markers (`int[] a`, `int[][] g`) when
+    /// they immediately follow the type. Without markers, `ty` is returned
+    /// unchanged.
+    fn array_prefix(&mut self, ty: Ty) -> CompileResult<Ty> {
+        if self.at(&Tok::LBracket) {
+            loop {
+                self.expect(&Tok::LBracket, "'['")?;
+                self.expect(&Tok::RBracket, "']' after '['")?;
+                if !self.at(&Tok::LBracket) {
+                    break;
+                }
+            }
+            Ok(Ty::Array)
+        } else {
+            Ok(ty)
+        }
+    }
+
     /// Consume C-style trailing `[]` markers (`int a[]`, `int g[][]`) and
     /// return the array type. Without markers, `ty` is returned unchanged.
     fn array_suffix(&mut self, ty: Ty) -> CompileResult<Ty> {
@@ -1054,7 +1140,7 @@ impl<'a> Parser<'a> {
             }
 
             // Otherwise we expect a type (or void) then name
-            let mut ret = if self.at(&Tok::Void) {
+            let ret = if self.at(&Tok::Void) {
                 self.bump();
                 Some(Ty::Void)
             } else if self.is_type_at(0) || is_type_keyword(&self.cur().kind) || matches!(self.cur().kind, Tok::Star | Tok::Ident(_)) {
@@ -1078,6 +1164,11 @@ impl<'a> Parser<'a> {
                 ));
             };
             // If we parsed a ctor candidate incorrectly, ret would be Ident class name as type; but ctor already handled
+            // C#-style array return/field: `int[] filter(...)` / `int[] data;`
+            let mut ret = match ret {
+                Some(t) => Some(self.array_suffix(t)?),
+                None => None,
+            };
             // Now expect identifier name
             let member_name = self.expect_ident()?;
             // C-style array field: `int data[];`
@@ -1155,6 +1246,7 @@ impl<'a> Parser<'a> {
         let mut params = Vec::new();
         while !self.at(&Tok::RParen) {
             let pty = self.parse_type()?;
+            let pty = self.array_prefix(pty)?;
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
             let pspan = self.cur().span;
@@ -1194,6 +1286,7 @@ impl<'a> Parser<'a> {
         let mut params = Vec::new();
         while !self.at(&Tok::RParen) {
             let pty = self.parse_type()?;
+            let pty = self.array_prefix(pty)?;
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
             let pspan = self.cur().span;
@@ -1263,6 +1356,7 @@ impl<'a> Parser<'a> {
             let mut params = Vec::new();
             while !self.at(&Tok::RParen) {
                 let pty = self.parse_type()?;
+                let pty = self.array_prefix(pty)?;
                 let pname = self.expect_ident()?;
                 let pty = self.array_suffix(pty)?;
                 let pspan = self.cur().span;
@@ -1350,6 +1444,11 @@ impl<'a> Parser<'a> {
             Some(self.parse_type()?)
         };
         self.allow_type_param = false;
+        // C#-style array return: `int[] name(...)`.
+        let ret = match ret {
+            Some(t) => Some(self.array_suffix(t)?),
+            None => None,
+        };
         let name = self.expect_ident()?;
         let type_params = self.parse_type_params()?;
         if let Some(Ty::Param(n)) = &ret {
@@ -1368,6 +1467,7 @@ impl<'a> Parser<'a> {
         let mut params = Vec::new();
         while !self.at(&Tok::RParen) {
             let pty = self.parse_type()?;
+            let pty = self.array_prefix(pty)?;
             let pname = self.expect_ident()?;
             let pty = self.array_suffix(pty)?;
             let pspan = self.cur().span;
@@ -1391,6 +1491,48 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// Parse a Java-style lambda: `int x -> boolean { ... }`,
+    /// `(int a, int b) -> int { ... }`, or `() -> void { ... }`.
+    fn parse_lambda(&mut self, parenless: bool) -> CompileResult<Expr> {
+        let span = self.cur().span;
+        let mut params = Vec::new();
+        if parenless {
+            let pty = self.parse_type()?;
+            let pty = self.array_prefix(pty)?;
+            let pname = self.expect_ident()?;
+            let pty = self.array_suffix(pty)?;
+            params.push((pname, Some(pty), self.cur().span));
+        } else {
+            self.expect(&Tok::LParen, "'(' before lambda parameters")?;
+            while !self.at(&Tok::RParen) {
+                let pty = self.parse_type()?;
+                let pty = self.array_prefix(pty)?;
+                let pname = self.expect_ident()?;
+                let pty = self.array_suffix(pty)?;
+                let pspan = self.cur().span;
+                params.push((pname, Some(pty), pspan));
+                if self.at(&Tok::Comma) {
+                    self.bump();
+                }
+            }
+            self.expect(&Tok::RParen, "')' after lambda parameters")?;
+        }
+        self.expect(&Tok::RArrow, "'->' after lambda parameters")?;
+        let ret = if self.at(&Tok::Void) {
+            self.bump();
+            Some(Ty::Void)
+        } else {
+            Some(self.parse_type()?)
+        };
+        let body = self.parse_block()?;
+        Ok(Expr::Lambda {
+            span: span.join(&body.span),
+            params,
+            ret,
+            body,
+        })
+    }
+
     fn parse_block(&mut self) -> CompileResult<Block> {
         let span = self.cur().span;
         self.expect(&Tok::LBrace, "'{'")?;
@@ -1407,6 +1549,7 @@ impl<'a> Parser<'a> {
     fn parse_decl(&mut self, expect_semi: bool) -> CompileResult<Stmt> {
         let span = self.cur().span;
         let ty = self.parse_type()?;
+        let ty = self.array_prefix(ty)?;
         let name = self.expect_ident()?;
         let ty = self.array_suffix(ty)?;
         self.expect(&Tok::Assign, "'=' after variable name")?;
@@ -1569,6 +1712,7 @@ impl<'a> Parser<'a> {
             None
         } else if self.is_decl_start() {
             let ty = self.parse_type()?;
+            let ty = self.array_prefix(ty)?;
             let name = self.expect_ident()?;
             let ty = self.array_suffix(ty)?;
             if self.at(&Tok::Colon) {
@@ -2126,6 +2270,22 @@ impl<'a> Parser<'a> {
 
     fn parse_atom(&mut self) -> CompileResult<Expr> {
         let span = self.cur().span;
+        // Java-style lambda: `int x -> boolean { ... }`,
+        // `(int a, int b) -> int { ... }`, or `() -> void { ... }`.
+        // A type keyword (or a paren starting with one) cannot start any
+        // other expression, so these unambiguously begin a lambda.
+        if is_type_keyword(&self.peek_kind()) {
+            if lambda_single_at(&self.toks, self.i) {
+                return self.parse_lambda(true);
+            }
+            return Err(CompileError::new(
+                span,
+                "expected '->' after a lambda parameter (a type keyword cannot start another expression)",
+            ));
+        }
+        if self.peek_kind() == Tok::LParen && lambda_param_list_at(&self.toks, self.i).is_some() {
+            return self.parse_lambda(false);
+        }
         match self.peek_kind() {
             Tok::Int(v) => {
                 self.bump();
@@ -2347,7 +2507,9 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::Cast { span, .. }
         | Expr::Instanceof { span, .. }
         | Expr::EnumVariant { span, .. }
-        | Expr::Await { span, .. } => *span,
+        | Expr::Await { span, .. }
+        | Expr::Lambda { span, .. }
+        | Expr::Closure { span, .. } => *span,
     }
 }
 

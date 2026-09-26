@@ -35,6 +35,52 @@ impl<'a> Mono<'a> {
             | Expr::Null { .. }
             | Expr::This { .. }
             | Expr::Ident { .. } => Ok(e.clone()),
+            Expr::Closure {
+                span,
+                fn_name,
+                captures,
+            } => {
+                // Lambdas are desugared before monomorphization: the
+                // generated function is non-generic (it carries the
+                // caller's concrete types), so `fn_name` is left untouched.
+                let captures: Vec<Expr> = captures
+                    .iter()
+                    .map(|c| self.resolve_expr(c, subst))
+                    .collect::<CompileResult<Vec<Expr>>>()?;
+                Ok(Expr::Closure {
+                    span: *span,
+                    fn_name: fn_name.clone(),
+                    captures,
+                })
+            }
+            Expr::Lambda {
+                span,
+                params: lparams,
+                ret,
+                body,
+            } => {
+                // A surviving lambda is a diagnostic path (it should have
+                // been lifted); resolve it defensively.
+                let params = lparams
+                    .iter()
+                    .map(|(p, t, s2)| {
+                        let t = t
+                            .as_ref()
+                            .map(|t2| self.resolve_type(t2, subst))
+                            .transpose()?;
+                        Ok((p.clone(), t, *s2))
+                    })
+                    .collect::<CompileResult<Vec<(String, Option<Ty>, Span)>>>()?;
+                Ok(Expr::Lambda {
+                    span: *span,
+                    params,
+                    ret: ret
+                        .as_ref()
+                        .map(|t| self.resolve_type(t, subst))
+                        .transpose()?,
+                    body: self.resolve_block(body, subst)?,
+                })
+            }
             Expr::EnumVariant {
                 span, enum_name, variant, ..
             } => {

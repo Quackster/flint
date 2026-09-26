@@ -383,4 +383,23 @@ pub enum Expr {
         enum_name: String,
         variant: String,
     },
+    // A lambda expression, Java-style: `int x -> boolean { ... }`,
+    // `(int a, int b) -> int { ... }`, or `() -> void { ... }`. The middle
+    // pass lifts it into a generated top-level function (whose first
+    // parameter is the `*int` capture block) and replaces it with a Closure.
+    Lambda {
+        span: Span,
+        params: Vec<(String, Option<Ty>, Span)>,
+        ret: Option<Ty>,
+        body: Block,
+    },
+    // The value of a lambda: a pointer to a fresh heap block
+    // `[fn_ptr, cap0, cap1, ...]`. `captures` are evaluated (by value) when
+    // the block is created; the generated function is `fn_name` (already
+    // mangled). Calling convention: `fn(ctx, arg1, arg2)`.
+    Closure {
+        span: Span,
+        fn_name: String,
+        captures: Vec<Expr>,
+    },
 }

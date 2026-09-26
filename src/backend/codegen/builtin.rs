@@ -455,6 +455,22 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Ptr,
             noreturn: false,
         }),
+        // Retain a class value regardless of its static type (lambda
+        // captures); null-guarded. Returns the value.
+        "mem.retainVal" => Some(Builtin {
+            target: "flint_retain_val",
+            arity: 1,
+            ret: Ty::Ptr,
+            noreturn: false,
+        }),
+        // Call a closure: sys.fnCall2(block, a) invokes the lifted function
+        // as fn(ctx = block, a).
+        "sys.fnCall2" | "fnCall2" => Some(Builtin {
+            target: "flint_fn_call2",
+            arity: 2,
+            ret: Ty::Int,
+            noreturn: false,
+        }),
         _ => None,
     }
 }
