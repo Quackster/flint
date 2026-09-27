@@ -383,6 +383,14 @@ impl<'p> Analyzer<'p> {
                 self.mark_expr(value);
             }
             Stmt::ExprStmt { expr, .. } => self.mark_expr(expr),
+            // ForEach is desugared by the monomorphizer; the defensive arm
+            // keeps the analysis sound if one ever slips through.
+            Stmt::ForEach {
+                target, body, ..
+            } => {
+                self.mark_expr(target);
+                self.mark_block(body, depth + 1);
+            }
             Stmt::If {
                 cond, then, else_opt, ..
             } => {

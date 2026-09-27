@@ -1,0 +1,10 @@
+class MyMap {
+    int keys() { return 0; }
+    int values() { return 0; }
+}
+int main() {
+    MyMap m = new MyMap();
+    for (var x : m) {
+    }
+    return 0;
+}

@@ -80,6 +80,7 @@ pub fn monomorphize(prog: &Program) -> CompileResult<Program> {
         class_work: Vec::new(),
         func_work: Vec::new(),
         cur_locals: HashMap::new(),
+        cur_this: None,
         cur_func_package: String::new(),
     };
     m.run()
@@ -104,8 +105,11 @@ struct Mono<'a> {
     func_inst: HashMap<(usize, Vec<Ty>), usize>,
     class_work: Vec<(usize, Vec<Ty>)>,
     func_work: Vec<(usize, Vec<Ty>)>,
-    /// Local variable types for the body currently being resolved (inference).
-    cur_locals: HashMap<String, Ty>,
+        /// Local variable types for the body currently being resolved (inference).
+        cur_locals: HashMap<String, Ty>,
+        /// The new (expanded) struct index of the class whose method body is
+        /// being resolved; `None` for free functions. Used to type `this`.
+        cur_this: Option<usize>,
     /// Package of the function/method body currently being resolved, used to
     /// resolve short (unqualified) free-function calls.
     cur_func_package: String,
@@ -159,16 +163,26 @@ impl<'a> Mono<'a> {
                 self.expand_func(ni, i, &[])?;
             }
         }
-        // Drain the instantiation worklists to a fixpoint.
-        while let Some((ti, args)) = self.class_work.pop() {
-            let ni = self.class_inst[&(ti, args.clone())];
-            self.expand_struct(ni, ti, &args)?;
+        // Drain the instantiation worklists to a fixpoint (a generic
+        // function body can instantiate a class, and a class body can
+        // instantiate a function, so drain alternates until both are empty).
+        loop {
+            let mut progress = false;
+            while let Some((ti, args)) = self.class_work.pop() {
+                progress = true;
+                let ni = self.class_inst[&(ti, args.clone())];
+                self.expand_struct(ni, ti, &args)?;
+            }
+            while let Some((ti, args)) = self.func_work.pop() {
+                progress = true;
+                let ni = self.func_inst[&(ti, args.clone())];
+                self.expand_func(ni, ti, &args)?;
+            }
+            if !progress {
+                break;
+            }
         }
-        while let Some((ti, args)) = self.func_work.pop() {
-            let ni = self.func_inst[&(ti, args.clone())];
-            self.expand_func(ni, ti, &args)?;
-        }
-        Ok(std::mem::replace(
+        let mut out = std::mem::replace(
             &mut self.out,
             Program {
                 structs: Vec::new(),
@@ -177,7 +191,11 @@ impl<'a> Mono<'a> {
                 enums: Vec::new(),
                 imports: Vec::new(),
             },
-        ))
+        );
+        // Now that every generic class instance is expanded, desugar the
+        // for-each loops that need their accessor methods.
+        self::resolve::desugar_for_eachs(&mut out)?;
+        Ok(out)
     }
 
     fn make_subst(&self, type_params: &[String], args: &[Ty]) -> Vec<(String, Ty)> {

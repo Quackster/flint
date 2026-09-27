@@ -89,6 +89,7 @@ pub enum Tok {
     Finally,
     Async,
     Await,
+    Var, // `var`: the type is inferred from the initializer
     // type keywords
     KwByte,
     KwShort,

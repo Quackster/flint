@@ -200,6 +200,15 @@ fn build_scope(
                 }
                 walk_block(lk, known, seen, locals, body);
             }
+            Stmt::ForEach {
+                name, ty, body, ..
+            } => {
+                // The element type is the declared `ty` (a `var` loop
+                // variable is typed by the monomorphizer; a class-typed
+                // element captured by a lambda is a v1 edge case).
+                register_local(known, seen, locals, name, ty.clone());
+                walk_block(lk, known, seen, locals, body);
+            }
             Stmt::If { then, else_opt, .. } => {
                 walk_block(lk, known, seen, locals, then);
                 if let Some(e) = else_opt {
@@ -256,6 +265,9 @@ fn block_has_lambda(b: &Block) -> bool {
                     || update.as_ref().map_or(false, |u| stmt_has(u))
                     || block_has_lambda(body)
             }
+            Stmt::ForEach {
+                target, body, ..
+            } => expr_has(target) || block_has_lambda(body),
             Stmt::Return { value, .. } => value.as_ref().map_or(false, |v| expr_has(v)),
             Stmt::Throw { value, .. } => expr_has(value),
             Stmt::Switch {
@@ -339,6 +351,12 @@ fn declared_names(b: &Block) -> HashSet<String> {
                 if let Some(u) = update {
                     walk(u, out);
                 }
+                walk_block(body, out);
+            }
+            Stmt::ForEach {
+                name, body, ..
+            } => {
+                out.insert(name.clone());
                 walk_block(body, out);
             }
             Stmt::If { then, else_opt, .. } => {
@@ -505,6 +523,12 @@ fn free_names(
                         }
                     }
                 }
+                Stmt::ForEach {
+                    target, body, ..
+                } => {
+                    walk(free, this, declared, params, target, span)?;
+                    walk_block(free, this, declared, params, body, span)?;
+                }
                 Stmt::Return { value, .. } => {
                     if let Some(v) = value {
                         walk(free, this, declared, params, v, span)?;
@@ -659,6 +683,12 @@ fn rewrite_stmt(s: &mut Stmt, scalar_off: &HashMap<String, i64>, this_captured: 
                 if let Some(u) = update {
                     stmt(u, scalar_off, this_captured);
                 }
+            }
+            Stmt::ForEach {
+                target, body, ..
+            } => {
+                rewrite_body(target, scalar_off, this_captured);
+                block(body, scalar_off, this_captured);
             }
             Stmt::Return { value, .. } => {
                 if let Some(v) = value {

@@ -909,9 +909,11 @@ impl<'a> Parser<'a> {
         self.toks.get(j + 1).map(|t| t.kind == Tok::RParen) == Some(true)
     }
 
-    /// True if the current token starts a typed declaration (`Ty name = ...`).
+    /// True if the current token starts a typed declaration (`Ty name = ...`)
+    /// or a `var` declaration (the type is inferred).
     fn is_decl_start(&self) -> bool {
         match self.cur().kind.clone() {
+            Tok::Var => true,
             k if is_type_keyword(&k) => true,
             Tok::Star => self.is_type_at(1),
             Tok::Ident(n) => {
@@ -1610,14 +1612,24 @@ impl<'a> Parser<'a> {
         Ok(Block { span, stmts })
     }
 
-    /// Parse `Ty name = expr`, optionally followed by ';' (a `for` init has
-    /// its own separators).
+    /// Parse `Ty name = expr` (or `var name = expr`, where the type is
+    /// inferred by the monomorphizer), optionally followed by ';' (a `for`
+    /// init has its own separators).
     fn parse_decl(&mut self, expect_semi: bool) -> CompileResult<Stmt> {
         let span = self.cur().span;
-        let ty = self.parse_type()?;
-        let ty = self.array_prefix(ty)?;
+        let ty = if self.at(&Tok::Var) {
+            self.bump(); // var
+            None
+        } else {
+            let ty = self.parse_type()?;
+            let ty = self.array_prefix(ty)?;
+            Some(ty)
+        };
         let name = self.expect_ident()?;
-        let ty = self.array_suffix(ty)?;
+        let ty = match ty {
+            Some(t) => Some(self.array_suffix(t)?),
+            None => self.var_array_suffix()?,
+        };
         self.expect(&Tok::Assign, "'=' after variable name")?;
         let value = self.parse_expr()?;
         if expect_semi {
@@ -1626,9 +1638,20 @@ impl<'a> Parser<'a> {
         Ok(Stmt::Decl {
             span,
             name,
-            ty: Some(ty),
+            ty,
             value,
         })
+    }
+
+    /// For a `var name[] ...`: consume the trailing `[]` markers and record
+    /// the type as `Array` (arrays are untyped in v1); `None` when absent.
+    fn var_array_suffix(&mut self) -> CompileResult<Option<Ty>> {
+        if self.at(&Tok::LBracket) {
+            self.array_suffix(Ty::Int)?;
+            Ok(Some(Ty::Array))
+        } else {
+            Ok(None)
+        }
     }
 
     /// Parse an expression, or `expr = expr`, as a statement (no trailing ';').
@@ -1674,85 +1697,31 @@ impl<'a> Parser<'a> {
         }
     }
 
-    /// Parse `for (T x : a) { ... }` and desugar it to two statements:
-    /// `int .rf_base = a;` followed by an index loop over `len(.rf_base)`.
-    /// `ty` already includes any `[]` suffix on the loop variable (row type
-    /// for multi-dimensional arrays).
-    fn parse_range_for(
+    /// Parse `for (T x : c) { ... }` (with `var` in place of `T` for an
+    /// inferred element type) and emit a `ForEach` statement. The
+    /// monomorphizer desugars it into `int .rf_base = c;` followed by an
+    /// index loop over `len(.rf_base)` (arrays) or `.rf_base.size()` /
+    /// `.rf_base.get(.rf_i)` (collections).
+    fn parse_for_each(
         &mut self,
         label: Option<String>,
         span: Span,
         name: String,
-        ty: Ty,
+        ty: Option<Ty>,
     ) -> CompileResult<Vec<Stmt>> {
         self.bump(); // ':'
-        let arr = self.parse_expr()?;
+        let target = self.parse_expr()?;
         self.expect(&Tok::RParen, "')' in 'for'")?;
         let body = self.parse_block()?;
-        let base_name = ".rf_base";
-        let idx_name = ".rf_i";
-        // The desugared decls need distinct spans: the escape plan keys decl
-        // decisions by decl-statement span. Offsets inside the `for` keyword
-        // can never collide with a real statement's span.
-        let base_span = Span::new(span.start + 1, span.end + 1);
-        let idx_span = Span::new(span.start + 2, span.end + 2);
-        let var_span = Span::new(span.start + 3, span.end + 3);
-        let idx_ident = || Expr::Ident { span, name: idx_name.to_string() };
-        let len_call = Expr::Call {
-            span,
-            callee: vec!["len".to_string()],
-            type_args: Vec::new(),
-            args: vec![Expr::Ident { span, name: base_name.to_string() }],
-        };
-        let cond = Expr::BinOp {
-            span,
-            op: BinOp::Lt,
-            l: Box::new(idx_ident()),
-            r: Box::new(len_call),
-        };
-        let update = Stmt::ExprStmt {
-            span,
-            expr: Expr::IncrDecr {
-                span,
-                e: Box::new(idx_ident()),
-                inc: true,
-                pre: false,
-            },
-        };
-        let idx_decl = Stmt::Decl {
-            span: idx_span,
-            name: idx_name.to_string(),
-            ty: Some(Ty::Int),
-            value: Expr::Int { span: idx_span, value: 0 },
-        };
-        let elem = Expr::Index {
-            span,
-            base: Box::new(Expr::Ident { span, name: base_name.to_string() }),
-            idx: Box::new(idx_ident()),
-        };
-        let var_decl = Stmt::Decl {
-            span: var_span,
-            name,
-            ty: Some(ty),
-            value: elem,
-        };
-        let mut body_stmts = vec![var_decl];
-        body_stmts.extend(body.stmts);
-        let for_stmt = Stmt::For {
+        Ok(vec![Stmt::ForEach {
             span,
             label,
-            init: Some(Box::new(idx_decl)),
-            cond: Some(Box::new(cond)),
-            update: Some(Box::new(update)),
-            body: Box::new(Block { span, stmts: body_stmts }),
-        };
-        let base_decl = Stmt::Decl {
-            span: base_span,
-            name: base_name.to_string(),
-            ty: None,
-            value: arr,
-        };
-        Ok(vec![base_decl, for_stmt])
+            name,
+            ty,
+            target: Box::new(target),
+            body: Box::new(body),
+            base_ty: None,
+        }])
     }
 
     fn parse_while(&mut self, label: Option<String>) -> CompileResult<Stmt> {
@@ -1777,16 +1746,25 @@ impl<'a> Parser<'a> {
         let init = if self.at(&Tok::Semicolon) {
             None
         } else if self.is_decl_start() {
-            let ty = self.parse_type()?;
-            let ty = self.array_prefix(ty)?;
+            let ty = if self.at(&Tok::Var) {
+                self.bump(); // var
+                None
+            } else {
+                let ty = self.parse_type()?;
+                let ty = self.array_prefix(ty)?;
+                Some(ty)
+            };
             let name = self.expect_ident()?;
-            let ty = self.array_suffix(ty)?;
+            let ty = match ty {
+                Some(t) => Some(self.array_suffix(t)?),
+                None => self.var_array_suffix()?,
+            };
             if self.at(&Tok::Colon) {
-                return self.parse_range_for(label.take(), span, name, ty);
+                return self.parse_for_each(label.take(), span, name, ty);
             }
             self.expect(&Tok::Assign, "'=' after variable name")?;
             let value = self.parse_expr()?;
-            Some(Stmt::Decl { span, name, ty: Some(ty), value })
+            Some(Stmt::Decl { span, name, ty, value })
         } else {
             Some(self.parse_expr_or_assign()?)
         };

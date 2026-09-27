@@ -1,0 +1,173 @@
+// for-each + var: for (T x : c) over arrays and std collections,
+// C-style for with i = i + 1 / i++ / j--, and var type inference
+// (including var over a generic new and class elements).
+import std.List;
+import std.Queue;
+import std.HashSet;
+import std.HashMap;
+class Box {
+    int v;
+    public Box() {
+        this.v = 0;
+    }
+}
+int main() {
+    // var inference: int, string, bool, call result
+    var a = 42;
+    print(a); print(" ");
+    var s = "hello";
+    print(s); print(" ");
+    var b = 1 < 2;
+    print(b); print("\n");
+    var c = a + 1;
+    print(c); print("\n");
+
+    // var over a generic new
+    var hsv = new HashSet<int>();
+    hsv.add(3);
+    hsv.add(7);
+    print(hsv.size()); print(" ");
+    var lv = new List<int>();
+    lv.add(5);
+    lv.add(6);
+    for (int x : lv) {
+        print(x); print(" ");
+    }
+    print("\n");
+
+    // C-style for: i = i + 1, i++, j--
+    var sum = 0;
+    for (var i = 0; i < 10; i = i + 1) {
+        sum = sum + i;
+    }
+    print(sum); print(" ");
+    var up = 0;
+    for (var i2 = 0; i2 < 10; i2++) {
+        up = up + i2;
+    }
+    print(up); print(" ");
+    var dn = 0;
+    for (var j = 3; j >= 0; j--) {
+        dn = dn + j;
+    }
+    print(dn); print("\n");
+
+    // for-each over a 1-D array
+    int arr[] = [1, 2, 3, 4];
+    var t = 0;
+    for (int x : arr) {
+        t = t + x;
+    }
+    print(t); print(" ");
+
+    // var over an array infers the element
+    for (var y : arr) {
+        if (y == 4) {
+            print(y); print(" ");
+        }
+    }
+
+    // for-each over a 2-D array iterates the rows
+    int g[][] = [[1, 2], [3, 4]];
+    var r = 0;
+    for (var row[] : g) {
+        for (var v : row) {
+            r = r + v;
+        }
+    }
+    print(r); print("\n");
+
+    // for-each over a List
+    List<int> ls = new List<int>();
+    ls.add(10);
+    ls.add(20);
+    ls.add(30);
+    var ls_sum = 0;
+    for (var e : ls) {
+        ls_sum = ls_sum + e;
+    }
+    print(ls_sum); print(" ");
+
+    // for-each over a List of strings (var infers string)
+    List<string> ws = new List<string>();
+    ws.add("a");
+    ws.add("b");
+    for (var w : ws) {
+        print(w);
+    }
+    print("\n");
+
+    // for-each over a Queue
+    Queue<int> q = new Queue<int>();
+    q.push(1);
+    q.push(2);
+    for (var v : q) {
+        print(v); print(" ");
+    }
+    print("\n");
+
+    // for-each over a HashSet
+    HashSet<int> hs = new HashSet<int>();
+    hs.add(7);
+    hs.add(9);
+    for (var h : hs) {
+        print(h); print(" ");
+    }
+    print("\n");
+
+    // break and continue in a for-each
+    var bc = 0;
+    for (var n : arr) {
+        if (n == 2) {
+            continue;
+        }
+        if (n == 4) {
+            break;
+        }
+        bc = bc + n;
+    }
+    print(bc); print("\n");
+
+    // a typed for-each keeps the declared element type
+    var tw = 0;
+    for (int m : ls) {
+        tw = tw + m;
+    }
+    print(tw); print("\n");
+
+    // a HashMap is not iterable directly; iterate keys()/values()
+    HashMap<int, string> hm = new HashMap<int, string>();
+    hm.put(1, "x");
+    hm.put(2, "y");
+    var ks_sum = 0;
+    for (var k : hm.keys()) {
+        ks_sum = ks_sum + k;
+    }
+    print(ks_sum); print("\n");
+
+    // two collection loops in one function (distinct desugared temps)
+    Queue<int> q2 = new Queue<int>();
+    q2.push(5);
+    q2.push(6);
+    for (var v2 : q2) {
+        print(v2); print(" ");
+    }
+    List<int> ls2 = new List<int>();
+    ls2.add(1);
+    ls2.add(2);
+    var ls2_sum = 0;
+    for (var e2 : ls2) {
+        ls2_sum = ls2_sum + e2;
+    }
+    print(ls2_sum); print("\n");
+
+    // a class element (object flavour) in a typed for-each
+    Box bk = new Box();
+    bk.v = 9;
+    List<Box> bl = new List<Box>();
+    bl.add(bk);
+    for (Box bx : bl) {
+        print(bx.v); print("\n");
+    }
+    return 0;
+}

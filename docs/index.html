@@ -343,15 +343,20 @@ negative. <code>0xFFFFFFFFFFFFFFFF</code> (all 64 bits) is <code>-1</code>.</div
 <p class="lede">Flat function-level scope: there is no block-level shadowing —
 re-declaring a name re-declares the <em>same</em> variable.</p></div>
 
-<h2>Declaration</h2>
-<p>Variables are declared with a type, then optionally initialized. Re-assignment
-is plain <code>=</code>. There are no <code>let</code>/<code>var</code>
-keywords.</p>
-<div class="code"><div class="head"><span>declaration</span></div>
-<pre><code class="flint">int x = 10;        // declare + init
-string name = "flint";
-x = x + 5;        // re-assign
-</code></pre></div>
+ <h2>Declaration</h2>
+ <p>Variables are declared with a type, then optionally initialized. Re-assignment
+ is plain <code>=</code>. The <code>var</code> keyword infers the type from
+ the initializer (C++ <code>auto</code>-style); it requires an initializer.</p>
+ <div class="code"><div class="head"><span>declaration</span></div>
+ <pre><code class="flint">int x = 10;        // declare + init
+ string name = "flint";
+ var n = 42;         // inferred int
+ var s = "flint";    // inferred string
+ var b = 1 &lt; 2;      // inferred bool
+ var r = n + 1;      // inferred from the expression
+ var hs = new HashSet&lt;int&gt;();  // inferred class (generic new)
+ x = x + 5;        // re-assign
+ </code></pre></div>
 
 <h2>Flat scope — no block shadowing</h2>
 <p>This is the single most important (and most surprising) scoping rule: a
@@ -391,7 +396,7 @@ it — and the new value <em>persists</em> after the block ends.</p>
 <code>v</code>, both prints show <code>20</code>. Likewise, the
 <code>int i = 100</code> inside the loop overwrites the loop counter's slot, so
 the loop body runs once (then <code>i</code> becomes <code>101</code>, ending
-the loop) and <code>total</code> is <code>100</code>. The range-for behaves the
+the loop) and <code>total</code> is <code>100</code>. The for-each behaves the
 same: each of the 4 elements is read as the re-declared <code>100</code>, giving
 <code>400</code>.</p>
 
@@ -470,9 +475,10 @@ print(++x);                      // 9 (++x: same post-increment value)
 5</div>
 </section>
 <section id="control-flow" class="doc-section" data-label="Control flow">
-<div class="page-head"><h1>Control flow</h1>
-<p class="lede"><code>if</code>/<code>else</code>, <code>while</code>,
-<code>for</code>, range-for, and <code>switch</code> with fall-through.</p></div>
+ <div class="page-head"><h1>Control flow</h1>
+ <p class="lede"><code>if</code>/<code>else</code>, <code>while</code>,
+ C-style <code>for</code>, for-each over arrays and collections, and
+ <code>switch</code> with fall-through.</p></div>
 
 <h2>Conditionals &amp; loops</h2>
 <div class="code"><div class="head"><span>basic forms</span></div>
@@ -488,15 +494,44 @@ while (cond) {
     // ...
 }
 
-for (int i = 0; i &lt; n; i = i + 1) {
-    // ...
-}
+ for (int i = 0; i &lt; n; i++) {
+     // ...
+ }
 
-// range-for over an array (desugars to an index loop)
-int a[] = [1, 2, 3];
-for (int v : a) {
-    print(v);
-}</code></pre></div>
+ // for-each over an array (desugars to an index loop)
+ int a[] = [1, 2, 3];
+ for (int v : a) {
+     print(v);
+ }
+
+ // for-each over a std collection: List / Queue / HashSet expose
+ // size() / get(i); `var` infers the element type
+ import std.List;
+ List&lt;int&gt; ls = new List&lt;int&gt;();
+ ls.add(10);
+ ls.add(20);
+ for (var e : ls) {
+     print(e);
+ }
+  // A HashMap has no element order: iterate .keys() or .values()
+  import std.HashMap;
+  HashMap&lt;int, string&gt; m = new HashMap&lt;int, string&gt;();
+  m.put(1, "x");
+  for (var k : m.keys()) {
+      print(k);
+  }</code></pre></div>
+
+ <h2>For-each</h2>
+ <p><code>for (T x : c)</code> iterates the elements of <code>c</code> and
+ desugars to an index loop. The target may be an array
+ (<code>len(c)</code> / <code>c[i]</code>) or any class exposing
+ <code>size()</code> and <code>get(int)</code> — the std
+ <code>List</code>, <code>Queue</code>, <code>HashSet</code>, and
+ <code>CopyOnWriteList</code>. A <code>HashMap</code> is rejected with a hint
+ to use <code>.keys()</code> / <code>.values()</code>; other types
+ (scalars, pointers, …) are not iterable. When <code>T</code> is
+ <code>var</code>, the element type is inferred from the target (the array's
+ element, or the collection's <code>get</code> return).</p>
 
 <h2>Switch &amp; fall-through</h2>
 <p><code>switch</code>/<code>case</code> falls through to the next case body
@@ -2008,12 +2043,19 @@ element. Object elements are refcounted — storing
 retains, clearing / destroying releases — see
 <a href="#coll-objects">Object elements</a>.</p>
 
-<h2>Common API</h2>
-<p>Every collection inherits <code>size()</code> and <code>clear()</code>
-from <code>Collection</code>, and most support <code>contains(…)</code>.
-There are no literals: build a collection with
-<code>new T&lt;…&gt;()</code> and then <code>add</code> /
-<code>put</code> / <code>push</code> one element at a time.</p>
+ <h2>Common API</h2>
+ <p>Every collection inherits <code>size()</code> and <code>clear()</code>
+ from <code>Collection</code>, and most support <code>contains(…)</code>.
+ There are no literals: build a collection with
+ <code>new T&lt;…&gt;()</code> and then <code>add</code> /
+ <code>put</code> / <code>push</code> one element at a time.</p>
+ <p><code>List</code>, <code>Queue</code>, <code>HashSet</code>, and
+ <code>CopyOnWriteList</code> expose <code>size()</code> +
+ <code>get(int)</code>, so they are directly iterable with
+ <a href="#control-flow">for-each</a>:
+ <code>for (var e : ls)</code>. A <code>HashMap</code> has no element order
+ of its own — iterate <code>m.keys()</code> or <code>m.values()</code>
+ (each returns a fresh <code>List</code>).</p>
 <p>Per-type pages:
 <a href="#coll-list">List</a> ·
 <a href="#coll-queue">Queue</a> ·
@@ -2138,8 +2180,11 @@ a|b|c
 <tr><td><code>T pop()</code></td><td>remove &amp; return the front
 (<code>0</code> when empty; a <code>string</code> for
 <code>Queue&lt;string&gt;</code>)</td></tr>
-<tr><td><code>T peek()</code></td><td>return the front without removing
-(<code>0</code> when empty)</td></tr>
+ <tr><td><code>T peek()</code></td><td>return the front without removing
+ (<code>0</code> when empty)</td></tr>
+ <tr><td><code>T get(int i)</code></td><td>the <code>i</code>-th element from
+ the front (<code>0</code> when out of range) — also what
+ <code>for (var e : q)</code> iterates</td></tr>
  <tr><td><code>size()</code></td><td>number of queued elements</td></tr>
  <tr><td><code>clear()</code></td><td>empty the queue</td></tr>
  <tr><td><code>filter(*int pred)</code></td><td>fresh
@@ -2217,8 +2262,11 @@ reached.</p></div>
 <tr><td><code>add(T v)</code></td><td>insert; <code>1</code> if new,
 <code>0</code> if present</td></tr>
 <tr><td><code>contains(T v)</code></td><td>value (or content) match</td></tr>
-<tr><td><code>remove(T v)</code></td><td>remove; leaves a tombstone</td></tr>
-<tr><td><code>size()</code></td><td>number of distinct elements</td></tr>
+ <tr><td><code>remove(T v)</code></td><td>remove; leaves a tombstone</td></tr>
+ <tr><td><code>T get(int i)</code></td><td>the <code>i</code>-th element in
+ bucket order (<code>0</code> when out of range) — also what
+ <code>for (var e : s)</code> iterates</td></tr>
+ <tr><td><code>size()</code></td><td>number of distinct elements</td></tr>
 <tr><td><code>clear()</code></td><td>empty the set</td></tr>
 </table>
 <p>Construction: <code>new HashSet&lt;…&gt;()</code>, then

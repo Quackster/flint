@@ -49,6 +49,7 @@ impl<'a> Mono<'a> {
             }
             self.cur_func_package = c.package.clone();
             self.cur_locals = locals;
+            self.cur_this = Some(ni);
             for p in m.params.iter_mut() {
                 if let Some(d) = &mut p.3 {
                     *d = self.resolve_expr(d, &subst)?;
@@ -163,6 +164,7 @@ impl<'a> Mono<'a> {
         }
         self.cur_func_package = f.package.clone();
         self.cur_locals = locals;
+        self.cur_this = None;
         for p in f.params.iter_mut() {
             if let Some(d) = &mut p.3 {
                 *d = self.resolve_expr(d, &subst)?;

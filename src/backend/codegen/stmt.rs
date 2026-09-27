@@ -322,6 +322,12 @@ impl Ctx<'_> {
                 self.emit(&format!("{}:", end_label));
                 Ok(())
             }
+            // ForEach is desugared into a For by the monomorphizer; a
+            // surviving node is an internal error.
+            Stmt::ForEach { span, .. } => Err(CompileError::new(
+                *span,
+                "internal: for-each was not desugared",
+            )),
             Stmt::Break { span, label } => {
                 let end = if let Some(l) = label {
                     let e = frame

@@ -29,7 +29,11 @@ Follow the Java conventions the language is built around:
 - Types spelled out on every declaration: `int n`, `void worker(int k)`,
   `string s`, `*int buf`.
 - Control flow in C/Java form: `for (int i = 0; i < n; i = i + 1) { ... }`,
-  `while`, `if`/`else`.
+  `while`, `if`/`else`. For-each: `for (T x : c)` (or `var x`) over arrays
+  and any class with `size()`/`get(int)` (std `List`, `Queue`, `HashSet`,
+  `CopyOnWriteList`; `HashMap` via `.keys()`/`.values()`). `var` infers the
+  declared type from the initializer (requires an initializer); in for-each it
+  infers the element type from the target.
 - Trailing parameters may carry default values
   (`void f(int a, int b = 0)`; called as `f(1)` or `f(1, 2)`). Defaults
   must be constants (literals, enum variants, or `Class.staticField`

@@ -323,6 +323,16 @@ class Queue<T> extends Collection {
         Collection.retainElem(this.kind, v);
         return v;
     }
+    // The i-th element from the front (0 when out of range; the stored
+    // reference transfers to the caller, retained for object elements).
+    T get(int i) {
+        if (i >= this.count) {
+            return 0;
+        }
+        int v = this.slots[(this.head + i) % this.cap];
+        Collection.retainElem(this.kind, v);
+        return v;
+    }
     void clear() {
         int i = 0;
         while (i < this.count) {
@@ -399,6 +409,24 @@ class HashSet<T> extends Collection {
             }
             i = (i + 1) & mask;
         }
+    }
+    // The i-th element in bucket order (0 when out of range; the stored
+    // reference transfers to the caller, retained for object elements).
+    T get(int i) {
+        int n = 0;
+        int j = 0;
+        while (j < this.cap) {
+            if (this.slots[2 * j + 1] == 1) {
+                if (n == i) {
+                    int v = this.slots[2 * j];
+                    Collection.retainElem(this.kind, v);
+                    return v;
+                }
+                n = n + 1;
+            }
+            j = j + 1;
+        }
+        return 0;
     }
     // 1 removed, 0 absent (the bucket becomes a tombstone).
     int remove(T v) {

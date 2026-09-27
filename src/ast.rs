@@ -179,6 +179,24 @@ pub enum Stmt {
         update: Option<Box<Stmt>>,
         body: Box<Block>,
     },
+    // `for (T x : c)`: iterate the elements of `c` — an array (`len`/
+    // `[]`) or a collection with `size()`/`get(i)` (std `List`,
+    // `Queue`, `HashSet`, `CopyOnWriteList`). The monomorphizer
+    // desugars it into an index loop; `ty` is `None` for `var x` (the
+    // element type is inferred from the target).
+    ForEach {
+        span: Span,
+        /// Loop label for `break name` / `continue name`.
+        label: Option<String>,
+        name: String,
+        ty: Option<Ty>,
+        target: Box<Expr>,
+        body: Box<Block>,
+        /// The target's resolved type, recorded by the monomorphizer's first
+        /// pass so the post-expansion desugaring pass (which runs after
+        /// generic class instances are expanded) can pick the access path.
+        base_ty: Option<Ty>,
+    },
     Return {
         span: Span,
         value: Option<Box<Expr>>,
