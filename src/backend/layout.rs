@@ -166,6 +166,26 @@ pub(crate) fn vtable_symbol(prog: &Program, sidx: usize) -> String {
     format!("vtable_{}", prog.structs[sidx].name)
 }
 
+/// The symbol name of a constructor. Ctors are not in the vtable; they are
+/// called directly, picked by argument count. Overloaded ctors (several in
+/// one class) therefore need distinct symbols: when the class declares more
+/// than one ctor, the explicit parameter count is appended (`Box_Box_1`);
+/// otherwise the bare mangled name (`Box_Box`) is kept.
+pub(crate) fn ctor_symbol(
+    prog: &Program,
+    sidx: usize,
+    class_name: &str,
+    meth_name: &str,
+    nparams: usize,
+) -> String {
+    let n_ctors = prog.structs[sidx].methods.iter().filter(|m| m.is_ctor).count();
+    if n_ctors > 1 {
+        format!("{}_{}_{}", class_name, meth_name, nparams)
+    } else {
+        format!("{}_{}", class_name, meth_name)
+    }
+}
+
 /// True when `child` is a subtype of `parent_name` (a class it extends,
 /// transitively, or an interface it implements, transitively).
 pub(crate) fn is_subtype(prog: &Program, child: usize, parent_name: &str) -> bool {

@@ -1,0 +1,49 @@
+// Overloaded constructors: several constructors in one class are
+// dispatched by argument count (new and super).
+class Box {
+    int v;
+    public Box() {
+        this.v = 0;
+    }
+    public Box(int x) {
+        this.v = x;
+    }
+}
+class Parent {
+    int a;
+    int b;
+    public Parent() {
+        this.a = 1;
+        this.b = 2;
+    }
+    public Parent(int x) {
+        this.a = x;
+        this.b = x + 1;
+    }
+}
+class Child extends Parent {
+    int c;
+    public Child() {
+        super();
+        this.c = 10;
+    }
+    public Child(int x) {
+        super(x);
+        this.c = x * 100;
+    }
+}
+int main() {
+    Box a = new Box();
+    Box b = new Box(11);
+    print(a.v); print(" ");
+    print(b.v); print("\n");
+    Child c1 = new Child();
+    Child c2 = new Child(4);
+    print(c1.a); print(" ");
+    print(c1.b); print(" ");
+    print(c1.c); print("\n");
+    print(c2.a); print(" ");
+    print(c2.b); print(" ");
+    print(c2.c); print("\n");
+    return 0;
+}

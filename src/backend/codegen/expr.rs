@@ -3,7 +3,7 @@ use crate::error::{CompileError, CompileResult};
 use crate::backend::escape::LocalKind;
 use crate::backend::layout;
 
-use super::{ARGREGS, Ctx, Frame, binop_result, e_span, is_temp_class, mangle, struct_idx_of, ty_name};
+use super::{ARGREGS, Ctx, Frame, binop_result, e_span, is_temp_class, struct_idx_of, ty_name};
 
 impl Ctx<'_> {
     /// Evaluate an expression, leaving its 64-bit result pushed on the stack.
@@ -441,7 +441,8 @@ impl Ctx<'_> {
                     }
                     // move base to rdi without popping
                     self.emit("\tmov (%rsp), %rdi");
-                    let mangled = mangle(name, &ctor.name);
+                    let mangled =
+                        layout::ctor_symbol(self.prog, sidx, name, &ctor.name, ctor.params.len());
                     self.emit(&format!("\tcall {}", mangled));
                     // ctor returns void; new returns base
                     self.emit("\tpop %rax");
@@ -615,7 +616,8 @@ impl Ctx<'_> {
                         ));
                     }
                     self.pop_args(total);
-                    let mangled = mangle(&pdef.name, &ctor.name);
+                    let mangled =
+                        layout::ctor_symbol(self.prog, p, &pdef.name, &ctor.name, ctor.params.len());
                     self.emit(&format!("\tcall {}", mangled));
                     self.emit("\tmovq $0, %rax");
                     self.emit("\tpush %rax");

@@ -85,8 +85,12 @@ impl Ctx<'_> {
     }
 
     pub(crate) fn gen_method(&mut self, class_def: &ClassDef, meth: &MethodDef) -> CompileResult<()> {
-        let mangled = mangle(&class_def.name, &meth.name);
         let sidx = *self.struct_idx.get(&class_def.name).unwrap_or(&0);
+        let mangled = if meth.is_ctor {
+            layout::ctor_symbol(self.prog, sidx, &class_def.name, &meth.name, meth.params.len())
+        } else {
+            mangle(&class_def.name, &meth.name)
+        };
         let plan =
             escape::plan_func(self.prog, &meth.params, &meth.body, !meth.is_static, Some(sidx));
         let nparams = meth.params.len() + if meth.is_static { 0 } else { 1 };

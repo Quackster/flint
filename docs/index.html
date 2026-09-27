@@ -1014,6 +1014,10 @@ int main() {
 <code>new Raw(10, 20)</code> fills the fields positionally.</li>
 <li><b>(3) Zero-arg constructor.</b> <code>new Counter()</code> runs the
 no-argument constructor.</li>
+<li><b>(4) Overloaded constructors.</b> A class may declare several
+constructors; <code>new</code> and <code>super</code> pick the one whose
+argument count matches (<code>new Box()</code> and <code>new Box(11)</code>
+route to different constructors).</li>
 </ul>
 </section>
 <section id="methods" class="doc-section" data-label="Methods, this, super">

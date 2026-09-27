@@ -202,8 +202,8 @@ struct Analyzer<'p> {
     marks: HashSet<String>,
     assign_targets: HashSet<String>,
     nobjs: usize,
-    /// Memoized ctor this-escape facts, keyed by (class idx, ctor name).
-    ctor_esc: HashMap<(usize, String), bool>,
+    /// Memoized ctor this-escape facts, keyed by (class idx, ctor name, arity).
+    ctor_esc: HashMap<(usize, String, usize), bool>,
 }
 
 impl<'p> Analyzer<'p> {
@@ -489,7 +489,7 @@ impl<'p> Analyzer<'p> {
             Some(m) => m,
             None => return false,
         };
-        let key = (sidx, ctor.name.clone());
+        let key = (sidx, ctor.name.clone(), ctor.params.len());
         if let Some(&v) = self.ctor_esc.get(&key) {
             return v;
         }
