@@ -8,9 +8,9 @@
 //   - scalar captures (int / bool / string / pointer / array) are read in
 //     the lifted function as `ctx[i]`;
 //   - class captures (including `this`) are shadowed in the lifted function
-//     by a local `T name = mem.retainVal(ctx[i]);` so each call owns an
-//     independent reference for the call's duration (the block's own
-//     reference is never dropped in v1).
+//     by a local `T name = ctx[i].move();` (emitted as `mem.retainVal`, the
+//     same clone) so each call owns an independent reference for the call's
+//     duration (the block's own reference is never dropped in v1).
 //
 // Calling convention: `fn(ctx, arg1, arg2)` — invoked via `sys.fnCall2`.
 //

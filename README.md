@@ -49,14 +49,17 @@ Tests: `cargo test` (Rust integration, end-to-end via the flintc binary) and
 
 ## Compiler architecture & layout
 
-Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> codegen ->
-.s -> as -> ld -e _start`.
+Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> ownership
+-> codegen -> .s -> as -> ld -e _start`.
 
 - **middle/**: lambda desugaring (`lambda`): a lambda is lifted into a
   function that takes its captures, and the lambda node is replaced by a
   closure (a heap block holding the function pointer and the captures). Then
   monomorphization (`ensure`, `expand`, `infer`, `resolve`, `resolve_expr`):
-  generic templates are expanded to concrete types/functions.
+  generic templates are expanded to concrete types/functions. Then
+  `ownership.rs`: compile-time move / borrow checking like Rust Ch 4.1
+  (each value has a single owner; `T x = y` moves, calls borrow like `&T`,
+  `free` consumes; `x.move()` / `str.copy(s)` clone explicitly).
 - **backend/**: code generation (`codegen/`: `accessor`, `binop`, `builtin`,
   `call`, `ctx`, `expr`, `func`, `lvalue`, `new`, `stmt`) plus
   `escape.rs` (stack-vs-heap escape analysis), `layout.rs`, and `release.rs`.
@@ -69,9 +72,9 @@ src/
   main.rs  ast.rs  lexer.rs  parser.rs  token.rs  span.rs  error.rs
   backend/  mod.rs  codegen.rs  escape.rs  layout.rs  release.rs
     codegen/  accessor.rs  binop.rs  builtin.rs  call.rs
-                ctx.rs  expr.rs  func.rs  lvalue.rs  new.rs  stmt.rs
-  middle/   mod.rs  lambda.rs  mono/  ensure.rs  expand.rs  infer.rs
-                mod.rs  resolve.rs  resolve_expr.rs
+                 ctx.rs  expr.rs  func.rs  lvalue.rs  new.rs  stmt.rs
+  middle/   mod.rs  lambda.rs  ownership.rs  mono/  ensure.rs  expand.rs
+                 infer.rs  mod.rs  resolve.rs  resolve_expr.rs
   prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
     stdlib/   array.flint  bit.flint  checksum.flint  coll.flint  file.flint
               gui.flint  image.flint  math.flint  mem.flint  net.flint

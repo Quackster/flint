@@ -1,8 +1,9 @@
 // arrays: arrays are heap blocks of 8-byte slots with a length header
 // ([len][elem0][elem1]...); they pass by pointer. len(a) reads the
 // header. Arrays can be class fields, can be array-literal call
-// arguments, and functions can return fresh arrays. No bounds checks
-// in v1.
+// arguments, and functions can return fresh arrays. Arrays move like
+// objects (`int b[] = a` moves `a`); share one explicitly with
+// `a.move()` (same block, both stay valid). No bounds checks in v1.
 class Grid {
     int data[];
     public Grid(int d[]) {
@@ -45,6 +46,11 @@ int main() {
     print("\n");
     a[0] = 100;
     print(sum3(a));            // 155 (alias mutates the same block)
+    print("\n");
+    // .move(): shared ownership — `h` aliases `a`'s block explicitly
+    Grid h = new Grid(a.move());
+    h.data[1] = 1;             // visible through a (same block)
+    print(sum3(a));            // 131 (100 + 1 + 30)
     print("\n");
     return 0;
 }

@@ -38,8 +38,9 @@ int main() {
     Pair h = new Pair(5, 6);
     print(sum_of(h));
     print("\n");
-    // heap alias: both hold refcounted references
-    Pair c = h;
+    // heap alias: both hold refcounted references.
+    // Ownership: `=` moves, so clone explicitly for shared use.
+    Pair c = h.move();
     c.b = 100;
     print(h.b);
     print("\n");

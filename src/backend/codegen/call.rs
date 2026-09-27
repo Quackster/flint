@@ -185,6 +185,77 @@ impl Ctx<'_> {
         frame: &mut Frame,
         span: Span,
     ) -> CompileResult<Ty> {
+        // `x.move()`: explicit clone on any object, string, or array.
+        // Borrows the receiver and returns a fresh owner of the same type,
+        // so `Pair c = h.move();` keeps `h` valid (shared ownership). On
+        // class values this retains (just `mem.retainVal`); on strings and
+        // arrays it is a plain alias (same address, both stay valid — they
+        // leak rather than drop, so no refcount is needed; use `str.copy`
+        // for an independent string). Raw `*T` buffers are rejected (they
+        // follow explicit free discipline). Handled before interface
+        // dispatch so it works on interface-typed values too; rejected on
+        // class names (instance-only). A user-defined `move` method wins
+        // over this builtin clone (e.g. `Point.move(dx, dy)` keeps working).
+        if method == "move" {
+            if let Expr::Ident { name, .. } = base {
+                if frame.find(name).is_none() && self.struct_idx_by_name(name).is_some() {
+                    return Err(CompileError::new(
+                        span,
+                        "move() cannot be called on a class; call it on an object value",
+                    ));
+                }
+            }
+            let struct_ty = self.expr_struct_type(base, frame)?;
+            let iface_ty = if struct_ty.is_none() {
+                self.expr_interface_type(base, frame)?
+            } else {
+                None
+            };
+            let user_move = match (struct_ty, iface_ty) {
+                (Some(s), _) => layout::find_method_def(self.prog, s, "move").is_some(),
+                (None, Some(i)) => self.prog.interfaces[i].methods.iter().any(|m| m.name == "move"),
+                (None, None) => false,
+            };
+            if !user_move {
+                if !args.is_empty() {
+                    return Err(CompileError::new(
+                        span,
+                        format!("move() expects 0 args, got {}", args.len()),
+                    ));
+                }
+                if struct_ty.is_none() && iface_ty.is_none() {
+                    // Not a class value and no user method to fall through
+                    // to: only strings and arrays get the builtin clone here
+                    // (raw `*T` buffers and scalars are rejected).
+                    let bty = self.gen_expr(base, frame)?;
+                    match bty {
+                        Ty::Str | Ty::Array => {
+                            self.maybe_retain(base, frame);
+                            return Ok(bty);
+                        }
+                        _ => {
+                            return Err(CompileError::new(
+                                span,
+                                "move() requires a class, string, or array value",
+                            ))
+                        }
+                    }
+                }
+                let ret = match (struct_ty, iface_ty) {
+                    (Some(s), _) => Ty::Struct(s),
+                    (None, Some(i)) => Ty::Interface(i),
+                    (None, None) => {
+                        return Err(CompileError::new(
+                            span,
+                            "move() requires a class, string, or array value",
+                        ))
+                    }
+                };
+                self.gen_expr(base, frame)?;
+                self.maybe_retain(base, frame);
+                return Ok(ret);
+            }
+        }
         // interface-typed base: dispatch through the fixed interface slot
         if let Some(i) = self.expr_interface_type(base, frame)? {
             return self.gen_iface_method_call(base, i, method, args, frame, span);

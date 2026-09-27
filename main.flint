@@ -1,0 +1,6 @@
+import t.Foo;
+int main() {
+    Foo f = new Foo();
+    print(f.v);
+    return 0;
+}

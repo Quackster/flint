@@ -1,13 +1,20 @@
 // prelude/mem — heap memory and byte operations.
 //
+// Ownership (Rust Ch 4.1): `alloc` returns a fresh owner; `*int q = p`
+// moves `p`; `free(p)` consumes (`p` invalid after; use-after-free and
+// double-free are compile errors); `memcpy` borrows. `x.move()` clones
+// any object explicitly (source stays valid; `mem.retainVal(o)` is the
+// same operation as a free function).
+//
 //   alloc(n) -> ptr   request n bytes from the heap (mmap-backed, 16-byte aligned)
-//   free(p)          release p (no-op in v1; the process reclaims it at exit)
-//   memcpy(d, s, n)  copy n bytes from s to d
-//   strlen(s) -> int  byte length of a NUL-terminated string
+//   free(p)          release p (consumes; no-op in v1; the process reclaims it at exit)
+//   memcpy(d, s, n)  copy n bytes from s to d (borrows)
+//   strlen(s) -> int  byte length of a NUL-terminated string (borrows)
 //   mem.retain(o) -> int  bump the refcount of a class object (o)
 //   mem.release(o)       drop one reference (a plain refcount decrement)
 //   mem.retainVal(o) -> int  null-guarded retain that returns o (the value
-//                           stays usable in a typed slot of any class)
+//                           stays usable in a typed slot of any class;
+//                           the explicit clone for shared ownership)
 //
 // Pointers are 64-bit; a buffer from `alloc` is indexed as 8-byte elements:
 //   buf[i]  loads/stores the int at byte offset i*8.

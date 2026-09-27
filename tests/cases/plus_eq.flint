@@ -63,15 +63,17 @@ int main() {
     h.fire(9);
     print(u.total()); print(" ");      // 9
     println(t.lastVal());   // 7 (t untouched)
-    // `=` behaves the same as `+=` for interface values
-    h.tick = t;
+    // `=` behaves the same as `+=` for interface values.
+    // Ownership: `=` moves (single owner), so clone for shared use.
+    h.tick = t.move();
     h.fire(11);
     println(t.lastVal());   // 11
-    // local interface value: re-declare releases the old reference
-    OnTick local = t;
+    // local interface value: re-declare releases the old reference.
+    // Ownership: clone `t`/`u` (they stay usable afterwards).
+    OnTick local = t.move();
     local.tick(1);
     print(t.lastVal()); print(" ");    // 1 (tick sets)
-    local = u;
+    local = u.move();
     local.tick(1);
     println(u.total());     // 10
     return 0;

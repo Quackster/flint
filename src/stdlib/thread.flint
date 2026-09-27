@@ -22,7 +22,9 @@ package std;
 class Thread {
     // Number of online CPUs (0 if the query fails, which is clamped to 1).
     static int nCpu() {
-        int mask = alloc(128);
+        // Ownership: `mask` is a fresh buffer (single owner); free it before
+        // returning (the owner frees).
+        *byte mask = alloc(128);
         sys.syscall(204, 0, 128, mask, 0, 0); // sched_getaffinity(0, 128, mask)
         int total = 0;
         for (int i = 0; i < 128; i = i + 1) {
@@ -32,6 +34,7 @@ class Thread {
                 b = b / 2;
             }
         }
+        free(mask);
         if (total < 1) {
             total = 1;
         }

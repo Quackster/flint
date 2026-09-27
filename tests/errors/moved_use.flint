@@ -1,0 +1,10 @@
+class Box {
+    int v;
+    public Box(int x) { this.v = x; }
+}
+int main() {
+    Box a = new Box(1);
+    Box b = a;
+    print(a.v);
+    return 0;
+}

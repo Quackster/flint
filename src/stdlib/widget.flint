@@ -1396,9 +1396,13 @@ class Gui {
         r.onPress(x, y);
         this.blurAll();
         r.claimFocus(x, y);
+        // Ownership: `r` moves into the field below, so read what we need
+        // first (borrows), then transfer (move last, no clone needed).
+        int sel = r.selected();
+        int g = r.group();
         this.focusedRad = r;
-        if (r.selected() == 1) {
-            this.clearGroup(r.group(), slot);
+        if (sel == 1) {
+            this.clearGroup(g, slot);
         }
         return 1;
     }

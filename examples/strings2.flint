@@ -4,7 +4,9 @@
 // string for byte value N. A literal stored into a string variable is a
 // fresh writable copy: `w[0] = 65` writes an 8-byte little-endian slot,
 // yielding "A" (0x41 00 ...). For multi-char builds, concatenate
-// single-char strings: `(string)65 + (string)66` is "AB".
+// single-char strings: `(string)65 + (string)66` is "AB". Strings move
+// like objects (`string b = a` moves `a`); share one with `a.move()`
+// (same buffer, both valid) or copy it with `str.copy(a)`.
 int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
@@ -44,6 +46,14 @@ int main() {
     print("\n");
     string cp = str.copy("same");
     print(str.cmp(cp, "same") == 0 ? 1 : 0);   // 1
+    print("\n");
+    // .move(): shared ownership — `sh` is the same buffer as `cp`
+    // (contrast the independent str.copy above)
+    string sh = cp.move();
+    sh[0] = 68;   // 'D': visible through both names (same buffer)
+    print(sh);    // D
+    print("\n");
+    print(cp);    // D
     print("\n");
     string sub = str.substring("hello world", 6, 5);
     print(str.cmp(sub, "world") == 0 ? 1 : 0);   // 1

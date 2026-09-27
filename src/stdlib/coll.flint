@@ -2,6 +2,17 @@
 // slot arrays: `Collection` (the base), `List<T>`, `Queue<T>`,
 // `HashSet<T>`, `HashMap<K, V>`, and `CopyOnWriteList<T>`.
 //
+// Ownership: the collections are the `unsafe` core — elements live as raw
+// 8-byte slots (`int`) with manual `Mem.retain` / `Mem.release`, so the
+// ownership checker (which tracks typed `Box` / `*int` variables, not raw
+// slot ints) does not see through them. `add` / `put` / `push` borrow
+// (the caller keeps its variable; the collection clones object elements
+// via retain), `get` / `remove` / `pop` return fresh owners, and
+// `destroy` (called automatically when the owner goes out of scope)
+// releases everything. Plain `T x = y` for class objects still moves —
+// clone shared objects explicitly with `x.move()`.
+//
+
 // Every collection stores its elements in a `Mem.intArray` of 8-byte
 // slots that it manipulates itself: `List` grows by doubling and
 // copying, `Queue` is a FIFO ring over its slots, and the hash family

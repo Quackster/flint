@@ -21,13 +21,18 @@ class File {
         if (fd < 0) {
             return -1;
         }
+        // Ownership: `st` is a fresh buffer (single owner); free it on all
+        // paths (the owner frees; `free` consumes).
         string st = alloc(280);
         int r = sys.syscall(5, fd, st, 0, 0, 0);
         sys.close(fd);
         if (r < 0) {
+            free(st);
             return -1;
         }
-        return st[6];  // struct stat: st_size at offset 48
+        int sz = st[6];  // struct stat: st_size at offset 48
+        free(st);
+        return sz;
     }
     // NUL-terminated copy of the whole file, or null if it cannot be opened.
     static string readAll(string path) {

@@ -290,7 +290,8 @@ int main() {
     print(app.running()); print(" ");           // 1
     print(app.run()); print(" ");              // 0 (no window)
     AppH ah = new AppH();
-    ah.app = app;
+    // Ownership: field store moves, so clone to keep `app` usable below.
+    ah.app = app.move();
     app.setup += ah;
     app.draw += ah;
     app.key += ah;

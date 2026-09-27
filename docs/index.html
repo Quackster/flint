@@ -1632,9 +1632,32 @@ select the flavour at runtime via the <code>kind</code> field — see
 </section>
 <section id="memory" class="doc-section" data-label="Memory model">
 <div class="page-head"><h1>Memory model</h1>
-<p class="lede">Object memory is decided at compile time by
-<em>escape analysis</em>: non-escaping objects live in plain stack slots;
+<p class="lede">Memory is checked at compile time by <em>ownership</em> (like
+Rust Ch 4.1: each value has a single owner; moves transfer it) and laid out
+by <em>escape analysis</em>: non-escaping objects live in plain stack slots;
 escaping objects go to the heap with a refcount header.</p></div>
+
+<h2>Ownership (compile-time, like Rust)</h2>
+<p>Each value has an <em>owner</em>; there is only one owner at a time; when
+the owner goes out of scope the value is dropped (class values are released;
+buffers are freed explicitly). <code>T x = y</code>, <code>x = y</code>,
+<code>return y</code> and <code>obj.field = y</code> <em>move</em> a class
+object or <code>*T</code> buffer (<code>y</code> becomes invalid — using it
+after is a compile error). Calls borrow (like <code>&amp;T</code>):
+<code>x.foo()</code> and <code>f(x)</code> leave <code>x</code> valid, and
+so do <code>str.concat</code>, <code>strlen</code>, and the
+<code>for (x : c)</code> iteration temporaries.
+<code>free(p)</code> / <code>Mem.freeInt</code> / <code>Mem.freeByte</code>
+consume (use-after-free and double-free are use-of-moved errors).
+<code>int</code> / <code>bool</code> / enum are <code>Copy</code>.
+<code>string</code> and arrays also move (they still leak rather than drop,
+so a move transfers the single live name). Clone explicitly with
+<code>x.move()</code> on any object, string, or array (a shared alias: same
+address, both stay valid; <code>mem.retainVal(x)</code> is the same
+operation as a free function); use <code>str.copy(s)</code> for an
+independent string. Raw <code>*T</code> buffers have no <code>move()</code>
+(they follow explicit free discipline).
+See <a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">Rust Ch 4.1</a>.</p>
 
 <h2>Escape analysis</h2>
 <p>An object <em>escapes</em> when it is passed as an argument, returned,
@@ -1643,7 +1666,9 @@ allocated with a refcount header
 <code>[refcount][field0][field1]…</code>. Copies
 <code>retain</code> (<code>flint_retain</code>); drops
 <code>release</code> (<code>flint_release</code>). Cycles leak in v1 (there
-are no weak references).</p>
+are no weak references). The collections (<code>src/stdlib/coll.flint</code>)
+are the <code>unsafe</code> core: elements live as raw slots with manual
+retain/release, so <code>add</code> borrows (the collection clones).</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/escape.flint</span></div>
@@ -1662,7 +1687,7 @@ int sum_of(Pair p) {
 
 Pair make() {
     Pair p = new Pair(9, 8);   // escapes via return -&gt; heap + refcount
-    return p;
+    return p;                  // moves p to the caller
 }
 
 int main() {
@@ -1671,20 +1696,20 @@ int main() {
     print(s.a + s.b);        // 7
     s.a = 10;
     print(s.a + s.b);        // 14
-    // alias of a stack object: plain address, no refcount traffic
+    // move (no use of s afterwards, so no clone needed)
     Pair r = s;
     print(r.b);             // 4
-    // heap: escapes into sum_of()
+    // heap: sum_of borrows, so h stays valid
     Pair h = new Pair(5, 6);
     print(sum_of(h));      // 11
-    // heap alias: both hold refcounted references
-    Pair c = h;
+    // shared ownership needs an explicit clone (both see the same object)
+    Pair c = h.move();
     c.b = 100;
     print(h.b);           // 100 (same object)
-    // class value returned from a function: fresh reference
+    // class value returned from a function: fresh reference (moved)
     Pair t = make();
     print(t.a + t.b);      // 17
-    // an object stored in a class field is a heap reference
+    // an object stored in a class field is a heap reference (moved in)
     // ... (see full source for Holder)
     return 0;
 }</code></pre></div>
@@ -1699,15 +1724,24 @@ int main() {
 
 <h2>Key points</h2>
 <ul>
+<li><b>Single owner:</b> <code>Pair c = h;</code> moves <code>h</code> (using
+<code>h</code> after is an error); shared ownership is explicit:
+<code>Pair c = h.move();</code> (both hold references — writing
+through one is visible through the other).</li>
+<li><b>Borrowed calls:</b> <code>sum_of(h)</code> and <code>h.method()</code>
+borrow (like <code>&amp;</code>); <code>h</code> stays valid.</li>
+<li><b>Consuming free:</b> <code>free(p)</code> / <code>Mem.freeInt(p)</code>
+consume <code>p</code>; use-after-free and double-free are compile errors.</li>
 <li><b>Stack slot:</b> <code>Pair s = new Pair(3,4)</code> used only
 locally — no refcount traffic.</li>
 <li><b>Heap + refcount:</b> once the object escapes (argument, return,
 field store, or <code>&amp;</code>), it is heap-allocated and
 refcounted.</li>
-<li><b>Aliases</b> of heap objects both hold refcounted references —
-writing through one is visible through the other
-(<code>c.b = 100</code> → <code>h.b</code> is <code>100</code>).</li>
-<li><b>Returned objects</b> are fresh references.</li>
+<li><b>Returned objects</b> are fresh references (moved to the caller).</li>
+<li><b>Explicit clone:</b> <code>x.move()</code> works on any object, string,
+or array value (borrows the receiver, returns a fresh owner). A user-defined
+<code>move</code> method wins over this builtin (e.g.
+<code>Point.move(dx, dy)</code> keeps working).</li>
 </ul>
 </section>
 <section id="pointers" class="doc-section" data-label="Pointers & raw memory">
@@ -1735,14 +1769,16 @@ little-endian access and a generic syscall.</p></div>
         fib[i] = fib[i - 1] + fib[i - 2];
         i = i + 1;
     }
+    // ownership transfer: `t` takes over the buffer
+    *int t = fib;
     int s = 0;
     i = 0;
     while (i &lt; n) {
-        s = s + fib[i];
+        s = s + t[i];
         i = i + 1;
     }
     print(s);                     // 0+1+1+2+3 = 7
-    free(fib);
+    free(t);                      // `t` is consumed here
     // sub-word little-endian access into a buffer
     *byte buf = alloc(16);
     sys.byteStore(buf + 8, 65);
@@ -1751,6 +1787,7 @@ little-endian access and a generic syscall.</p></div>
     print(sys.shortLoad(buf));      // 1000
     sys.intStore(buf + 12, 0x12345678);
     print(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
+    free(buf);
     // memcpy: copy 16 bytes
     *byte src = alloc(16);
     src[0] = 111;
@@ -1797,8 +1834,11 @@ holder); a <code>string</code> conforms to <code>*string</code> and
 <li><b>No dangling returns:</b> <code>return &amp;x</code> for a local or
 parameter <code>x</code> is a compile error — the address would outlive
 the frame. (Other lifetime cases are the programmer's in v1.)</li>
-<li><b>Heap:</b> <code>alloc(n)</code> / <code>free(p)</code> /
-<code>memcpy(dst, src, n)</code>.</li>
+<li><b>Heap + ownership:</b> <code>alloc(n)</code> returns a fresh owner;
+<code>*int q = p</code> <em>moves</em> <code>p</code>;
+<code>free(p)</code> / <code>Mem.freeInt</code> / <code>Mem.freeByte</code>
+<em>consume</em> (use-after-free and double-free are compile errors, like
+Rust); <code>memcpy(dst, src, n)</code> and <code>sys.*</code> borrow.</li>
 <li><b>Sub-word little-endian access:</b>
 <code>sys.byte/short/intLoad</code> and
 <code>sys.byte/short/intStore</code>.
@@ -1855,17 +1895,25 @@ int main() {
     print(g.max3());           // 7
     a[0] = 100;
     print(sum3(a));            // 155 (alias mutates the same block)
+    // .move(): shared ownership — `h` aliases `a`'s block explicitly
+    Grid h = new Grid(a.move());
+    h.data[1] = 1;             // visible through a (same block)
+    print(sum3(a));            // 131 (100 + 1 + 30)
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>3
 65
 16
 7
-155</div>
+155
+131</div>
 
 <h2>Key points</h2>
 <ul>
 <li><b>Literal:</b> <code>int a[] = [10, 20, 30]</code>.</li>
+<li><b>Ownership:</b> arrays move like objects
+(<code>int b[] = a</code> moves <code>a</code>); share one explicitly
+with <code>a.move()</code> (same block, both stay valid).</li>
 <li><b>Pass by pointer:</b> <code>sum3(a)</code> sees
 <code>a[1]</code> already mutated to <code>25</code>
 (<code>100+25+30</code> → after <code>a[0]=100</code>,
@@ -1947,6 +1995,18 @@ AB
 <code>1 1 1 1 1 1</code> block is those checks. Note
 <code>str.replace</code> replaces <em>all</em> occurrences
 (<code>str.replace("aaa","a","b")</code> → <code>"bbb"</code>).</p>
+
+<h2>Shared ownership</h2>
+<p>Strings move like objects (<code>string b = a</code> moves
+<code>a</code>). Share one explicitly with <code>s.move()</code> — a
+plain alias (same buffer, both stay valid), unlike the independent
+<code>str.copy</code> buffer:</p>
+<div class="code"><div class="head"><span>examples/strings2.flint (selected)</span></div>
+<pre><code class="flint">string cp = str.copy("same");   // independent buffer
+string sh = cp.move();          // shared: same buffer, both stay valid
+sh[0] = 68;   // 'D': visible through both names
+print(sh);    // D
+print(cp);    // D</code></pre></div>
 <div class="note"><b>Careful.</b> Printing a <code>null</code> string
 segfaults (the runtime calls <code>strlen</code> on it). Guard with
 <code>== null</code> before printing or measuring.</div>
@@ -3798,24 +3858,34 @@ int main() {
 buffers and dynamic arrays, wrapping raw <code>alloc</code> /
 <code>free</code> / <code>memcpy</code>. Use this in application code
 instead of raw <code>alloc</code> (only <code>examples/rawmem.flint</code>
-shows the raw API).</p></div>
+shows the raw API). Ownership: <code>intArray</code> / <code>bytes</code>
+return fresh owners; <code>freeInt</code> / <code>freeByte</code> consume
+(use-after-free is a compile error); <code>copy</code> borrows.</p></div>
 
 <h2>Methods</h2>
 <p><code>intArray</code> <code>bytes</code> <code>copy</code>
-<code>freeInt</code> <code>freeByte</code></p>
+<code>freeInt</code> <code>freeByte</code> <code>retain</code>
+<code>release</code> (plus <code>x.move()</code> on any object to clone
+explicitly)</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/alloc_demo.flint</span></div>
 <pre><code class="flint">import std.Mem;
 
+// a fresh array of the first n Fibonacci numbers (moved to the caller)
+*int fibs(int n) {
+    *int f = Mem.intArray(n);   // a fresh array of n 8-byte slots
+    f[0] = 0;
+    f[1] = 1;
+    for (int i = 2; i &lt; n; i = i + 1) {
+        f[i] = f[i - 1] + f[i - 2];
+    }
+    return f;
+}
+
 int main() {
     int n = 10;
-    *int fib = Mem.intArray(n);   // a fresh array of n 8-byte slots
-    fib[0] = 0;
-    fib[1] = 1;
-    for (int i = 2; i &lt; n; i = i + 1) {
-        fib[i] = fib[i - 1] + fib[i - 2];
-    }
+    *int fib = fibs(n);
     int j = 0;
     int sum = 0;
     while (j &lt; n) {

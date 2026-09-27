@@ -9,7 +9,7 @@ x86_64 Linux assembly (no libc).
 
 ```sh
 cargo build                 # -> target/debug/flintc (release: --release)
-bash tests/run_tests.sh     # full suite (expect: PASS=95  FAIL=0)
+bash tests/run_tests.sh     # full suite (expect: PASS=108  FAIL=0)
 ```
 
 Requires `as` and `ld` (binutils) on the PATH. Compile one program:
@@ -48,11 +48,53 @@ Follow the Java conventions the language is built around:
   name** (`nCpu`, not `n_cpu`; `readAll`, not `read_all`).
 - One statement per line; keep bodies short.
 
+## Memory (ownership, like Rust Ch 4.1)
+
+Memory is checked at compile time (`src/middle/ownership.rs`, run after
+monomorphization): each value has a single owner; when the owner goes out of
+scope the value is dropped.
+
+- **Moves:** `T x = y`, `x = y`, `return y`, and `obj.field = y` *move* a
+  class object (`Struct`/`Interface`), a `*T` buffer, a `string`, or an
+  array — `y` becomes invalid and using it afterwards is a compile error.
+  `*int q = p` moves `p`; `string b = a` moves `a`.
+- **Borrows:** calls borrow like `&T` — `x.foo()`, `f(x)`, `str.*`,
+  `sys.*`, and `Mem.copy` leave their arguments valid; `&x` borrows;
+  `this` (the method receiver) never moves. Strings and arrays still leak
+  rather than drop, so a move transfers the single live name (overwriting
+  one leaks, as before). `int`/`bool`/enum are `Copy`.
+- **Free consumes:** `free(p)` / `Mem.freeInt` / `Mem.freeByte` invalidate
+  `p`; use-after-free and double-free are compile errors.
+- **Clone explicitly with `x.move()`:** `x.move()` is available on any
+  object, `string`, or array value — it borrows the receiver and returns a
+  fresh owner of the same type (on objects just `mem.retainVal`, which still
+  works as a free function and is what the compiler emits for lambda
+  captures; on strings/arrays a plain shared alias). Use it for shared
+  ownership: `Pair c = h.move();` keeps `h` valid, as does
+  `string b = a.move();`. Use `str.copy(s)` for an independent string.
+  Raw `*T` buffers have no `move()` (they follow explicit free discipline).
+  A user-defined `move` method wins over this builtin clone
+  (e.g. `Point.move(dx, dy)` keeps working); `move()` with args, on a
+  class name, or on any other type is a compile error.
+- **Collections are the `unsafe` core:** `src/stdlib/coll.flint` stores
+  elements as raw `int` slots with manual `Mem.retain`/`Mem.release`, so
+  `add`/`put`/`push` borrow (the collection clones internally) while plain
+  `T x = y` for objects still moves.
+
 ## Writing examples
 
 Examples (`examples/*.flint`) are the language's public face. They must read
 like ordinary application code, **not** like a systems-programming demo:
 
+- **Keep `sys.*` built-in calls to an absolute minimum** — that includes
+  using pointers (the raw memory ops `sys.byteLoad`/`byteStore`,
+  `sys.shortLoad`/`shortStore`, `sys.intLoad`/`intStore`, and the raw
+  `sys.read`/`write`/`syscall` pass-throughs). When an example needs one
+  of these, wrap it in a `std` class instead of calling it inline.
+- **Do not use `alloc` in an example.** Allocate through `std.Mem`
+  (`Mem.intArray` / `Mem.bytes` / `Mem.copy`, released with
+  `Mem.freeInt` / `Mem.freeByte`); raw `alloc`/`free`/`memcpy` appear in
+  exactly one example, `rawmem.flint`.
 - **Use the high-level stdlib API** (`src/stdlib/*.flint`). Do **not** call the
   low-level primitives directly in an example:
   - `alloc`, `free`, `memcpy`

@@ -4,8 +4,9 @@ class Node {
 }
 int main() {
     Node a = new Node(1);
-    Node b = a;
-    Node c = b;
+    // Ownership: `=` moves (single owner); clone for shared references.
+    Node b = a.move();
+    Node c = b.move();
     print(a.val);
     print("\n");
     print(b.val);

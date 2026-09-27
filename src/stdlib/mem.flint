@@ -1,15 +1,25 @@
 // std/mem — dynamic arrays and byte buffers over the heap (import std.Mem).
 //
+// Ownership (like Rust Ch 4.1: each value has a single owner):
+// `intArray(n)` / `bytes(n)` return a fresh buffer (you own it);
+// `*int q = p` *moves* `p` (`p` becomes invalid); `freeInt` / `freeByte`
+// consume (use-after-free and double-free are compile errors); `copy`
+// borrows (both sides stay valid). Class objects move on `T x = y`
+// (clone explicitly with `x.move()`), while calls borrow their
+// arguments (like `&T`) — see the Memory model docs.
+//
 // `intArray(n)` returns a fresh array of n 8-byte slots (index as a[i]);
 // `bytes(n)` returns a fresh n-byte buffer (index as b[i]); `copy` copies n
-// bytes; `freeInt` / `freeByte` release them.
+// bytes; `freeInt` / `freeByte` release them (consuming the buffer).
+// Strings and arrays move like objects (`string b = a` moves `a`); share
+// one explicitly with `a.move()`, or copy a string with `str.copy(a)`.
 //
 // Usage:
 //   import std.Mem;
 //   *int fib = Mem.intArray(10);
 //   fib[0] = 0; fib[1] = 1;
 //   ...
-//   Mem.freeInt(fib);
+//   Mem.freeInt(fib);   // `fib` is consumed here; using it after is an error
 package std;
 class Mem {
     // A fresh array of n 8-byte slots (index with a[i]).

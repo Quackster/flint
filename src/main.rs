@@ -209,6 +209,9 @@ pub fn compile_sources(file_sources: &[String]) -> error::CompileResult<String> 
     }
     let merged = middle::desugar_lambdas(&merged)?;
     let prog = middle::monomorphize(&merged)?;
+    // Ownership: compile-time move / borrow checking (Rust Ch 4.1). Runs on
+    // the monomorphized program so generic instantiations are concrete.
+    middle::ownership::check(&prog)?;
     backend::generate(&prog)
 }
 
