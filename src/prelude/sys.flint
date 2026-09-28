@@ -12,12 +12,6 @@
 //   sys.connect(fd, addr, len)   -> int   connect a socket to a remote address
 //   sys.sockaddr(port, o1, o2, o3, o4) -> *int  build a 16-byte AF_INET sockaddr_in
 //   sys.exit(code)                       terminate the process
-//   sys.byteLoad(*byte ptr) -> int      load 1 byte from memory
-//   sys.byteStore(*byte ptr, int val)   store 1 byte to memory
-//   sys.shortLoad(*short ptr) -> int    load 2 bytes (LE) from memory
-//   sys.shortStore(*short ptr, int val) store 2 bytes (LE) to memory
-//   sys.intLoad(*int ptr) -> int        load 4 bytes (LE) from memory
-//   sys.intStore(*int ptr, int val)     store 4 bytes (LE) to memory
 //   sys.fnCall2(*int block, int a) -> int  call a closure: `block` is
 //                                         [fn_ptr][cap0][cap1]... and the
 //                                         lifted function is invoked as

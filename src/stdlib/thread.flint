@@ -28,7 +28,7 @@ class Thread {
         sys.syscall(204, 0, 128, mask, 0, 0); // sched_getaffinity(0, 128, mask)
         int total = 0;
         for (int i = 0; i < 128; i = i + 1) {
-            int b = sys.byteLoad(mask + i);
+            int b = mask[i];
             while (b > 0) {
                 total = total + (b % 2);
                 b = b / 2;

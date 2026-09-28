@@ -99,7 +99,7 @@ class TextBox extends Widget {
         super(x, y, w, h);
         this.max = max;
         this.buf = string[max + 1];
-        sys.byteStore(this.buf, 0);
+        this.buf[0] = 0;
         this.len = 0;
         this.focused = 0;
         this.entered = 0;
@@ -109,7 +109,7 @@ class TextBox extends Widget {
     public int entered() { return this.entered; }
     public void clear() {
         this.len = 0;
-        sys.byteStore(this.buf, 0);
+        this.buf[0] = 0;
         this.entered = 0;
     }
     public void clearEntered() { this.entered = 0; }
@@ -196,16 +196,16 @@ class TextBox extends Widget {
         if (this.len >= this.max) {
             return;
         }
-        sys.byteStore(this.buf + this.len, c);
+        this.buf[this.len] = c;
         this.len = this.len + 1;
-        sys.byteStore(this.buf + this.len, 0);
+        this.buf[this.len] = 0;
     }
     public void backspace() {
         if (this.len <= 0) {
             return;
         }
         this.len = this.len - 1;
-        sys.byteStore(this.buf + this.len, 0);
+        this.buf[this.len] = 0;
     }
     public void draw(Image im) {
         int border = this.focused == 1 ? 0xFFFFFF00 : 0xFF666688;
@@ -221,23 +221,23 @@ class PasswordBox extends TextBox {
     public PasswordBox(int x, int y, int w, int h, int max) {
         super(x, y, w, h, max);
         this.mask = string[max + 1];
-        sys.byteStore(this.mask, 0);
+        this.mask[0] = 0;
     }
     public void append(int c) {
         int was = this.len;
         super.append(c);
         if (this.len > was) {
-            sys.byteStore(this.mask + this.len - 1, 42);
-            sys.byteStore(this.mask + this.len, 0);
+            this.mask[this.len - 1] = 42;
+            this.mask[this.len] = 0;
         }
     }
     public void backspace() {
         super.backspace();
-        sys.byteStore(this.mask + this.len, 0);
+        this.mask[this.len] = 0;
     }
     public void clear() {
         super.clear();
-        sys.byteStore(this.mask, 0);
+        this.mask[0] = 0;
     }
     // TextBox.onPress/claimFocus call this.hit(), which would dispatch
     // to the wrong slot on a PasswordBox object, so test geometry inline
@@ -339,7 +339,7 @@ class NumberBox extends TextBox {
         string s = str.itoa(v);
         int i = 0;
         while (i < strlen(s)) {
-            this.append(sys.byteLoad(s + i));
+            this.append(s[i]);
             i = i + 1;
         }
     }
@@ -388,7 +388,7 @@ class TextArea extends TextBox {
         int n = 1;
         int i = 0;
         while (i < this.len) {
-            if (sys.byteLoad(this.buf + i) == 10) {
+            if (this.buf[i] == 10) {
                 n = n + 1;
             }
             i = i + 1;
@@ -405,7 +405,7 @@ class TextArea extends TextBox {
         while (i <= this.len) {
             int c = 10;
             if (i < this.len) {
-                c = sys.byteLoad(this.buf + i);
+                c = this.buf[i];
             }
             if (c == 10) {
                 if (y + 7 < this.y + this.h) {

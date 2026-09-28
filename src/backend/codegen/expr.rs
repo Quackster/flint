@@ -292,7 +292,14 @@ impl Ctx<'_> {
                         "cannot dereference an array; index them",
                     ));
                 }
-                self.emit("\tmovq (%rdi), %rax");
+                // byte buffers (byte/char buffers, strings) and short
+                // buffers dereference to their first element (1/2 bytes);
+                // pointers and slot buffers read a full 8-byte slot.
+                match &t {
+                    Ty::ByteArray | Ty::Str => self.emit("\tmovzbl (%rdi), %eax"),
+                    Ty::ShortArray => self.emit("\tmovzwl (%rdi), %eax"),
+                    _ => self.emit("\tmovq (%rdi), %rax"),
+                }
                 self.emit("\tpush %rax");
                 // a typed pointer dereferences to its pointee; an untyped
                 // one (alloc, null) dereferences to int
@@ -310,7 +317,10 @@ impl Ctx<'_> {
             Expr::Index { base, idx, .. } => {
                 let bty = self.gen_expr_ro(base, frame)?;
                 self.gen_expr_ro(idx, frame)?;
-                if !matches!(bty, Ty::Ptr(_) | Ty::Str | Ty::Array) {
+                if !matches!(
+                    bty,
+                    Ty::Ptr(_) | Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+                ) {
                     return Err(CompileError::new(
                         e_span(e),
                         format!("cannot index a {} value", ty_name(&bty)),
@@ -318,9 +328,18 @@ impl Ctx<'_> {
                 }
                 self.emit("\tpop %rdx");
                 self.emit("\tpop %rax");
-                // arrays carry a length header in slot 0; raw pointers do not
-                let disp = if matches!(bty, Ty::Array) { 8 } else { 0 };
-                self.emit(&format!("\tmovq {}(%rax, %rdx, 8), %rax", disp));
+                // Element-sized read: 8-byte slots for arrays/pointers,
+                // 2-byte LE elements for short buffers, 1 byte (zero
+                // extended) for byte buffers and strings. Arrays carry a
+                // length header in slot 0; the others point at element 0.
+                match bty {
+                    Ty::ShortArray => self.emit("\tmovzwl (%rax, %rdx, 2), %eax"),
+                    Ty::ByteArray | Ty::Str => self.emit("\tmovzbl (%rax, %rdx), %eax"),
+                    _ => {
+                        let disp = if matches!(bty, Ty::Array) { 8 } else { 0 };
+                        self.emit(&format!("\tmovq {}(%rax, %rdx, 8), %rax", disp));
+                    }
+                }
                 self.emit("\tpush %rax");
                 // a row of a multi-dimensional array is itself an array
                 if matches!(bty, Ty::Array) {
@@ -580,13 +599,15 @@ impl Ctx<'_> {
                 Ok(Ty::Array)
             }
             Expr::SizedNew { size, ty, .. } => {
-                // A fresh zero-filled heap buffer: `int[n]` / `byte[n]` (an
-                // `Array`: [refcount][len][elem0]... with the base pointing
-                // at `len`, exactly like a literal) or `string[n]` (a `Str`:
-                // [refcount][len][bytes...] with the base pointing at the
-                // bytes). mmap zero-fills, so elements start as 0 and
-                // strings as NUL-terminated. The value owns its single
-                // reference (refcount 1).
+                // A fresh zero-filled heap buffer: `int[n]` (an `Array`:
+                // [refcount][len][elem0]... with the base pointing at
+                // `len`, exactly like a literal), `byte[n]`/`char[n]`
+                // (`ByteArray`) and `short[n]` (`ShortArray`) with the
+                // base pointing at the first element, or `string[n]` (a
+                // `Str`: [refcount][len][bytes...] with the base pointing
+                // at the bytes). mmap zero-fills, so elements start as 0
+                // and strings as NUL-terminated. The value owns its
+                // single reference (refcount 1).
                 self.gen_expr(size, frame)?;
                 self.emit("\tpop %r10"); // n
                 self.emit("\tpush %r10"); // stash n across the alloc call
@@ -604,6 +625,26 @@ impl Ctx<'_> {
                         self.emit("\tpush %rax");
                         Ok(Ty::Array)
                     }
+                    Ty::ByteArray | Ty::ShortArray => {
+                        // [refcount][len][elems...]: base = first element
+                        // (16 past the raw block), the len header at 8
+                        // (n elements: bytes for ByteArray, shorts for
+                        // ShortArray).
+                        if matches!(ty, Ty::ShortArray) {
+                            self.emit("\tlea 16(%r10), %rdi");
+                            self.emit("\tadd %r10, %rdi"); // header + 2n bytes
+                        } else {
+                            self.emit("\tlea 16(%r10), %rdi"); // header + n bytes
+                        }
+                        self.emit("\tcall flint_alloc");
+                        self.emit("\tpop %r10"); // n
+                        self.emit("\tmov %rax, %r11"); // raw block
+                        self.emit("\tlea 16(%rax), %rax"); // base = elements
+                        self.emit("\tmovq $1, (%r11)"); // refcount
+                        self.emit("\tmovq %r10, 8(%r11)"); // length
+                        self.emit("\tpush %rax");
+                        Ok(ty.clone())
+                    }
                     Ty::Str => {
                         self.emit("\tlea 16(%r10), %rdi"); // header + n bytes
                         self.emit("\tcall flint_alloc");
@@ -617,7 +658,7 @@ impl Ctx<'_> {
                     }
                     _ => Err(CompileError::new(
                         e_span(e),
-                        "sized buffers require an int or string element type",
+                        "sized buffers require an int, byte, short, or string element type",
                     )),
                 }
             }
@@ -688,6 +729,29 @@ impl Ctx<'_> {
             }
             Expr::Cast { span, ty, e } => {
                 let vty = self.gen_expr_ro(e, frame)?;
+                let is_buffer = |t: &Ty| {
+                    matches!(
+                        t,
+                        Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+                    )
+                };
+                // `(byte)` / `(short)` / `(char)` reinterpret a buffer in
+                // place (a byte/short view of the same memory); `(int)`
+                // on a buffer is an 8-byte slot view (a `*int`: slots
+                // start at element 0, so no length header displacement).
+                // Runtime no-ops.
+                if matches!(ty, Ty::ByteArray | Ty::ShortArray) {
+                    if !is_buffer(&vty) {
+                        return Err(CompileError::new(
+                            *span,
+                            format!("cast to {} requires a buffer", ty_name(ty)),
+                        ));
+                    }
+                    return Ok(ty.clone());
+                }
+                if *ty == Ty::Int && is_buffer(&vty) {
+                    return Ok(Ty::Ptr(Some(Box::new(Ty::Int))));
+                }
                 // int/bool -> string: a fresh single-character string for the
                 // byte value (`"hi" + (string)72` -> "hiH")
                 if *ty == Ty::Str && matches!(vty, Ty::Int | Ty::Bool) {
@@ -779,7 +843,9 @@ impl Ctx<'_> {
             match t {
                 Ty::Struct(_) | Ty::Interface(_) => Some(RetainKind::Object),
                 Ty::Array => Some(RetainKind::Array),
-                Ty::Str => Some(RetainKind::Str),
+                // byte/short buffers share the string header layout
+                // (refcount 16 below the base)
+                Ty::Str | Ty::ByteArray | Ty::ShortArray => Some(RetainKind::Str),
                 _ => None,
             }
         }

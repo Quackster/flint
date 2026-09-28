@@ -13,12 +13,12 @@ int main() {
     print("\n");
     // pointer arithmetic is preserved: *byte + int
     string buf[8];
-    sys.byteStore(buf + 0, 65);
-    print(sys.byteLoad(buf + 1));
+    buf[0] = 65;
+    print(buf[1]);
     print("\n");
     // string + int is pointer arithmetic (byte at offset 1 of "hello")
     string s = "hello";
-    print(sys.byteLoad(s + 1));
+    print(s[1]);
     print("\n");
     return 0;
 }

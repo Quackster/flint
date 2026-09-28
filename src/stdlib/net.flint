@@ -49,7 +49,7 @@ class Socket {
         int seen = 0;
         int l = strlen(s);
         while (i < l) {
-            if (sys.byteLoad(s + i) == 46) {
+            if (s[i] == 46) {
                 seen = seen + 1;
                 if (seen == n) {
                     return i;
@@ -79,7 +79,7 @@ class Socket {
         if (n <= 0) {
             return null;
         }
-        sys.byteStore(buf + n, 0);
+        buf[n] = 0;
         return buf;
     }
     // Close fd.

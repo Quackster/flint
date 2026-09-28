@@ -104,6 +104,8 @@ pub enum Ty {
                          // untyped (null, alloc, @fn; conforms to any *T)
     Str, // NUL-terminated string (a pointer)
     Array, // `T a[]` / `T a[][]`: pointer to 8-byte array slots (v1: rank untracked)
+    ByteArray, // `byte b[n]` / `char c[n]`: n contiguous 1-byte elements
+    ShortArray, // `short s[n]`: n contiguous 2-byte elements (little-endian)
     Void,
     Struct(usize), // index into Program::structs
     Interface(usize), // index into Program::interfaces (a "type" that any
@@ -360,9 +362,11 @@ pub enum Expr {
         elems: Vec<Expr>,
     },
     // A freshly allocated, zero-filled buffer of `size` elements:
-    // `int[n]` / `byte[n]` (an `Array` with a length header) or
-    // `string[n]` (a `Str` NUL-terminated buffer of `n` bytes). The value
-    // owns its single reference; the owner frees it at scope end.
+    // `int[n]` (8-byte slots, length header in slot 0), `byte[n]` /
+    // `char[n]` (n contiguous bytes), `short[n]` (n contiguous 2-byte
+    // elements), or `string[n]` (a `Str` NUL-terminated buffer of `n`
+    // bytes). The value owns its single reference; the owner frees it at
+    // scope end.
     SizedNew {
         span: Span,
         size: Box<Expr>,

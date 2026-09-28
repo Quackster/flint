@@ -146,15 +146,15 @@ class Window {
         }
         // sockaddr_un: 16-bit family = 1, then the NUL-terminated path.
         string addr = string[110];
-        sys.byteStore(addr, 1);
-        sys.byteStore(addr + 1, 0);
+        addr[0] = 1;
+        addr[1] = 0;
         int n = strlen(path);
         int i = 0;
         while (i < n) {
-            sys.byteStore(addr + 2 + i, sys.byteLoad(path + i));
+            addr[2 + i] = path[i];
             i = i + 1;
         }
-        sys.byteStore(addr + 2 + n, 0);
+        addr[2 + n] = 0;
         if (sys.connect(fd, addr, 2 + n + 1) < 0) {
             return null;
         }
@@ -475,7 +475,7 @@ class Window {
             int rd = y * this.stride;
             int x = 0;
             while (x < words) {
-                sys.intStore(this.shm_buf + rd + x * 4, sys.intLoad(im.data + rs + x * 4));
+                Window.put32(this.shm_buf, rd + x * 4, Window.get32(im.data, rs + x * 4));
                 x = x + 1;
             }
             y = y + 1;
@@ -689,7 +689,7 @@ class Window {
         int i = n - 1;
         int dash = -1;
         while (i >= 0) {
-            if (sys.byteLoad(s + i) == 45) {
+            if (s[i] == 45) {
                 dash = i;
                 break;
             }
@@ -699,7 +699,7 @@ class Window {
         int d = 0;
         i = dash + 1;
         while (i < n) {
-            int c = sys.byteLoad(s + i);
+            int c = s[i];
             if (c < 48 || c > 57) {
                 break;
             }
@@ -720,18 +720,31 @@ class Window {
 
     // ------------------------------------------------- private plumbing
     static int isAbs(string s) {
-        return strlen(s) > 0 && sys.byteLoad(s) == 47;
+        return strlen(s) > 0 && s[0] == 47;
     }
-    // Store a 64-bit value (two little-endian 32-bit halves).
+    // Store a 64-bit value (little-endian), byte by byte.
     static void put64(string b, int off, int v) {
-        sys.intStore(b + off, v & 0xFFFFFFFF);
-        sys.intStore(b + off + 4, (v >> 32) & 0xFFFFFFFF);
+        int lo = v & 0xFFFFFFFF;
+        int hi = (v >> 32) & 0xFFFFFFFF;
+        b[off] = lo & 0xFF;
+        b[off + 1] = (lo >> 8) & 0xFF;
+        b[off + 2] = (lo >> 16) & 0xFF;
+        b[off + 3] = (lo >> 24) & 0xFF;
+        b[off + 4] = hi & 0xFF;
+        b[off + 5] = (hi >> 8) & 0xFF;
+        b[off + 6] = (hi >> 16) & 0xFF;
+        b[off + 7] = (hi >> 24) & 0xFF;
     }
+    // Store a 32-bit value (little-endian), byte by byte.
     static void put32(string b, int off, int v) {
-        sys.intStore(b + off, v & 0xFFFFFFFF);
+        b[off] = v & 0xFF;
+        b[off + 1] = (v >> 8) & 0xFF;
+        b[off + 2] = (v >> 16) & 0xFF;
+        b[off + 3] = (v >> 24) & 0xFF;
     }
+    // Read a 32-bit value (little-endian), byte by byte.
     static int get32(string b, int off) {
-        return sys.intLoad(b + off);
+        return b[off] | (b[off + 1] << 8) | (b[off + 2] << 16) | (b[off + 3] << 24);
     }
     // Write n bytes via send(MSG_NOSIGNAL) so a closed peer yields
     // EPIPE (r<0) instead of a SIGPIPE that would kill the process.
@@ -778,7 +791,7 @@ class Window {
             int c = this.rb_n - this.rb_i;
             int k = 0;
             while (k < c) {
-                sys.byteStore(this.rb + k, sys.byteLoad(this.rb + this.rb_i + k));
+                this.rb[k] = this.rb[this.rb_i + k];
                 k = k + 1;
             }
             this.rb_n = c;
@@ -792,7 +805,7 @@ class Window {
             // poll for readability and read() the bytes instead.
             string pf = this.pollfd;   // struct pollfd { int fd; short ev; short rev; }
             Window.put32(pf, 0, this.fd);
-            sys.shortStore(pf + 4, 1);   // POLLIN
+            ((short) pf)[2] = 1;   // POLLIN
             int pr = sys.syscall(7, pf, 1, wait_ms, 0, 0);
             if (pr < 0) {
                 if (pr == -4) {
@@ -874,15 +887,15 @@ class Window {
             string mb = string[ml + 1];
             int mk = 0;
             while (mk < ml) {
-                int c = sys.byteLoad(this.rb + 20 + mk);
+                int c = this.rb[20 + mk];
                 if (c >= 32 && c < 127) {
-                    sys.byteStore(mb + mk, c);
+                    mb[mk] = c;
                 } else {
-                    sys.byteStore(mb + mk, 63);
+                    mb[mk] = 63;
                 }
                 mk = mk + 1;
             }
-            sys.byteStore(mb + ml, 0);
+            mb[ml] = 0;
             print(mb);
             print("\n");
         }
@@ -896,10 +909,10 @@ class Window {
                 }
                 int k = 0;
                 while (k < slen) {
-                    sys.byteStore(this.giface + this.gn * 48 + k, sys.byteLoad(this.rb + 16 + k));
+                    this.giface[this.gn * 48 + k] = this.rb[16 + k];
                     k = k + 1;
                 }
-                sys.byteStore(this.giface + this.gn * 48 + slen, 0);
+                this.giface[this.gn * 48 + slen] = 0;
                 Window.put32(this.gname, this.gn * 4, name);
                 Window.put32(this.gver, this.gn * 4, Window.get32(this.rb, 16 + ((slen + 3) / 4) * 4));
                 this.gn = this.gn + 1;
@@ -1049,12 +1062,12 @@ class Window {
         int ln = strlen(lit);
         int k = 0;
         while (k < ln) {
-            if (sys.byteLoad(this.giface + slot * 48 + k) != sys.byteLoad(lit + k)) {
+            if (this.giface[slot * 48 + k] != lit[k]) {
                 return 0;
             }
             k = k + 1;
         }
-        return sys.byteLoad(this.giface + slot * 48 + ln) == 0 ? 1 : 0;
+        return this.giface[slot * 48 + ln] == 0 ? 1 : 0;
     }
     // wl_registry.bind: (name, interface string, version, new_id).
     // Signature usun — the string is [len][padded bytes], then version,
@@ -1067,7 +1080,7 @@ class Window {
         }
         // find the interface name length
         int ilen = 0;
-        while (ilen < 47 && sys.byteLoad(this.giface + slot * 48 + ilen) != 0) {
+        while (ilen < 47 && this.giface[slot * 48 + ilen] != 0) {
             ilen = ilen + 1;
         }
         int sl = ilen + 1;
@@ -1080,10 +1093,10 @@ class Window {
         Window.put32(m, 12, sl);                        // interface len
         int k = 0;
         while (k < ilen) {
-            sys.byteStore(m + 16 + k, sys.byteLoad(this.giface + slot * 48 + k));
+            m[16 + k] = this.giface[slot * 48 + k];
             k = k + 1;
         }
-        sys.byteStore(m + 16 + ilen, 0);
+        m[16 + ilen] = 0;
         Window.put32(m, 16 + pad, ver);                // version (uint)
         Window.put32(m, 16 + pad + 4, new_id);         // new_id
         this.sendPlain(m, total);
@@ -1101,15 +1114,15 @@ class Window {
         Window.put32(m, 8, sl);                     // length (incl. NUL)
         int k = 0;
         while (k < n) {
-            sys.byteStore(m + 12 + k, sys.byteLoad(s + k));
+            m[12 + k] = s[k];
             k = k + 1;
         }
-        sys.byteStore(m + 12 + n, 0);                // NUL terminator
+        m[12 + n] = 0;                // NUL terminator
         return this.sendPlain(m, total);
     }
     // A 64-bit read (two little-endian 32-bit halves).
     static int get64(string b, int off) {
-        return sys.intLoad(b + off) | (sys.intLoad(b + off + 4) << 32);
+        return Window.get32(b, off) | (Window.get32(b, off + 4) << 32);
     }
 }
 

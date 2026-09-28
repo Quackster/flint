@@ -807,6 +807,10 @@ impl<'a> Parser<'a> {
     /// unchanged.
     fn array_prefix(&mut self, ty: Ty) -> CompileResult<Ty> {
         if self.at(&Tok::LBracket) {
+            // `byte[] a` / `short[] a` / `char[] a` declare byte/short
+            // buffer views (the element keyword is the token just before
+            // the `[`, since parse_type collapsed it to `Ty::Int`).
+            let elem_kw = self.toks.get(self.i - 1).map(|t| &t.kind);
             loop {
                 self.expect(&Tok::LBracket, "'['")?;
                 self.expect(&Tok::RBracket, "']' after '['")?;
@@ -814,7 +818,11 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            Ok(Ty::Array)
+            match elem_kw {
+                Some(Tok::KwByte) | Some(Tok::KwChar) => Ok(Ty::ByteArray),
+                Some(Tok::KwShort) => Ok(Ty::ShortArray),
+                _ => Ok(Ty::Array),
+            }
         } else {
             Ok(ty)
         }
@@ -824,6 +832,19 @@ impl<'a> Parser<'a> {
     /// return the array type. Without markers, `ty` is returned unchanged.
     fn array_suffix(&mut self, ty: Ty) -> CompileResult<Ty> {
         if self.at(&Tok::LBracket) {
+            // `byte a[]` / `short a[]` / `char a[]` declare byte/short
+            // buffer views (parse_type collapsed the element keyword to
+            // `Ty::Int`). The keyword is one token back in C#-style
+            // return types (`int[] f()`, parsed here with no name in
+            // between) and two back in declarations (`int a[]`).
+            let is_elem_kw =
+                |k: &Tok| matches!(k, Tok::KwByte | Tok::KwShort | Tok::KwChar);
+            let elem_kw = self
+                .toks
+                .get(self.i.saturating_sub(1))
+                .filter(|t| is_elem_kw(&t.kind))
+                .or(self.toks.get(self.i.saturating_sub(2)).filter(|t| is_elem_kw(&t.kind)))
+                .map(|t| &t.kind);
             loop {
                 self.expect(&Tok::LBracket, "'['")?;
                 self.expect(&Tok::RBracket, "']' after '['")?;
@@ -831,7 +852,11 @@ impl<'a> Parser<'a> {
                     break;
                 }
             }
-            Ok(Ty::Array)
+            match elem_kw {
+                Some(Tok::KwByte) | Some(Tok::KwChar) => Ok(Ty::ByteArray),
+                Some(Tok::KwShort) => Ok(Ty::ShortArray),
+                _ => Ok(Ty::Array),
+            }
         } else {
             Ok(ty)
         }
@@ -1633,9 +1658,10 @@ impl<'a> Parser<'a> {
             Some(ty)
         };
         let name = self.expect_ident()?;
-        if let Some(value) = self.sized_decl_value(&ty)? {
-            // `int x[n];` / `string s[n];` — a sized buffer; no initializer
-            // (buffers start zero-filled).
+        if let Some((value, vty)) = self.sized_decl_value(&ty)? {
+            // `int x[n];` / `byte x[n];` / `string s[n];` — a sized
+            // buffer; no initializer (buffers start zero-filled). The
+            // variable's type is the buffer's element type.
             if self.at(&Tok::Assign) {
                 return Err(CompileError::new(
                     self.cur().span,
@@ -1645,10 +1671,6 @@ impl<'a> Parser<'a> {
             if expect_semi {
                 self.expect(&Tok::Semicolon, "';'")?;
             }
-            let vty = match &ty {
-                Some(Ty::Str) => Ty::Str,
-                _ => Ty::Array,
-            };
             return Ok(Stmt::Decl {
                 span,
                 name,
@@ -1676,27 +1698,15 @@ impl<'a> Parser<'a> {
     /// After a declaration name, `[n]` means a sized buffer (`int x[n];`,
     /// `string s[n];`); a bare `[]` is the classic unsized suffix and stays
     /// on the caller's path (None, cursor untouched).
-    fn sized_decl_value(&mut self, ty: &Option<Ty>) -> CompileResult<Option<Expr>> {
+    fn sized_decl_value(
+        &mut self,
+        ty: &Option<Ty>,
+    ) -> CompileResult<Option<(Expr, Ty)>> {
         if !self.at(&Tok::LBracket) {
             return Ok(None);
         }
         if self.toks.get(self.i + 1).map(|t| &t.kind) == Some(&Tok::RBracket) {
             return Ok(None);
-        }
-        // `byte x[n]` would silently mean slots, not bytes: reject it here
-        // (the keyword sits two tokens back: type, name, `[`).
-        if self.i >= 2 {
-            if let Some(t) = self.toks.get(self.i - 2) {
-                if matches!(
-                    t.kind,
-                    Tok::KwByte | Tok::KwShort | Tok::KwChar
-                ) {
-                    return Err(CompileError::new(
-                        t.span,
-                        "byte[n] is ambiguous: use string[n] for bytes or int[n] for slots",
-                    ));
-                }
-            }
         }
         let base = ty.clone().ok_or_else(|| {
             CompileError::new(
@@ -1704,13 +1714,25 @@ impl<'a> Parser<'a> {
                 "sized buffers need an explicit element type (`int x[n]`, `string s[n]`)",
             )
         })?;
+        // The element type is collapsed at the type position (int/byte/
+        // short are all `Ty::Int`), so the keyword two tokens back (type,
+        // name, `[`) decides the element size of the buffer.
+        let elem_kw = if self.i >= 2 {
+            self.toks.get(self.i - 2).map(|t| &t.kind)
+        } else {
+            None
+        };
         let vty = match base {
-            Ty::Int | Ty::Bool => Ty::Array,
+            Ty::Int | Ty::Bool => match elem_kw {
+                Some(Tok::KwByte) | Some(Tok::KwChar) => Ty::ByteArray,
+                Some(Tok::KwShort) => Ty::ShortArray,
+                _ => Ty::Array,
+            },
             Ty::Str => Ty::Str,
             _ => {
                 return Err(CompileError::new(
                     self.cur().span,
-                    "sized buffers require an int or string element type",
+                    "sized buffers require an int, byte, short, or string element type",
                 ))
             }
         };
@@ -1725,11 +1747,14 @@ impl<'a> Parser<'a> {
             ));
         }
         let vspan = span.join(&expr_span(&size));
-        Ok(Some(Expr::SizedNew {
-            span: vspan,
-            size: Box::new(size),
-            ty: vty,
-        }))
+        Ok(Some((
+            Expr::SizedNew {
+                span: vspan,
+                size: Box::new(size),
+                ty: vty.clone(),
+            },
+            vty,
+        )))
     }
 
     /// For a `var name[] ...`: consume the trailing `[]` markers and record
@@ -1844,7 +1869,7 @@ impl<'a> Parser<'a> {
                 Some(ty)
             };
             let name = self.expect_ident()?;
-            if let Some(value) = self.sized_decl_value(&ty)? {
+            if let Some((value, vty)) = self.sized_decl_value(&ty)? {
                 // `int x[n];` as a for-init (no initializer allowed).
                 if self.at(&Tok::Assign) {
                     return Err(CompileError::new(
@@ -1852,10 +1877,6 @@ impl<'a> Parser<'a> {
                         "sized buffers take no initializer (they start zero-filled)",
                     ));
                 }
-                let vty = match &ty {
-                    Some(Ty::Str) => Ty::Str,
-                    _ => Ty::Array,
-                };
                 Some(Stmt::Decl {
                     span,
                     name,
@@ -2421,28 +2442,22 @@ impl<'a> Parser<'a> {
         Ok(e)
     }
 
-    /// `int[n]` / `byte[n]` (an `Array`) or `string[n]` (a `Str`) as an
-    /// expression: a fresh zero-filled heap buffer of `n` elements/bytes.
-    /// `int [` can never start a lambda (lambdas need an identifier after
-    /// the type), so this is unambiguous.
+    /// `int[n]` / `byte[n]` / `short[n]` / `char[n]` (fresh buffers) or
+    /// `string[n]` (a `Str`) as an expression: a fresh zero-filled heap
+    /// buffer of `n` elements/bytes. `int [` can never start a lambda
+    /// (lambdas need an identifier after the type), so this is
+    /// unambiguous.
     fn sized_new_ty_at(&self) -> Option<Ty> {
         if self.next_kind() != Tok::LBracket {
             return None;
         }
         match &self.cur().kind {
             Tok::KwString => Some(Ty::Str),
+            Tok::KwByte | Tok::KwChar => Some(Ty::ByteArray),
+            Tok::KwShort => Some(Ty::ShortArray),
             k if is_type_keyword(k) => Some(Ty::Array),
             _ => None,
         }
-    }
-
-    /// `byte[n]` / `short[n]` / `char[n]` look like byte buffers but would
-    /// silently mean 8-byte slots; point at the unambiguous forms instead.
-    fn byte_sized_at(&self) -> bool {
-        matches!(
-            &self.cur().kind,
-            Tok::KwByte | Tok::KwShort | Tok::KwChar
-        ) && self.next_kind() == Tok::LBracket
     }
 
     fn parse_sized_new(&mut self, ty: Ty, span: Span) -> CompileResult<Expr> {
@@ -2466,12 +2481,6 @@ impl<'a> Parser<'a> {
 
     fn parse_atom(&mut self) -> CompileResult<Expr> {
         let span = self.cur().span;
-        if self.byte_sized_at() {
-            return Err(CompileError::new(
-                span,
-                "byte[n] is ambiguous: use string[n] for bytes or int[n] for slots",
-            ));
-        }
         if let Some(ty) = self.sized_new_ty_at() {
             return self.parse_sized_new(ty, span);
         }
@@ -2520,7 +2529,23 @@ impl<'a> Parser<'a> {
                 // cast: `(Type) expr`
                 if self.is_cast_type_at(1) {
                     self.bump(); // (
-                    let ty = self.parse_type()?;
+                    // `(byte)` / `(short)` / `(char)` have no scalar
+                    // meaning (those keywords collapse to `int` as types),
+                    // so they always reinterpret a buffer in place (a
+                    // byte/short view of the same memory). `(int)` stays
+                    // a plain cast target; the backend makes it a
+                    // slot-view reinterpret when the source is a buffer.
+                    let ty = match self.cur().kind {
+                        Tok::KwByte | Tok::KwChar => {
+                            self.bump();
+                            Ty::ByteArray
+                        }
+                        Tok::KwShort => {
+                            self.bump();
+                            Ty::ShortArray
+                        }
+                        _ => self.parse_type()?,
+                    };
                     self.expect(&Tok::RParen, "')' after cast type")?;
                     let e = self.parse_unary()?;
                     let span = span.join(&expr_span(&e));

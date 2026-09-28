@@ -301,11 +301,11 @@ impl<'a> Mono<'a> {
             Expr::SizedNew { span, size, ty } => {
                 let ty = self.resolve_type(ty, subst)?;
                 match ty {
-                    Ty::Array | Ty::Str => {}
+                    Ty::Array | Ty::ByteArray | Ty::ShortArray | Ty::Str => {}
                     _ => {
                         return Err(CompileError::new(
                             *span,
-                            "sized buffers require an int or string element type",
+                            "sized buffers require an int, byte, short, or string element type",
                         ))
                     }
                 }

@@ -1,28 +1,88 @@
+// byte_access: the low-level memory reference. `byte`/`char` buffers
+// have 1-byte elements, `short` buffers 2-byte elements; strings index
+// by byte; `(byte)`/`(short)`/`(int)` casts are element views of the
+// same memory; `.move()` shares a buffer between owners.
 int main() {
-    // byteLoad / byteStore
-    string buf[16];
-    sys.byteStore(buf, 0xAB);
-    int b = sys.byteLoad(buf);
-    println(b == 0xAB ? 1 : 0);
+    // byte buffer: 1-byte elements
+    byte buf[16];
+    buf[0] = 0xAB;
+    println(buf[0] == 0xAB ? 1 : 0);
+    buf[1] = 0x01;
+    buf[2] = 0x02;
+    println(buf[1] == 1 && buf[2] == 2 ? 1 : 0);
+    println(len(buf) == 16 ? 1 : 0);
 
-    // shortLoad / shortStore
-    sys.shortStore(buf, 0x1234);
-    int s = sys.shortLoad(buf);
-    println(s == 0x1234 ? 1 : 0);
+    // char buffer: 1-byte elements
+    char cb[4];
+    cb[0] = 0x48;
+    println(cb[0] == 0x48 ? 1 : 0);
 
-    // intLoad / intStore
-    sys.intStore(buf, 0xDEADBEEF);
-    int i = sys.intLoad(buf);
-    println(i == 0xDEADBEEF ? 1 : 0);
+    // short buffer: 2-byte elements
+    short sb[8];
+    sb[0] = 0x1234;
+    println(sb[0] == 0x1234 ? 1 : 0);
+    println(len(sb) == 8 ? 1 : 0);
 
-    // byte-level wire encoding: pack 3 bytes into a slot, read them back
-    sys.byteStore(buf, 0x01);
-    sys.byteStore(buf + 1, 0x02);
-    sys.byteStore(buf + 2, 0x03);
-    int b0 = sys.byteLoad(buf);
-    int b1 = sys.byteLoad(buf + 1);
-    int b2 = sys.byteLoad(buf + 2);
-    println(b0 == 1 && b1 == 2 && b2 == 3 ? 1 : 0);
+    // strings index by byte
+    string ss[8];
+    ss[0] = 0x48;
+    println(ss[0] == 0x48 ? 1 : 0);
+    ss[1] = 0x0;
+    println(strlen(ss) == 1 ? 1 : 0);
+
+    // (short) view of a byte buffer: same memory, 2-byte elements
+    byte vb[4];
+    vb[0] = 0x34;
+    vb[1] = 0x12;
+    short sv[] = (short) vb;
+    println(sv[0] == 0x1234 ? 1 : 0);
+    sv[0] = 0x5678;
+    println(vb[0] == 0x78 && vb[1] == 0x56 ? 1 : 0);
+
+    // (byte) view of a short buffer: same memory, 1-byte elements
+    short sb2[2];
+    sb2[0] = 0x1234;
+    byte bv[] = (byte) sb2;
+    println(bv[0] == 0x34 && bv[1] == 0x12 ? 1 : 0);
+
+    // (int) view: 8-byte slot view (a *int: slots start at element 0)
+    byte pb[8];
+    pb[0] = 0x01;
+    pb[1] = 0x02;
+    pb[2] = 0x03;
+    *int iv = (int) pb;
+    println(iv[0] == 0x030201 ? 1 : 0);
+
+    // deref stores are element-sized
+    int x = 0xDEADBEEF;
+    *int p = &x;
+    *p = 99;
+    println(x == 99 ? 1 : 0);
+
+    // .move() shares a buffer (byte, short, and string)
+    byte mb[4];
+    mb[0] = 0x11;
+    mb[1] = 0x22;
+    byte mb2[] = mb.move();
+    mb2[2] = 0x33;
+    println(mb[2] == 0x33 && mb2[0] == 0x11 ? 1 : 0);
+    short ms[4];
+    ms[0] = 0x1234;
+    short ms2[] = ms.move();
+    ms2[1] = 0x5678;
+    println(ms[1] == 0x5678 && ms2[0] == 0x1234 ? 1 : 0);
+    string s = string[8];
+    s[0] = 0x48;
+    s[1] = 0x0;
+    string s2 = s.move();
+    println(strlen(s2) == 1 && s[0] == 0x48 ? 1 : 0);
+
+    // for-each over a byte buffer yields element ints
+    int sum = 0;
+    for (int v : buf) {
+        sum = sum + v;
+    }
+    println(sum == 0xAB + 1 + 2 ? 1 : 0);
 
     return 0;
 }

@@ -48,9 +48,17 @@ impl Ctx<'_> {
                 self.gen_expr(idx, frame)?; // idx
                 self.emit("\tpop %rdx"); // idx
                 self.emit("\tpop %rax"); // base ptr
-                // arrays carry a length header in slot 0; raw pointers do not
-                let disp = if matches!(bty, Ty::Array) { 8 } else { 0 };
-                self.emit(&format!("\tlea {}(%rax, %rdx, 8), %rax", disp));
+                // Element-sized address: 8-byte slots (arrays carry a
+                // length header in slot 0), 2-byte shorts, 1-byte bytes
+                // and strings (bases point at element 0).
+                match bty {
+                    Ty::ShortArray => self.emit("\tlea 0(%rax, %rdx, 2), %rax"),
+                    Ty::ByteArray | Ty::Str => self.emit("\tlea 0(%rax, %rdx), %rax"),
+                    _ => {
+                        let disp = if matches!(bty, Ty::Array) { 8 } else { 0 };
+                        self.emit(&format!("\tlea {}(%rax, %rdx, 8), %rax", disp));
+                    }
+                }
                 self.emit("\tpush %rax");
                 Ok(())
             }
@@ -111,6 +119,38 @@ impl Ctx<'_> {
             },
             _ => Ok(Ty::Int),
         }
+    }
+
+    /// The element size (in bytes) stored at an index/deref lvalue, when
+    /// it addresses sub-slot memory: 1 for byte/char buffers and strings,
+    /// 2 for short buffers; `None` means a full 8-byte slot (or unknown).
+    pub(crate) fn lvalue_elem_bytes(
+        &self,
+        e: &Expr,
+        frame: &Frame,
+    ) -> CompileResult<Option<usize>> {
+        let base = match e {
+            Expr::Index { base, .. } => base,
+            Expr::Deref { e: inner, .. } => inner,
+            _ => return Ok(None),
+        };
+        // Best-effort: only ident/field bases are typed here.
+        let bty = match base.as_ref() {
+            Expr::Ident { name, .. } => frame
+                .find(name)
+                .map(|l| l.ty.clone())
+                .unwrap_or(Ty::Int),
+            Expr::Field { base: fb, name, .. } => match self.base_struct_idx(fb, frame) {
+                Ok(sidx) => self.struct_field_type(sidx, name)?,
+                Err(_) => Ty::Int,
+            },
+            _ => Ty::Int,
+        };
+        Ok(match bty {
+            Ty::ByteArray | Ty::Str => Some(1),
+            Ty::ShortArray => Some(2),
+            _ => None,
+        })
     }
 
     /// Best-effort static type of an expression without codegen.

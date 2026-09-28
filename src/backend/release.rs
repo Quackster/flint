@@ -63,7 +63,8 @@ impl Ctx<'_> {
             // The release helpers are null-safe; string/array helpers check
             // for null internally like the per-class ones do here.
             let helper = match fty {
-                Ty::Str => Some("flint_str_release".to_string()),
+                Ty::Str | Ty::ByteArray => Some("flint_str_release".to_string()),
+                Ty::ShortArray => Some("flint_short_release".to_string()),
                 Ty::Array => Some("flint_array_release".to_string()),
                 _ => struct_idx_of(fty).map(|fs| format!("flint_release_{}", self.prog.structs[fs].name)),
             };

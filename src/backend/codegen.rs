@@ -84,6 +84,8 @@ fn ty_name(ty: &Ty) -> String {
         Ty::Ptr(Some(t)) => format!("*{}", ty_name(t)),
         Ty::Str => "string".to_string(),
         Ty::Array => "array".to_string(),
+        Ty::ByteArray => "byte[]".to_string(),
+        Ty::ShortArray => "short[]".to_string(),
         Ty::Void => "void".to_string(),
         Ty::Struct(_) => "class".to_string(),
         Ty::Interface(_) => "interface".to_string(),

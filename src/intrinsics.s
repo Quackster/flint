@@ -1826,59 +1826,42 @@ flint_syscall:
     ret
     .size flint_syscall, .-flint_syscall
 
-    .globl flint_byte_load
-    .type flint_byte_load, @function
-# flint_byte_load(*byte ptr) -> int
-# Loads 1 byte from ptr (rdi), zero-extends to eax.
-flint_byte_load:
-    movzbl (%rdi), %eax
+    .globl flint_buf_len
+    .type flint_buf_len, @function
+# flint_buf_len(base) -> int: the element count of a byte/short buffer
+# (the header lives 8 below the base: [refcount][len][elems...]).
+flint_buf_len:
+    movq -8(%rdi), %rax
     ret
-    .size flint_byte_load, .-flint_byte_load
+    .size flint_buf_len, .-flint_buf_len
 
-    .globl flint_byte_store
-    .type flint_byte_store, @function
-# flint_byte_store(*byte ptr, int val)
-# Stores the low byte of val (rsi) to ptr (rdi).
-flint_byte_store:
-    mov %sil, (%rdi)
+    .globl flint_short_release
+    .type flint_short_release, @function
+# flint_short_release(base): rdi = first short of a short[n] buffer.
+# Null-guarded. Decrements the refcount 16 below the base; at zero,
+# munmaps align16(len*2+16) at base-16, where len is the short count
+# stored 8 below the base. Clobbers rax/rcx/r11 (plus the syscall
+# clobbers).
+flint_short_release:
+    test %rdi, %rdi
+    jz .Lshortrel_done
+    decq -16(%rdi)
+    jnz .Lshortrel_done
+    push %rbx
+    mov %rdi, %rbx
+    movq -8(%rbx), %rax       # len (short count)
+    add $16, %rax             # +16 header
+    shl $1, %rax              # shorts are 2 bytes
+    add $15, %rax
+    and $-16, %rax            # align16
+    lea -16(%rbx), %rdi       # raw block
+    mov %rax, %rsi            # size
+    mov $11, %rax             # SYS_munmap
+    syscall
+    pop %rbx
+.Lshortrel_done:
     ret
-    .size flint_byte_store, .-flint_byte_store
-
-    .globl flint_short_load
-    .type flint_short_load, @function
-# flint_short_load(*short ptr) -> int
-# Loads 2 bytes (little-endian) from ptr (rdi), zero-extends to eax.
-flint_short_load:
-    movzwl (%rdi), %eax
-    ret
-    .size flint_short_load, .-flint_short_load
-
-    .globl flint_short_store
-    .type flint_short_store, @function
-# flint_short_store(*short ptr, int val)
-# Stores the low 2 bytes of val (rsi) to ptr (rdi).
-flint_short_store:
-    mov %ax, (%rdi)
-    ret
-    .size flint_short_store, .-flint_short_store
-
-    .globl flint_int_load
-    .type flint_int_load, @function
-# flint_int_load(*int ptr) -> int
-# Loads 4 bytes (little-endian) from ptr (rdi), zero-extends to eax.
-flint_int_load:
-    movl (%rdi), %eax
-    ret
-    .size flint_int_load, .-flint_int_load
-
-    .globl flint_int_store
-    .type flint_int_store, @function
-# flint_int_store(*int ptr, int val)
-# Stores the low 4 bytes of val (rsi) to ptr (rdi).
-flint_int_store:
-    movl %esi, (%rdi)
-    ret
-    .size flint_int_store, .-flint_int_store
+    .size flint_short_release, .-flint_short_release
 
     .section .bss
     .lcomm flint_exception, 8

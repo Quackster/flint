@@ -89,6 +89,8 @@ impl<'a> Mono<'a> {
             Ty::Ptr(_) => "ptr".to_string(),
             Ty::Str => "string".to_string(),
             Ty::Array => "array".to_string(),
+            Ty::ByteArray => "bytearray".to_string(),
+            Ty::ShortArray => "shortarray".to_string(),
             Ty::Void => "void".to_string(),
             Ty::Struct(idx) => self
                 .class_names

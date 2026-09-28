@@ -62,7 +62,7 @@ class Num {
         int v = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int c = sys.byteLoad(s + i);
+            int c = s[i];
             if (c != 48 && c != 49) {
                 return -1;
             }
@@ -85,7 +85,7 @@ class Num {
         int v = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int c = sys.byteLoad(s + i);
+            int c = s[i];
             if (c < 48 || c > 55) {
                 return -1;
             }
@@ -128,7 +128,7 @@ class Num {
     }
     static string trimLeadingZeros(string s) {
         int l = strlen(s);
-        while (l > 1 && sys.byteLoad(s) == 48) {
+        while (l > 1 && s[0] == 48) {
             s = str.substring(s, 1, l - 1);
             l = l - 1;
         }
@@ -161,14 +161,14 @@ class Num {
         string out = string[strlen(s) + 1];
         int i = 0;
         while (i < strlen(s)) {
-            int c = sys.byteLoad(s + i);
+            int c = s[i];
             if (c >= 97 && c <= 102) {
                 c = c - 32;
             }
-            sys.byteStore(out + i, c);
+            out[i] = c;
             i = i + 1;
         }
-        sys.byteStore(out + strlen(s), 0);
+        out[strlen(s)] = 0;
         return out;
     }
 }

@@ -1751,9 +1751,10 @@ or array value (borrows the receiver, returns a fresh owner). A user-defined
 <p class="lede">Raw pointers (<code>*T</code>, <code>&amp;x</code>,
 <code>*p</code>) are non-owning views: addresses of locals, function
 addresses, and ints-as-pointers for syscalls. Heap buffers are always
-typed (<code>int buf[n]</code>, <code>string s[n]</code>) and free
+typed (<code>int buf[n]</code>, <code>byte buf[n]</code>,
+<code>short buf[n]</code>, <code>string s[n]</code>) and free
 themselves at scope end — there is no <code>alloc</code> or
-<code>free</code> anymore. Plus sub-word little-endian access and a
+<code>free</code> anymore. Element-sized indexing, view casts, and a
 generic syscall.</p></div>
 
 <h2>Example</h2>
@@ -1765,18 +1766,23 @@ generic syscall.</p></div>
     *p = 99;
     print(x);                     // 99
     print("\n");
-    // typed heap buffer: string[16] owns 16 zero-filled bytes and frees
-    // itself at scope end (no alloc/free anymore)
-    string buf[16];
-    sys.byteStore(buf, 0xAB);
-    int b = sys.byteLoad(buf);
+    // typed heap buffers: byte[16] owns 16 zero-filled bytes,
+    // short[8] owns 8 zero-filled shorts; they free themselves at
+    // scope end (no alloc/free anymore)
+    byte buf[16];
+    buf[0] = 0xAB;
+    int b = buf[0];
     println(b == 0xAB ? 1 : 0);   // 1
-    sys.shortStore(buf, 0x1234);
-    int s = sys.shortLoad(buf);
+    short sb[8];
+    sb[0] = 0x1234;
+    int s = sb[0];
     println(s == 0x1234 ? 1 : 0);   // 1
-    sys.intStore(buf, 0xDEADBEEF);
-    int i = sys.intLoad(buf);
-    println(i == 0xDEADBEEF ? 1 : 0);   // 1
+    // view casts reinterpret the same memory at another element size
+    byte vb[4];
+    vb[0] = 0x34;
+    vb[1] = 0x12;
+    short sv[] = (short) vb;
+    println(sv[0] == 0x1234 ? 1 : 0);   // 1
     // generic syscall escape hatch: getpid (39), open (2), close (3)
     int pid = sys.syscall(39, 0, 0, 0, 0, 0);
     print(pid &gt; 0 ? 1 : 0);        // 1
@@ -1821,9 +1827,13 @@ the frame. (Other lifetime cases are the programmer's in v1.)</li>
 <em>moves</em> <code>p</code>; owned values free themselves at scope end
 (real <code>munmap</code>, verified by the <code>frees</code> test);
 <code>sys.*</code> borrows.</li>
-<li><b>Sub-word little-endian access:</b>
-<code>sys.byte/short/intLoad</code> and
-<code>sys.byte/short/intStore</code>.</li>
+<li><b>Element-sized buffers:</b> <code>byte</code>/<code>char</code>
+(1 byte), <code>short</code> (2 bytes), <code>string</code> (1 byte per
+index), <code>int</code> (8-byte slots). <code>len(b)</code> reads the
+element count; <code>b[i]</code> loads/stores one element;
+<code>(byte)</code>/<code>(short)</code> are element views of the same
+memory and <code>(int)</code> is an 8-byte slot view (a
+<code>*int</code>: slots start at element 0).</li>
 <li><b>Generic syscall:</b> <code>sys.syscall(num, a1..a5)</code> — arguments
 land in <code>rdi rsi rdx r10 r8 r9</code> (the 4th is
 <code>r10</code>). <code>getpid</code>=39, <code>open</code>=2,
@@ -1920,9 +1930,11 @@ concatenation. <b><code>+</code> of two strings</b> concatenates.</li>
 <li><b><code>(string)N</code></b> is a fresh single-char string for byte
 value <code>N</code>.</li>
 <li>A literal stored into a string variable is a <em>fresh writable
-copy</em>: <code>w[0] = 65</code> writes an 8-byte little-endian slot,
-yielding <code>"A"</code> (<code>0x41 00 …</code>). For multi-char builds,
-use <code>alloc</code> + byte stores + a NUL terminator.</li>
+copy</em>: <code>w[0] = 65</code> writes the first byte, yielding
+<code>"A"</code> (<code>0x41 00 …</code>). For multi-char builds,
+concatenate single-char strings
+(<code>(string)65 + (string)66</code>) or write bytes into a
+<code>string s[n]</code> buffer.</li>
 </ul>
 
 <h2>Example</h2>
@@ -1930,7 +1942,7 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
 <pre><code class="flint">int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
-    print(sys.byteLoad(p + 1));  // 101 ('e')
+    print(p[1]);                // 101 ('e')
     print(strlen(p));             // 5
     // concatenation with + of two strings
     string s = "hello" + " world";
@@ -1939,7 +1951,7 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
     // (string)N single-char construction, then concatenate
     string c = (string)72;         // 'H'
     print(c + (string)73);        // HI
-    // writable literal copy: the 8-byte slot write yields "A"
+    // writable literal copy: the byte write yields "A"
     string w = "";
     w[0] = 65;
     print(w);                    // A
@@ -3072,10 +3084,11 @@ goes in <code>rax</code>, and the arguments land in
 <h2>Other builtins</h2>
 <ul>
 <li><b>Process:</b> <code>sys.exit</code>, <code>sys.syscall</code>.</li>
-<li><b>Memory:</b> <code>sys.byteLoad</code>/<code>byteStore</code>,
-<code>shortLoad</code>/<code>shortStore</code>,
-<code>intLoad</code>/<code>intStore</code> (see
-<a href="pointers.html">Pointers &amp; raw memory</a>).</li>
+<li><b>Memory:</b> element-sized buffer types
+(<code>byte</code>/<code>char</code>, <code>short</code>,
+<code>string</code>, <code>int</code>) with view casts
+(<code>(byte)</code>, <code>(short)</code>, <code>(int)</code>) — see
+<a href="pointers.html">Pointers &amp; raw memory</a>.</li>
 <li><b>Concurrency:</b> <code>std.Thread</code> / <code>std.Sync</code> (raw
 <code>sys.threadCreate</code>, <code>threadJoin</code>, <code>mutex_*</code>,
 <code>atomicCas</code>, <code>nanosleep</code>; see
@@ -3098,7 +3111,6 @@ utilities. They are compiled directly to the runtime — no
 <code>select poll epollCreate1 epollCtl epollWait</code> ·
 <code>clone futex threadCreate threadJoin nanosleep</code> ·
  <code>mutexLock mutexUnlock atomicCas</code> ·
- <code>byte/short/intLoad/store</code> ·
  <code>fnCall2</code></td>
 <td><a href="io.html">I/O</a> / <a href="concurrency.html">Concurrency</a> /
 <a href="networking.html">Networking</a></td></tr>

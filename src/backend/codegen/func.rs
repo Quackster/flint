@@ -193,7 +193,10 @@ impl Ctx<'_> {
                 LocalKind::Heap => {
                     self.emit(&format!("\tmovq $0, {}(%rbp)", l.off));
                 }
-                _ if matches!(l.ty, Ty::Str | Ty::Array) => {
+                _ if matches!(
+                    l.ty,
+                    Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+                ) => {
                     self.emit(&format!("\tmovq $0, {}(%rbp)", l.off));
                 }
                 LocalKind::StackOwner => {
@@ -237,7 +240,8 @@ impl Ctx<'_> {
                             let base = layout::field_base_offset(self.prog, s);
                             for (fi, (_, fty)) in layout::all_fields(self.prog, s).iter().enumerate() {
                                 let helper = match fty {
-                                    Ty::Str => Some("flint_str_release".to_string()),
+                                    Ty::Str | Ty::ByteArray => Some("flint_str_release".to_string()),
+                                    Ty::ShortArray => Some("flint_short_release".to_string()),
                                     Ty::Array => Some("flint_array_release".to_string()),
                                     _ => struct_idx_of(fty).map(|fs| {
                                         format!("flint_release_{}", self.prog.structs[fs].name)
@@ -261,7 +265,8 @@ impl Ctx<'_> {
                     // reference (callers retain for parameters), so this
                     // balances everywhere.
                     let helper = match l.ty {
-                        Ty::Str => Some("flint_str_release"),
+                        Ty::Str | Ty::ByteArray => Some("flint_str_release"),
+                        Ty::ShortArray => Some("flint_short_release"),
                         Ty::Array => Some("flint_array_release"),
                         _ => None,
                     };

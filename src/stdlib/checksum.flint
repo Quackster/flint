@@ -19,16 +19,16 @@ class Checksum {
                     crc = crc >> 1;
                 }
             }
-            sys.byteStore(t + c * 4, crc & 255);
-            sys.byteStore(t + c * 4 + 1, (crc >> 8) & 255);
-            sys.byteStore(t + c * 4 + 2, (crc >> 16) & 255);
-            sys.byteStore(t + c * 4 + 3, (crc >> 24) & 255);
+            t[c * 4] = crc & 255;
+            t[c * 4 + 1] = (crc >> 8) & 255;
+            t[c * 4 + 2] = (crc >> 16) & 255;
+            t[c * 4 + 3] = (crc >> 24) & 255;
         }
         Checksum.crc_table = t;
     }
     static int readU32(string p, int i) {
         int o = i * 4;
-        return sys.byteLoad(p + o) | (sys.byteLoad(p + o + 1) << 8) | (sys.byteLoad(p + o + 2) << 16) | (sys.byteLoad(p + o + 3) << 24);
+        return p[o] | (p[o + 1] << 8) | (p[o + 2] << 16) | (p[o + 3] << 24);
     }
     static int crc32(string s) {
         if (Checksum.crc_table == null) {
@@ -37,7 +37,7 @@ class Checksum {
         int crc = 0xFFFFFFFF;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            int b = sys.byteLoad(s + i);
+            int b = s[i];
             crc = Checksum.readU32(Checksum.crc_table, (crc ^ b) & 255) ^ (crc >> 8);
         }
         return crc ^ 0xFFFFFFFF;
@@ -47,7 +47,7 @@ class Checksum {
         int h = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = h + sys.byteLoad(s + i);
+            h = h + s[i];
         }
         return h;
     }
@@ -56,7 +56,7 @@ class Checksum {
         int h = 5381;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = (h * 33) + sys.byteLoad(s + i);
+            h = (h * 33) + s[i];
         }
         return h;
     }
@@ -65,7 +65,7 @@ class Checksum {
         int h = 0xcbf29ce484222325;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = (h ^ sys.byteLoad(s + i)) * 0x100000001b3;
+            h = (h ^ s[i]) * 0x100000001b3;
         }
         return h;
     }
@@ -74,7 +74,7 @@ class Checksum {
         int h = 0x811c9dc5;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            h = ((h ^ sys.byteLoad(s + i)) * 0x01000193) & 0xFFFFFFFF;
+            h = ((h ^ s[i]) * 0x01000193) & 0xFFFFFFFF;
         }
         return h;
     }
@@ -84,7 +84,7 @@ class Checksum {
         int b = 0;
         int n = strlen(s);
         for (int i = 0; i < n; i = i + 1) {
-            a = (a + sys.byteLoad(s + i)) % 65521;
+            a = (a + s[i]) % 65521;
             b = (b + a) % 65521;
         }
         return (b << 16) | a;

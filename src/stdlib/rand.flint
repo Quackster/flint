@@ -61,10 +61,10 @@ class Rand {
         string out = string[n + 1];
         int i = 0;
         while (i < n) {
-            sys.byteStore(out + i, Rand.next() & 255);
+            out[i] = Rand.next() & 255;
             i = i + 1;
         }
-        sys.byteStore(out + n, 0);
+        out[n] = 0;
         return out;
     }
     // n random lowercase hex characters.

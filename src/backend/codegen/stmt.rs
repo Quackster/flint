@@ -3,6 +3,7 @@ use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 
 use crate::backend::escape::LocalKind;
+use crate::backend::layout;
 use super::{Ctx, Frame, Local, RetainKind, e_span, struct_idx_of};
 use super::call::check_ptr_conforms;
 
@@ -50,7 +51,9 @@ impl Ctx<'_> {
             match t {
                 Ty::Struct(_) | Ty::Interface(_) => Some(RetainKind::Object),
                 Ty::Array => Some(RetainKind::Array),
-                Ty::Str => Some(RetainKind::Str),
+                // byte/short buffers share the string header layout
+                // (refcount 16 below the base)
+                Ty::Str | Ty::ByteArray | Ty::ShortArray => Some(RetainKind::Str),
                 _ => None,
             }
         }
@@ -73,6 +76,24 @@ impl Ctx<'_> {
             Expr::This { .. } => frame.this_class.map(|_| RetainKind::Object),
             Expr::SuperBase { .. } => frame.this_class.map(|_| RetainKind::Object),
             Expr::Field { base, name, .. } => {
+                // Static field read (ClassName.staticField): a read of an
+                // owned value retains like any other owned read.
+                let base_is_local = match base.as_ref() {
+                    Expr::Ident { name, .. } => frame.find(name).is_some(),
+                    _ => false,
+                };
+                if !base_is_local {
+                    if let Some(sidx) = self.is_class_name(base) {
+                        if self.is_static_field(sidx, name) {
+                            if let Some((_, fty)) = layout::all_static_fields(self.prog, sidx)
+                                .into_iter()
+                                .find(|(fname, _)| *fname == *name)
+                            {
+                                return kind_of(&fty);
+                            }
+                        }
+                    }
+                }
                 self.expr_struct_type(base, frame)
                     .ok()
                     .flatten()
@@ -104,7 +125,14 @@ impl Ctx<'_> {
     ) -> CompileResult<()> {
         let owned = matches!(
             slot_ty,
-            Some(Ty::Struct(_) | Ty::Interface(_) | Ty::Str | Ty::Array)
+            Some(
+                Ty::Struct(_)
+                    | Ty::Interface(_)
+                    | Ty::Str
+                    | Ty::Array
+                    | Ty::ByteArray
+                    | Ty::ShortArray
+            )
         );
         if owned {
             match value {
@@ -135,7 +163,9 @@ impl Ctx<'_> {
         }
         self.emit("\tmov (%rsp), %rdi");
         match slot_ty {
-            Some(Ty::Str) => {
+            // byte/short buffers share the string header layout (kind 1:
+            // refcount 16 below the base)
+            Some(Ty::Str | Ty::ByteArray | Ty::ShortArray) => {
                 self.emit("\tmov $1, %rsi");
                 self.emit("\tcall flint_hdr_retain");
             }
@@ -266,7 +296,10 @@ impl Ctx<'_> {
                 check_ptr_conforms(&vty, &Some(lty.clone()), *span, "cannot assign")?;
                 self.retain_for_slot(Some(&lty), value, &vty, frame)?;
                 let is_iface = matches!(lty, Ty::Interface(_));
-                let is_str_arr = matches!(lty, Ty::Str | Ty::Array);
+                let is_str_arr = matches!(
+                    lty,
+                    Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+                );
                 if lkind == LocalKind::Heap || is_iface || is_str_arr {
                     // overwrite: release the old reference, then store
                     // (slots start zeroed, and the release helpers are
@@ -274,8 +307,13 @@ impl Ctx<'_> {
                     let rel: Option<String> = match (lsidx, is_iface) {
                         (Some(s), _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
                         (None, true) => Some("flint_release".to_string()),
-                        _ if matches!(lty, Ty::Str) => Some("flint_str_release".to_string()),
+                        _ if matches!(lty, Ty::Str | Ty::ByteArray) => {
+                            Some("flint_str_release".to_string())
+                        }
                         _ if matches!(lty, Ty::Array) => Some("flint_array_release".to_string()),
+                        _ if matches!(lty, Ty::ShortArray) => {
+                            Some("flint_short_release".to_string())
+                        }
                         (None, false) => None,
                     };
                     self.emit("\tpop %r10");
@@ -314,16 +352,17 @@ impl Ctx<'_> {
                     self.emit("\tpop %rax");
                     self.emit("\tmov %rax, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
-                } else if matches!(t, Ty::Str | Ty::Array)
-                    && !matches!(
-                        expr,
-                        Expr::Index { .. }
-                            | Expr::AddrOf { .. }
-                            | Expr::Deref { .. }
-                            | Expr::SuperBase { .. }
-                            | Expr::Str { .. }
-                    )
-                {
+                } else if matches!(
+                    t,
+                    Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+                ) && !matches!(
+                    expr,
+                    Expr::Index { .. }
+                        | Expr::AddrOf { .. }
+                        | Expr::Deref { .. }
+                        | Expr::SuperBase { .. }
+                        | Expr::Str { .. }
+                ) {
                     // a string/array value used as a statement: drop the
                     // fresh reference (or the retain just taken above, for a
                     // net zero on plain reads). Borrow-provenance reads
@@ -332,7 +371,8 @@ impl Ctx<'_> {
                     self.emit("\tpop %rax");
                     self.emit("\tmov %rax, %rdi");
                     match t {
-                        Ty::Str => self.emit("\tcall flint_str_release"),
+                        Ty::ShortArray => self.emit("\tcall flint_short_release"),
+                        Ty::Str | Ty::ByteArray => self.emit("\tcall flint_str_release"),
                         _ => self.emit("\tcall flint_array_release"),
                     }
                 } else {
@@ -362,8 +402,9 @@ impl Ctx<'_> {
                 let target_class = self.assign_target_class(target, frame)?;
                 let target_iface = !self.is_static_target(target)
                     && self.expr_interface_type(target, frame)?.is_some();
-                let target_str = matches!(slot_ty, Some(Ty::Str));
+                let target_str = matches!(slot_ty, Some(Ty::Str | Ty::ByteArray));
                 let target_arr = matches!(slot_ty, Some(Ty::Array));
+                let target_short = matches!(slot_ty, Some(Ty::ShortArray));
                 self.emit("\tpop %r10"); // value -> r10 (caller-saved temp)
                 self.emit_lvalue_addr(target, frame)?; // pushes address
                 // Hold the address in %rdx: flint_release clobbers %rax (the
@@ -380,6 +421,9 @@ impl Ctx<'_> {
                 } else if target_arr {
                     self.emit("\tmovq (%rdx), %rdi");
                     self.emit("\tcall flint_array_release");
+                } else if target_short {
+                    self.emit("\tmovq (%rdx), %rdi");
+                    self.emit("\tcall flint_short_release");
                 } else if target_iface {
                     // interface target: release the old reference (the generic
                     // release has no null check and is a v1 no-op at refcount
@@ -393,7 +437,14 @@ impl Ctx<'_> {
                     self.emit("\tcall flint_release");
                     self.emit(&format!("{}:", skip));
                 }
-                self.emit("\tmov %r10, (%rdx)");
+                // Element-sized store: byte/short targets truncate the
+                // 64-bit value (held in %r10); everything else stores a
+                // full slot.
+                match self.lvalue_elem_bytes(target, frame)? {
+                    Some(1) => self.emit("\tmov %r10b, (%rdx)"),
+                    Some(2) => self.emit("\tmov %r10w, (%rdx)"),
+                    _ => self.emit("\tmov %r10, (%rdx)"),
+                }
                 let _ = vty;
                 Ok(())
             }
@@ -639,7 +690,10 @@ impl Ctx<'_> {
                 // start null: the end-releases must see null (and skip) on
                 // paths where no exception is caught.
                 let off = frame.slot();
-                if matches!(catch_type, Ty::Str | Ty::Array) {
+                if matches!(
+                    catch_type,
+                    Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+                ) {
                     self.emit(&format!("\tmovq $0, {}(%rbp)", off));
                 }
                 frame.locals.push(Local {

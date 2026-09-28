@@ -9,7 +9,7 @@ x86_64 Linux assembly (no libc).
 
 ```sh
 cargo build                 # -> target/debug/flintc (release: --release)
-bash tests/run_tests.sh     # full suite (expect: PASS=107  FAIL=0)
+bash tests/run_tests.sh     # full suite (expect: PASS=108  FAIL=0)
 ```
 
 Requires `as` and `ld` (binutils) on the PATH. Compile one program:
@@ -42,10 +42,10 @@ Follow the Java conventions the language is built around:
 - Naming: classes `PascalCase` (`Num`, `Thread`); variables and fields
   `snake_case` (`grand_count`).
 - **Function naming: every function and method is `camelCase` — including the
-  standard functions (builtins such as `sys.byteLoad`, `sys.threadCreate`,
-  `str.indexOf`) and all `std` library methods (`Thread.nCpu`,
-  `Socket.bindPort`, `Mem.retain`). Never use `snake_case` for a function
-  name** (`nCpu`, not `n_cpu`; `readAll`, not `read_all`).
+  standard functions (builtins such as `sys.threadCreate`, `str.indexOf`)
+  and all `std` library methods (`Thread.nCpu`, `Socket.bindPort`,
+  `Mem.retain`). Never use `snake_case` for a function name**
+  (`nCpu`, not `n_cpu`; `readAll`, not `read_all`).
 - One statement per line; keep bodies short.
 
 ## Memory (ownership, like Rust Ch 4.1)
@@ -64,7 +64,7 @@ scope the value is dropped.
 - **Owned values free themselves:** dropping means a real `munmap` at scope
   end (or reassignment), verified by the `frees` test — no `free` call
   exists. There is no `alloc` either: buffers come only from typed
-  initialization (`int buf[n]`, `byte` is rejected as ambiguous,
+  initialization (`int buf[n]`, `byte buf[n]`, `short buf[n]`,
   `string s[n]`), array/string literals, and calls that return fresh
   values. `*int q = p` still moves `p` (raw pointers never own and are
   never freed).
@@ -94,19 +94,18 @@ Examples (`examples/*.flint`) are the language's public face. They must read
 like ordinary application code, **not** like a systems-programming demo:
 
 - **Keep `sys.*` built-in calls to an absolute minimum** — that includes
-  using pointers (the raw memory ops `sys.byteLoad`/`byteStore`,
-  `sys.shortLoad`/`shortStore`, `sys.intLoad`/`intStore`, and the raw
-  `sys.read`/`write`/`syscall` pass-throughs). When an example needs one
-  of these, wrap it in a `std` class instead of calling it inline.
+  using pointers and the raw `sys.read`/`write`/`syscall` pass-throughs.
+  Byte/short access uses the element-sized buffer types (`byte buf[n]`,
+  `short buf[n]`, `string s[n]`, indexing and view casts) instead of raw
+  ops. When an example needs a raw `sys.*` call, wrap it in a `std`
+  class instead of calling it inline.
 - **Do not use `alloc` in an example.** There is no `alloc`: declare typed
-  buffers (`int buf[n]` for slots, `string s[n]` for bytes — never `byte`
-  for byte arithmetic, it would mean slots); owned values free themselves
+  buffers (`int buf[n]` for 8-byte slots, `byte buf[n]`/`string s[n]` for
+  bytes, `short buf[n]` for shorts); owned values free themselves
   at scope end, so there is no `free` either.
 - **Use the high-level stdlib API** (`src/stdlib/*.flint`). Do **not** call the
   low-level primitives directly in an example:
   - `sys.syscall`, `sys.read`, `sys.write`, `sys.mmap`, ...
-  - raw memory ops: `sys.byteLoad`/`byteStore`, `sys.shortLoad`/`shortStore`,
-    `sys.intLoad`/`intStore`
 - If a capability an example needs is missing from the stdlib, **add a stdlib
   wrapper for it** (in `package std;`, e.g. `class Thread`) and have the example
   call that wrapper. Keep the raw `sys.*` calls *inside* the stdlib
@@ -119,11 +118,12 @@ like ordinary application code, **not** like a systems-programming demo:
 - Show the build line in the header comment, including the stdlib files it
   needs (e.g. `flintc src/stdlib/thread.flint examples/...flint -o ...`).
 - **No example uses raw `alloc` / `free` / `memcpy`** (they no longer
-  exist): declare typed buffers (`int buf[n]`, `string s[n]`) and use the
-  stdlib (`File`, `Socket`, `Thread`, `Sync`) for any other capability.
-  (The byte-level parts of `strings2.flint` also *document* the raw string
-  API and may show `sys.byteLoad`.) `byte_access.flint` is the low-level
-  memory reference (typed buffers, sub-word access, syscalls).
+  exist): declare typed buffers (`int buf[n]`, `byte buf[n]`,
+  `short buf[n]`, `string s[n]`) and use the stdlib (`File`, `Socket`,
+  `Thread`, `Sync`) for any other capability. `strings2.flint` also
+  *documents* the string indexing API. `byte_access.flint` (a test, not
+  an example) is the low-level memory reference (typed buffers, element
+  indexing, view casts, `.move()`, syscalls).
 - Prefer `for` loops and small, focused helpers; use `str.itoa(n)` (or
   `println(n)`) to print numbers — never rely on `string + int`.
 

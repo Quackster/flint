@@ -305,42 +305,6 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Int,
             noreturn: false,
         }),
-        "sys.byteLoad" | "byteLoad" => Some(Builtin {
-            target: "flint_byte_load",
-            arity: 1,
-            ret: Ty::Int,
-            noreturn: false,
-        }),
-        "sys.byteStore" | "byteStore" => Some(Builtin {
-            target: "flint_byte_store",
-            arity: 2,
-            ret: Ty::Void,
-            noreturn: false,
-        }),
-        "sys.shortLoad" | "shortLoad" => Some(Builtin {
-            target: "flint_short_load",
-            arity: 1,
-            ret: Ty::Int,
-            noreturn: false,
-        }),
-        "sys.shortStore" | "shortStore" => Some(Builtin {
-            target: "flint_short_store",
-            arity: 2,
-            ret: Ty::Void,
-            noreturn: false,
-        }),
-        "sys.intLoad" | "intLoad" => Some(Builtin {
-            target: "flint_int_load",
-            arity: 1,
-            ret: Ty::Int,
-            noreturn: false,
-        }),
-        "sys.intStore" | "intStore" => Some(Builtin {
-            target: "flint_int_store",
-            arity: 2,
-            ret: Ty::Void,
-            noreturn: false,
-        }),
         // Fixed-point float (Q48.16): 64-bit int, lower 16 bits = fractional.
         "math.fadd" | "fadd" => Some(Builtin {
             target: "flint_fadd",

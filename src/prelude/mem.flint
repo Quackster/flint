@@ -18,8 +18,11 @@
 //                           collections' unsafe core; null-guarded)
 //   mem.releaseStr(v)      release a string held as a raw int slot
 //
-// Buffers are indexed as 8-byte elements: `buf[i]` loads/stores the int
-// at byte offset i*8 (arrays skip their length header automatically).
+// Buffers are indexed element-wise: `int buf[n]` slots load/store the
+// int at byte offset i*8 (arrays skip their length header
+// automatically), `byte buf[n]` / `string s[n]` the byte at offset i,
+// and `short sbuf[n]` the 2-byte little-endian element at offset i*2.
+// `len(b)` is the element count of any buffer.
 int main() {
     string s = "memory";
     println(strlen(s));

@@ -26,9 +26,10 @@ impl Ctx<'_> {
                 self.emit("\tcall flint_retain");
                 self.emit("\tpop %rax");
             }
-            Ty::Str | Ty::Array => {
+            Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray => {
                 // string/array field: same, retaining the header below base
-                let kind = if matches!(field.ty, Ty::Str) { 1 } else { 0 };
+                // (byte/short buffers share the string header layout)
+                let kind = if matches!(field.ty, Ty::Array) { 0 } else { 1 };
                 self.emit(&format!("\tmovq {}(%rdi), %rax", off));
                 self.emit("\tpush %rax");
                 self.emit(&format!("\tcall flint_release_{}", cname));
@@ -78,7 +79,8 @@ impl Ctx<'_> {
                 let fname = &self.prog.structs[fs].name;
                 self.emit(&format!("\tcall flint_release_{}", fname));
             }
-            Ty::Str => self.emit("\tcall flint_str_release"),
+            Ty::Str | Ty::ByteArray => self.emit("\tcall flint_str_release"),
+            Ty::ShortArray => self.emit("\tcall flint_short_release"),
             Ty::Array => self.emit("\tcall flint_array_release"),
             _ => {}
         }

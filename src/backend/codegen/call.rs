@@ -14,8 +14,9 @@ pub(crate) fn pointer_conforms(arg: &Ty, pointee: &Ty) -> bool {
     match arg {
         Ty::Ptr(None) => true, // untyped (alloc, null): conforms to any *T
         Ty::Ptr(Some(t)) => t.as_ref() == pointee,
-        // a string is a byte buffer: ok for *string and *byte/*char/...
-        Ty::Str => matches!(*pointee, Ty::Str | Ty::Int),
+        // byte buffers (string, byte[], short[]) are raw byte memory:
+        // ok for *string and *byte/*char/...
+        Ty::Str | Ty::ByteArray | Ty::ShortArray => matches!(*pointee, Ty::Str | Ty::Int),
         Ty::Array => *pointee == Ty::Int, // int-slot block
         Ty::Int => true,
         _ => false,
@@ -102,20 +103,33 @@ impl Ctx<'_> {
                 self.emit("\tpush %rax");
                 return Ok(Ty::Void);
             }
-            // len() only makes sense on arrays (ident args are checked;
-            // other expressions fall through untyped in v1).
+            // len() makes sense on arrays and byte/short buffers (ident
+            // args are checked; other expressions fall through untyped in
+            // v1). Byte/short buffers store their header 8 below the
+            // base, so they use the dedicated helper.
             let target = if b.target == "flint_len" {
                 if let Expr::Ident { name, span: aspan } = &args[0] {
                     if let Some(l) = frame.find(name) {
-                        if l.ty != Ty::Array {
+                        if !matches!(
+                            l.ty,
+                            Ty::Array | Ty::ByteArray | Ty::ShortArray
+                        ) {
                             return Err(CompileError::new(
                                 *aspan,
                                 format!("len() requires an array, got a {}", ty_name(&l.ty)),
                             ));
                         }
+                        if matches!(l.ty, Ty::ByteArray | Ty::ShortArray) {
+                            "flint_buf_len"
+                        } else {
+                            "flint_len"
+                        }
+                    } else {
+                        "flint_len"
                     }
+                } else {
+                    "flint_len"
                 }
-                "flint_len"
             } else {
                 b.target
             };
@@ -257,10 +271,11 @@ impl Ctx<'_> {
                 }
                 if struct_ty.is_none() && iface_ty.is_none() {
                     // Not a class value and no user method to fall through
-                    // to: only strings and arrays get the builtin clone here
-                    // (raw `*T` buffers and scalars are rejected). A string
-                    // literal is force-copied to the heap first: retaining
-                    // read-only rodata would fault.
+                    // to: only strings, byte/short buffers, and arrays get
+                    // the builtin clone here (raw `*T` buffers and
+                    // scalars are rejected). A string literal is
+                    // force-copied to the heap first: retaining read-only
+                    // rodata would fault.
                     let saved = self.str_copy;
                     if matches!(base, Expr::Str { .. }) {
                         self.str_copy = true;
@@ -268,14 +283,14 @@ impl Ctx<'_> {
                     let bty = self.gen_expr(base, frame)?;
                     self.str_copy = saved;
                     match bty {
-                        Ty::Str | Ty::Array => {
+                        Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray => {
                             self.maybe_retain(base, frame);
                             return Ok(bty);
                         }
                         _ => {
                             return Err(CompileError::new(
                                 span,
-                                "move() requires a class, string, or array value",
+                                "move() requires a class, string, byte/short buffer, or array value",
                             ))
                         }
                     }
@@ -286,7 +301,7 @@ impl Ctx<'_> {
                     (None, None) => {
                         return Err(CompileError::new(
                             span,
-                            "move() requires a class, string, or array value",
+                            "move() requires a class, string, byte/short buffer, or array value",
                         ))
                     }
                 };

@@ -95,7 +95,7 @@ abstract class Collection {
         int n = strlen(s);
         int i = 0;
         while (i < n) {
-            h = (h ^ sys.byteLoad(s + i)) * 0x100000001b3;
+            h = (h ^ s[i]) * 0x100000001b3;
             i = i + 1;
         }
         return h;

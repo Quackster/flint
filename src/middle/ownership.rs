@@ -74,7 +74,13 @@ struct Var {
 fn is_owned_ty(ty: &Ty) -> bool {
     matches!(
         ty,
-        Ty::Struct(_) | Ty::Interface(_) | Ty::Ptr(_) | Ty::Str | Ty::Array
+        Ty::Struct(_)
+            | Ty::Interface(_)
+            | Ty::Ptr(_)
+            | Ty::Str
+            | Ty::Array
+            | Ty::ByteArray
+            | Ty::ShortArray
     )
 }
 
@@ -310,18 +316,6 @@ fn is_builtin_callee(callee: &[String]) -> bool {
             | "sys.syscall"
             | "sys.mmap"
             | "sys.munmap"
-            | "sys.byteLoad"
-            | "byteLoad"
-            | "sys.byteStore"
-            | "byteStore"
-            | "sys.shortLoad"
-            | "shortLoad"
-            | "sys.shortStore"
-            | "shortStore"
-            | "sys.intLoad"
-            | "intLoad"
-            | "sys.intStore"
-            | "intStore"
             | "math.fadd"
             | "fadd"
             | "math.fsub"

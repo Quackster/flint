@@ -2,15 +2,15 @@
 // `string + int` is POINTER arithmetic (an offset), not concatenation;
 // `+` of two strings concatenates. `(string)N` is a fresh single-char
 // string for byte value N. A literal stored into a string variable is a
-// fresh writable copy: `w[0] = 65` writes an 8-byte little-endian slot,
-// yielding "A" (0x41 00 ...). For multi-char builds, concatenate
+// fresh writable copy: `w[0] = 65` writes the first byte, yielding "A"
+// (0x41 00 ...). For multi-char builds, concatenate
 // single-char strings: `(string)65 + (string)66` is "AB". Strings move
 // like objects (`string b = a` moves `a`); share one with `a.move()`
 // (same buffer, both valid) or copy it with `str.copy(a)`.
 int main() {
     // pointer arithmetic: offset into the byte sequence
     string p = "hello";
-    print(sys.byteLoad(p + 1));  // 101 ('e')
+    print(p[1]);  // 101 ('e')
     print("\n");
     print(strlen(p));             // 5
     print("\n");
@@ -24,7 +24,7 @@ int main() {
     string c = (string)72;         // 'H'
     print(c + (string)73);        // HI
     print("\n");
-    // writable literal copy: the 8-byte slot write yields "A"
+    // writable literal copy: the byte write yields "A"
     string w = "";
     w[0] = 65;
     print(w);                    // A

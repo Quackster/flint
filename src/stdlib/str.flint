@@ -12,14 +12,14 @@ class Str {
         string out = string[n + 1];
         int i = 0;
         while (i < n) {
-            int c = sys.byteLoad(s + i);
+            int c = s[i];
             if (c >= 97 && c <= 122) {
                 c = c - 32;
             }
-            sys.byteStore(out + i, c);
+            out[i] = c;
             i = i + 1;
         }
-        sys.byteStore(out + n, 0);
+        out[n] = 0;
         return out;
     }
     // Lowercase the ASCII letters of s.
@@ -28,14 +28,14 @@ class Str {
         string out = string[n + 1];
         int i = 0;
         while (i < n) {
-            int c = sys.byteLoad(s + i);
+            int c = s[i];
             if (c >= 65 && c <= 90) {
                 c = c + 32;
             }
-            sys.byteStore(out + i, c);
+            out[i] = c;
             i = i + 1;
         }
-        sys.byteStore(out + n, 0);
+        out[n] = 0;
         return out;
     }
     // Reverse s.
@@ -44,21 +44,21 @@ class Str {
         string out = string[n + 1];
         int i = 0;
         while (i < n) {
-            sys.byteStore(out + (n - 1 - i), sys.byteLoad(s + i));
+            out[(n - 1 - i)] = s[i];
             i = i + 1;
         }
-        sys.byteStore(out + n, 0);
+        out[n] = 0;
         return out;
     }
     // Strip leading and trailing spaces.
     static string trim(string s) {
         int n = strlen(s);
         int i = 0;
-        while (i < n && sys.byteLoad(s + i) == 32) {
+        while (i < n && s[i] == 32) {
             i = i + 1;
         }
         int j = n;
-        while (j > i && sys.byteLoad(s + j - 1) == 32) {
+        while (j > i && s[j - 1] == 32) {
             j = j - 1;
         }
         return str.substring(s, i, j - i);
@@ -67,7 +67,7 @@ class Str {
     static string ltrim(string s) {
         int n = strlen(s);
         int i = 0;
-        while (i < n && sys.byteLoad(s + i) == 32) {
+        while (i < n && s[i] == 32) {
             i = i + 1;
         }
         return str.substring(s, i, n - i);
@@ -76,7 +76,7 @@ class Str {
     static string rtrim(string s) {
         int n = strlen(s);
         int j = n;
-        while (j > 0 && sys.byteLoad(s + j - 1) == 32) {
+        while (j > 0 && s[j - 1] == 32) {
             j = j - 1;
         }
         return str.substring(s, 0, j);
@@ -94,7 +94,7 @@ class Str {
             int k = 0;
             int match = 1;
             while (k < nsub) {
-                if (sys.byteLoad(s + i + k) != sys.byteLoad(sub + k)) {
+                if (s[i + k] != sub[k]) {
                     match = 0;
                 }
                 k = k + 1;
@@ -124,7 +124,7 @@ class Str {
             int k = 0;
             int match = 1;
             while (k < nsub) {
-                if (sys.byteLoad(s + i + k) != sys.byteLoad(sub + k)) {
+                if (s[i + k] != sub[k]) {
                     match = 0;
                 }
                 k = k + 1;
@@ -171,7 +171,7 @@ class Str {
             if (i + nfrom <= n) {
                 match = 1;
                 while (k < nfrom) {
-                    if (sys.byteLoad(s + i + k) != sys.byteLoad(from + k)) {
+                    if (s[i + k] != from[k]) {
                         match = 0;
                     }
                     k = k + 1;
@@ -181,18 +181,18 @@ class Str {
                 int j = 0;
                 int nto = strlen(to);
                 while (j < nto) {
-                    sys.byteStore(out + o, sys.byteLoad(to + j));
+                    out[o] = to[j];
                     o = o + 1;
                     j = j + 1;
                 }
                 i = i + nfrom;
             } else {
-                sys.byteStore(out + o, sys.byteLoad(s + i));
+                out[o] = s[i];
                 o = o + 1;
                 i = i + 1;
             }
         }
-        sys.byteStore(out + o, 0);
+        out[o] = 0;
         return out;
     }
     // s repeated n times.
@@ -204,13 +204,13 @@ class Str {
         while (i < n) {
             int j = 0;
             while (j < ns) {
-                sys.byteStore(out + o, sys.byteLoad(s + j));
+                out[o] = s[j];
                 o = o + 1;
                 j = j + 1;
             }
             i = i + 1;
         }
-        sys.byteStore(out + o, 0);
+        out[o] = 0;
         return out;
     }
     // Split s on sep into a list of segments.
@@ -227,7 +227,7 @@ class Str {
             int k = 0;
             int match = 1;
             while (k < nsep) {
-                if (sys.byteLoad(s + i + k) != sys.byteLoad(sep + k)) {
+                if (s[i + k] != sep[k]) {
                     match = 0;
                 }
                 k = k + 1;
@@ -251,14 +251,14 @@ class Str {
         string out = string[w + 1];
         int i = 0;
         while (i < ns) {
-            sys.byteStore(out + i, sys.byteLoad(s + i));
+            out[i] = s[i];
             i = i + 1;
         }
         while (i < w) {
-            sys.byteStore(out + i, ch);
+            out[i] = ch;
             i = i + 1;
         }
-        sys.byteStore(out + w, 0);
+        out[w] = 0;
         return out;
     }
     // Pad s on the left with ch up to width w.
@@ -267,16 +267,16 @@ class Str {
         string out = string[w + 1];
         int i = 0;
         while (i < w - ns) {
-            sys.byteStore(out + i, ch);
+            out[i] = ch;
             i = i + 1;
         }
         int j = 0;
         while (j < ns) {
-            sys.byteStore(out + i, sys.byteLoad(s + j));
+            out[i] = s[j];
             i = i + 1;
             j = j + 1;
         }
-        sys.byteStore(out + w, 0);
+        out[w] = 0;
         return out;
     }
 }

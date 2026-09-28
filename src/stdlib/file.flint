@@ -50,7 +50,7 @@ class File {
                 string nb = string[ncap];
                 int k = 0;
                 while (k < off) {
-                    sys.byteStore(nb + k, sys.byteLoad(out + k));
+                    nb[k] = out[k];
                     k = k + 1;
                 }
                 out = nb;
@@ -63,7 +63,7 @@ class File {
             off = off + n;
         }
         sys.close(fd);
-        sys.byteStore(out + off, 0);
+        out[off] = 0;
         return out;
     }
     // O_WRONLY | O_CREAT | O_TRUNC; returns the fd or a negative errno.
@@ -120,7 +120,7 @@ class File {
         int i = 0;
         int n = strlen(data);
         while (i < n) {
-            if (sys.byteLoad(data + i) == 10) {
+            if (data[i] == 10) {
                 return str.substring(data, 0, i);
             }
             i = i + 1;

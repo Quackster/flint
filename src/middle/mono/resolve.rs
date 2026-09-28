@@ -307,6 +307,9 @@ impl<'a> Mono<'a> {
                 // multi-dimensional array are themselves arrays).
                 Some(Ty::Array)
             }
+            // byte/short buffer elements read as plain ints (zero
+            // extended / 2-byte LE)
+            Ty::ByteArray | Ty::ShortArray => Some(Ty::Int),
             Ty::Struct(s) => {
                 if self.out.structs[*s].name == "__placeholder__" {
                     return None;
@@ -535,6 +538,9 @@ fn desugar_for_each(prog: &Program, fe: &Stmt, n: usize) -> CompileResult<Vec<St
         // array (for nested arrays). A bare `var x` infers `int`, so the
         // slot is never treated as an owned array by mistake.
         Ty::Array => (ty.clone().unwrap_or(Ty::Int), AccessKind::Array),
+        // byte/short buffers iterate element-wise (zero-extended byte /
+        // 2-byte LE short read as an int)
+        Ty::ByteArray | Ty::ShortArray => (ty.clone().unwrap_or(Ty::Int), AccessKind::Array),
         Ty::Struct(s) => {
             let (get, size) = find_accessors(prog, *s);
             let get = match get {

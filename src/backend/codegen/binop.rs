@@ -35,12 +35,22 @@ impl Ctx<'_> {
         let is_ptr = matches!(lt, Ty::Ptr(_))
             || matches!(rt, Ty::Ptr(_))
             || lt == Ty::Str
-            || rt == Ty::Str;
+            || rt == Ty::Str
+            || lt == Ty::ByteArray
+            || rt == Ty::ByteArray
+            || lt == Ty::ShortArray
+            || rt == Ty::ShortArray;
         // all reference-ish types compare as pointers (e.g. `p == null`)
         let ptrish = |t: &Ty| {
             matches!(
                 t,
-                Ty::Ptr(_) | Ty::Str | Ty::Array | Ty::Struct(_) | Ty::Interface(_)
+                Ty::Ptr(_)
+                    | Ty::Str
+                    | Ty::Array
+                    | Ty::ByteArray
+                    | Ty::ShortArray
+                    | Ty::Struct(_)
+                    | Ty::Interface(_)
             )
         };
         if cmp {
