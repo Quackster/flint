@@ -815,7 +815,7 @@ impl Ctx<'_> {
                 let end_label = format!(".Linstof_e{}", base);
                 self.emit("\ttest %rax, %rax");
                 self.emit(&format!("\tjz {}", false_label));
-                self.emit("\tmovq 8(%rax), %r11"); // vtable ptr
+                self.emit("\tmovq 16(%rax), %r11"); // vtable ptr (slot 2)
                 for si in layout::subclasses_of(self.prog, &target_name) {
                     let vt = layout::vtable_symbol(self.prog, si);
                     self.emit(&format!("\tlea {}(%rip), %r12", vt));

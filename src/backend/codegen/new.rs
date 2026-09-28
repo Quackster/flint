@@ -3,10 +3,12 @@ use crate::backend::layout;
 
 impl Ctx<'_> {
     /// Emit code leaving a fresh object base address in %rax. Either heap
-    /// (flint_alloc + refcount header = 1) or the pending stack region, whose
-    /// old class fields are released (no-op the first time: regions are
-    /// zeroed at function entry) and whose slots are re-zeroed. A class with
-    /// a vtable slot also gets its vtable pointer (slot 1) set.
+    /// (flint_alloc + headers: refcount at slot 0, release-fn at slot 1)
+    /// or the pending stack region, whose old class fields are released
+    /// (no-op the first time: regions are zeroed at function entry) and
+    /// whose slots are re-zeroed. The release-fn header is (re)written on
+    /// both paths; a class with a vtable slot also gets its vtable pointer
+    /// (slot 2) set.
     pub(crate) fn emit_new_base(&mut self, sidx: usize, region: Option<(i64, usize)>) {
         let has_vt = layout::has_vtable_slot(self.prog, sidx);
         let base = layout::field_base_offset(self.prog, sidx);
@@ -30,15 +32,19 @@ impl Ctx<'_> {
                         self.emit(&format!("{}:", skip));
                     }
                 }
-                // zero all slots (header + fields)
+                // zero all slots (headers + fields)
                 for i in 0..ns {
                     self.emit(&format!("\tmovq $0, {}(%rdx)", i * 8));
                 }
-                // set the vtable pointer (slot 1) if this class has one
+                // set the release-fn header (slot 1)
+                let relf = layout::release_zero_symbol(self.prog, sidx);
+                self.emit(&format!("\tlea {}(%rip), %rdi", relf));
+                self.emit("\tmovq %rdi, 8(%rdx)");
+                // set the vtable pointer (slot 2) if this class has one
                 if has_vt {
                     let vt = layout::vtable_symbol(self.prog, sidx);
                     self.emit(&format!("\tlea {}(%rip), %rdi", vt));
-                    self.emit("\tmovq %rdi, 8(%rdx)");
+                    self.emit("\tmovq %rdi, 16(%rdx)");
                 }
                 self.emit("\tmov %rdx, %rax"); // restore the base in %rax
             }
@@ -46,11 +52,16 @@ impl Ctx<'_> {
                 self.emit(&format!("\tmovq $({} * 8), %rdi", ns));
                 self.emit("\tcall flint_alloc");
                 self.emit("\tmovq $1, (%rax)"); // refcount at slot 0
-                // set the vtable pointer (slot 1) if this class has one
+                // release-fn at slot 1 (the generic flint_release jumps
+                // here when the refcount reaches zero)
+                let relf = layout::release_zero_symbol(self.prog, sidx);
+                self.emit(&format!("\tlea {}(%rip), %rdi", relf));
+                self.emit("\tmovq %rdi, 8(%rax)");
+                // set the vtable pointer (slot 2) if this class has one
                 if has_vt {
                     let vt = layout::vtable_symbol(self.prog, sidx);
                     self.emit(&format!("\tlea {}(%rip), %rdi", vt));
-                    self.emit("\tmovq %rdi, 8(%rax)");
+                    self.emit("\tmovq %rdi, 16(%rax)");
                 }
             }
         }

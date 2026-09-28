@@ -1,0 +1,121 @@
+// coll_frees: collections really release their elements — no stale-slot
+// references (List.remove tail, Queue.pop ring) and no dropped retained
+// returns (CopyOnWriteList.removeObject). Churn ~1MB of fat boxes through
+// add/pop/remove/removeObject/clear and assert RSS stays flat via
+// /proc/self/statm (same trick as the frees test).
+import std.File;
+import std.List;
+import std.HashMap;
+import std.Queue;
+import std.CopyOnWriteList;
+
+class Fat {
+    int id;
+    int data[];
+    public Fat(int i) {
+        this.id = i;
+        this.data = int[512]; // 4KB per object: a leak shows in RSS fast
+    }
+}
+
+// Resident pages of this process.
+int rssPages() {
+    string statm = File.readAll("/proc/self/statm");
+    int i = 0;
+    while (statm[i] != 32) {
+        i = i + 1;
+    }
+    i = i + 1;
+    int v = 0;
+    while (statm[i] != 32 && statm[i] != 0) {
+        v = v * 10 + (statm[i] - 48);
+        i = i + 1;
+    }
+    return v;
+}
+
+void churnList(int n) {
+    List<Fat> l = new List<Fat>();
+    int k = 0;
+    while (k < n) {
+        Fat f = new Fat(k);
+        l.add(f);
+        k = k + 1;
+    }
+    // Bind the removed element: each re-declared `g` releases the
+    // previous one; the cleared tail slot keeps no reference behind.
+    while (l.size() > 0) {
+        Fat g = l.remove(0);
+    }
+}
+
+void churnQueue(int n) {
+    Queue<Fat> q = new Queue<Fat>();
+    int k = 0;
+    while (k < n) {
+        Fat f = new Fat(k);
+        q.push(f);
+        k = k + 1;
+    }
+    // pop transfers the slot's reference to `g`; the cleared ring slot
+    // keeps none, so a later push never overwrites a live reference.
+    while (q.size() > 0) {
+        Fat g = q.pop();
+    }
+}
+
+void churnMap(int n) {
+    HashMap<int, Fat> m = new HashMap<int, Fat>();
+    int k = 0;
+    while (k < n) {
+        Fat f = new Fat(k);
+        m.put(k, f);
+        k = k + 1;
+    }
+    int k2 = 0;
+    while (k2 < n) {
+        m.remove(k2);
+        k2 = k2 + 1;
+    }
+}
+
+void churnCow(int n) {
+    CopyOnWriteList<Fat> c = new CopyOnWriteList<Fat>();
+    List<Fat> keep = new List<Fat>();
+    int k = 0;
+    while (k < n) {
+        Fat f = new Fat(k);
+        c.add(f);
+        keep.add(f);
+        k = k + 1;
+    }
+    // removeObject by identity; the dropped extra retain is released
+    // inside removeObject, so nothing lingers.
+    int k2 = 0;
+    while (k2 < n) {
+        Fat t = keep.get(k2);
+        c.removeObject(t);
+        k2 = k2 + 1;
+    }
+}
+
+void churnAll(int n) {
+    churnList(n);
+    churnQueue(n);
+    churnMap(n);
+    churnCow(n);
+}
+
+int main() {
+    churnAll(300);
+    int before = rssPages();
+    churnAll(300);
+    churnAll(300);
+    churnAll(300);
+    int after = rssPages();
+    // ~14MB churned through the collections; allow 256 pages (1MB) of
+    // slop. A stale-slot leak would show ~900 pages per churn round.
+    print(after - before < 256 ? 1 : 0);
+    print("\n");
+    return 0;
+}

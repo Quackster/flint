@@ -222,6 +222,9 @@ class List<T> extends Collection {
             j = j + 1;
         }
         this.count = this.count - 1;
+        // The tail slot is stale after the shift; clear it so the
+        // element's reference lives only in the caller's retained copy.
+        this.slots[this.count] = 0;
         Collection.retainElem(this.kind, v);
         return v;
     }
@@ -345,6 +348,9 @@ class Queue<T> extends Collection {
             return 0;
         }
         int v = this.slots[this.head % this.cap];
+        // Clear the popped slot: the stored reference transfers to the
+        // caller, so the queue keeps no stale reference behind.
+        this.slots[this.head % this.cap] = 0;
         this.head = (this.head + 1) % this.cap;
         this.count = this.count - 1;
         return v;
@@ -825,7 +831,11 @@ class CopyOnWriteList<T> extends Collection {
         int i = this.indexOfLocked(v);
         int r = 0;
         if (i != -1) {
-            this.removeLocked(i);
+            // removeLocked hands back an extra retained reference for the
+            // caller; drop it here (the slot's own reference died in
+            // `install`), otherwise it leaks.
+            int old = this.removeLocked(i);
+            Collection.releaseElem(this.kind, old);
             r = 1;
         }
         Sync.unlock(&this.mutex);

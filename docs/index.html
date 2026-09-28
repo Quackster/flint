@@ -2727,17 +2727,22 @@ int main() {
     // the original references still work alongside the collection's
     print(a.n);              // 1
     print(b2.n);              // 2
-    // a map of objects, keyed by int
+    // a map of objects, keyed by int (locals own the boxes; the map
+    // borrows and retains its own references)
     HashMap&lt;int, Box&gt; m = new HashMap&lt;int, Box&gt;();
-    m.put(10, new Box(3));
-    m.put(20, new Box(4));
+    Box b3 = new Box(3);
+    Box b4 = new Box(4);
+    m.put(10, b3);
+    m.put(20, b4);
     print(m.size());             // 2
     Box v = m.get(20);
     print(v.n);              // 4
     // a queue of objects
     Queue&lt;Box&gt; q = new Queue&lt;Box&gt;();
-    q.push(new Box(5));
-    q.push(new Box(6));
+    Box b5 = new Box(5);
+    Box b6 = new Box(6);
+    q.push(b5);
+    q.push(b6);
     Box f = q.pop();
     print(f.n);              // 5 (FIFO)
     Box s = q.pop();
@@ -2921,6 +2926,11 @@ int main() {
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>PASS</div>
+<div class="note"><b>Argument lifetimes.</b> A thread or <code>async</code> call
+<em>borrows</em> its arguments (the worker's slots hold raw pointers with no
+extra retain), so the owner of an object argument must stay alive until
+<code>join</code> returns — dropping it earlier hands the worker freed memory.
+Keep object arguments in a local that outlives the <code>join</code>.</div>
 
 <h2>Low-level (raw sys.*)</h2>
 <table>

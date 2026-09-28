@@ -2,13 +2,18 @@
 // escape analysis and codegen can share them.
 //
 // Object layout (8-byte slots):
-//   no vtable slot:   [refcount][field0][field1]...
-//   with vtable slot: [refcount][vtable][parent fields...][own fields...]
+//   no vtable slot:   [refcount][release-fn][field0][field1]...
+//   with vtable slot: [refcount][release-fn][vtable][parent fields...][own fields...]
 //
-// The refcount is always at slot 0, so the generic flint_retain/flint_release and
-// the per-class flint_release_<C> work unchanged. A class gets a vtable slot
-// (and a vtable) when it extends a parent, implements an interface, or is a
-// parent of another class.
+// The refcount is always at slot 0, so the generic flint_retain and the
+// per-class flint_release_<C> work unchanged. Slot 1 holds the address of
+// the class's zero-path release function (flint_release_<C>_at0), so the
+// generic flint_release (behind `mem.release` and the collections' unsafe
+// core) can destroy any object: decrement, and at zero tail-jump to the
+// header's release function, which runs the destroy() hook, releases the
+// fields, and munmaps. A class gets a vtable slot (and a vtable) when it
+// extends a parent, implements an interface, or is a parent of another
+// class.
 use crate::ast::{Program, Ty};
 
 /// The parent class index of `sidx`, if any.
@@ -64,16 +69,28 @@ pub(crate) fn total_fields(prog: &Program, sidx: usize) -> usize {
 
 /// Number of 8-byte slots in the object (header + fields).
 pub(crate) fn nslots(prog: &Program, sidx: usize) -> usize {
-    total_fields(prog, sidx) + if has_vtable_slot(prog, sidx) { 2 } else { 1 }
+    total_fields(prog, sidx) + if has_vtable_slot(prog, sidx) { 3 } else { 2 }
 }
 
-/// Byte offset of the first field (16 with a vtable slot, 8 without).
+/// Byte offset of the first field (24 with a vtable slot, 16 without).
 pub(crate) fn field_base_offset(prog: &Program, sidx: usize) -> i64 {
     if has_vtable_slot(prog, sidx) {
-        16
+        24
     } else {
-        8
+        16
     }
+}
+
+/// The symbol name of the class's zero-path release function (stored in
+/// the object header's slot 1; the generic flint_release tail-jumps to it
+/// when the refcount reaches zero).
+pub(crate) fn release_zero_symbol(prog: &Program, sidx: usize) -> String {
+    format!("{}_at0", release_symbol(prog, sidx))
+}
+
+/// The symbol name of the class's release function.
+pub(crate) fn release_symbol(prog: &Program, sidx: usize) -> String {
+    format!("flint_release_{}", prog.structs[sidx].name)
 }
 
 /// The vtable slot names for `sidx`, in order. Interface methods come first

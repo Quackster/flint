@@ -210,11 +210,17 @@ flint_fn_call2:
 
     .globl flint_release
     .type flint_release, @function
+# flint_release(obj): the generic class-object release behind `mem.release`
+# (and the collections' unsafe core). Decrements the refcount at slot 0;
+# at zero, tail-jumps to the class's zero-path release function kept in
+# the header's slot 1 (destroy() hook, field releases, munmap). Null-safe.
 flint_release:
+    test %rdi, %rdi
+    jz .Lrelease_done
     decq (%rdi)
     jnz .Lrelease_done
-    # refcount zero: free the object (n+1)*8 via munmap? For v1, leak (no-op) is safe; just return.
-    # Could call flint_free or munmap here, but we keep it simple.
+    movq 8(%rdi), %rax
+    jmp *%rax
 .Lrelease_done:
     ret
     .size flint_release, .-flint_release

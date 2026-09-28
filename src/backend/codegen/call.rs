@@ -470,7 +470,7 @@ impl Ctx<'_> {
                         .ok_or_else(|| {
                             CompileError::new(span, format!("method '{}' not in vtable", method))
                         })?;
-                    self.emit("\tmovq 8(%rdi), %r11");
+                    self.emit("\tmovq 16(%rdi), %r11"); // vtable ptr (slot 2)
                     self.emit(&format!("\tmovq {}*8(%r11), %r12", slot));
                     self.emit("\tcall *%r12");
                 } else {
@@ -618,7 +618,7 @@ impl Ctx<'_> {
         let slot = layout::interface_slot(self.prog, method).ok_or_else(|| {
             CompileError::new(span, format!("method '{}' not in vtable", method))
         })?;
-        self.emit("\tmovq 8(%rdi), %r11");
+        self.emit("\tmovq 16(%rdi), %r11"); // vtable ptr (slot 2)
         self.emit(&format!("\tmovq {}*8(%r11), %r12", slot));
         self.emit("\tcall *%r12");
         if meth.ret == Some(Ty::Void) {

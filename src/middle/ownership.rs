@@ -6,8 +6,9 @@
 //      and `obj.field = y` *move* class objects, `*T` buffers, strings,
 //      and arrays; the old name becomes invalid).
 //   3. When the owner goes out of scope, the value is dropped (the backend
-//      already releases class values at scope end; raw buffers are freed
-//      explicitly with `free` / `Mem.freeInt` / `Mem.freeByte`).
+//      releases class values, strings, and arrays at scope end or on
+//      overwrite — a real `munmap`; raw `*T` pointers never own and are
+//      never freed).
 //
 // What is tracked:
 //   - `Struct` / `Interface` (class objects), `*T` buffers, `string`, and
@@ -15,34 +16,33 @@
 //     Use-after-move is a compile error. Clone explicitly with `x.move()`
 //     (objects: same address, extra reference — `mem.retainVal(x)` also
 //     works; strings/arrays: plain shared alias).
-//   - Consume-on-`free` (`free(p)` / `Mem.freeInt` / `Mem.freeByte`
-//     invalidate `p`). Use-after-free and double-free are therefore
-//     use-of-moved errors.
-//   - Calls *borrow* (except `free`), so `x.foo()`, `f(x)`, `strlen(s)`,
-//     `str.concat(a, b)`, `Mem.copy(..)`, and `sys.*` never move their
-//     arguments.
+//   - Calls *borrow*, so `x.foo()`, `f(x)`, `strlen(s)`,
+//     `str.concat(a, b)`, and `sys.*` never move their arguments.
+//     (A `new X(...)` passed straight into a call has no named owner to
+//     release it — see the `obj_coll` example: hold it in a local first.)
 //   - `int` / `bool` / enum: `Copy` (never move, always usable).
 //   - `this` (the method receiver): borrowed like Rust `&self`, never moves.
 //     Field reads (`x.f`, `buf[i]`) borrow.
 //
 // Explicit clones (borrow the source, return a fresh owner):
-//   - `x.move()` on any object, string, or array (raw `*T` buffers are
-//     rejected — they follow explicit free discipline; a user-defined
+//   - `x.move()` on any object, string, or array (raw `*T` buffers have no
+//     `move()` — they never own and are never freed; a user-defined
 //     `move` method wins over this builtin).
 //   - `str.copy(s)` (deep copy; `str.concat`/`substring`/etc. also return
 //     fresh values while borrowing their inputs).
-//   - `Mem.intArray` / `Mem.bytes` / `alloc` return fresh owners; there is
-//     no implicit aliasing — `*int q = p` moves `p`.
+//   - Buffers come only from typed initialization (`int buf[n]`,
+//     `string s[n]`), array/string literals, and calls that return fresh
+//     values; there is no implicit aliasing — `*int q = p` moves `p`.
 //
 // Fields are not tracked (like Rust `unsafe` for raw slot arrays): the
 // collections (`src/stdlib/coll.flint`) store elements as raw `int` slots
 // with manual `Mem.retain` / `Mem.release` and are therefore exempt — they
 // are the `unsafe` core, while application code gets checked moves.
 //
-// Leaks are allowed (like `Rc` cycles / `mem::forget` in Rust): an owned
-// buffer that is never freed, or a string that is overwritten, simply
-// reclaims at process exit. What is *forbidden* is using a value after its
-// owner moved or freed it.
+// Leaks are allowed (like `Rc` cycles / `mem::forget` in Rust): an object
+// cycle, or an unnamed call result nobody owns (e.g. a `new` passed
+// straight into a call), simply reclaims at process exit. What is
+// *forbidden* is using a value after its owner moved or dropped it.
 use crate::ast::{Block, Expr, Program, Stmt, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
@@ -62,12 +62,12 @@ struct Var {
     moved_at: Option<Span>,
 }
 
-// Types with move semantics (single owner): class objects (dropped via
-// `release` at scope end), raw buffers (freed explicitly), `string`, and
-// arrays. Strings and arrays still leak rather than drop (no `release` on
-// overwrite), so a move is a transfer of the single live name — sharing one
-// buffer under two live names needs an explicit `s.move()` / `a.move()`
-// clone (a plain alias, same address, both stay valid; strings that must be
+// Types with move semantics (single owner): class objects, `string`, and
+// arrays (each dropped via its release helper at scope end or on
+// overwrite); raw `*T` pointers never own and are never freed. A move
+// transfers the single live name — sharing one value under two live names
+// needs an explicit `x.move()` clone (on objects a retain, on strings and
+// arrays a plain alias, same address, both stay valid; strings that must be
 // independent need `str.copy(s)`). Calls still borrow, so `strlen(s)`,
 // `str.concat(a, b)`, and the desugared `for (x : c)` temporaries keep
 // working without clones.

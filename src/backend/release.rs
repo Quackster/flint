@@ -41,6 +41,15 @@ impl Ctx<'_> {
         self.emit(&format!("\tjz .Lrc_{}_done", s.name));
         self.emit("\tdecq (%rdi)");
         self.emit(&format!("\tjnz .Lrc_{}_done", s.name));
+        // Zero-path entry: the generic flint_release (mem.release) jumps
+        // here with the refcount already at zero (address kept in the
+        // object header's slot 1). Fully self-contained (pushes %rbx
+        // itself); the typed entry above balances its own push first.
+        let at0 = layout::release_zero_symbol(self.prog, sidx);
+        self.emit(&format!(".globl {}", at0));
+        self.emit("\tpop %rbx");
+        self.emit(&format!("{}:", at0));
+        self.emit("\tpush %rbx");
         self.emit("\tmov %rdi, %rbx");
         // destroy() hook: the user method runs while the object is still
         // intact (this in %rdi), before field release and the munmap.

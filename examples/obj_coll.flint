@@ -1,7 +1,9 @@
 // obj_coll: collections holding class objects (the object flavour,
 // derived from the type argument) refcount their elements. Storing an
 // object retains a reference; clearing or destroying the collection
-// releases it, but an object referenced elsewhere survives.
+// releases it, but an object referenced elsewhere survives. Hold each
+// object in a local first: a `new` passed straight into `put`/`push`
+// has no owner to release it, so it never frees.
 // Build: flintc src/stdlib/coll.flint src/stdlib/mem.flint examples/obj_coll.flint -o obj_coll
 import std.List;
 import std.HashMap;
@@ -34,10 +36,13 @@ int main() {
     print("\n");
     print(b2.n);             // 2
     print("\n");
-    // a map of objects, keyed by int
+    // a map of objects, keyed by int (locals own the boxes; the map
+    // borrows and retains its own references)
     HashMap<int, Box> m = new HashMap<int, Box>();
-    m.put(10, new Box(3));
-    m.put(20, new Box(4));
+    Box b3 = new Box(3);
+    Box b4 = new Box(4);
+    m.put(10, b3);
+    m.put(20, b4);
     print(m.size());             // 2
     print("\n");
     Box v = m.get(20);
@@ -45,8 +50,10 @@ int main() {
     print("\n");
     // a queue of objects
     Queue<Box> q = new Queue<Box>();
-    q.push(new Box(5));
-    q.push(new Box(6));
+    Box b5 = new Box(5);
+    Box b6 = new Box(6);
+    q.push(b5);
+    q.push(b6);
     Box f = q.pop();
     print(f.n);              // 5 (FIFO)
     print("\n");
