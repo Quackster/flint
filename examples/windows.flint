@@ -11,6 +11,10 @@
 import std.Gui;
 import std.Window;
 import std.Image;
+import std.Label;
+import std.Button;
+import std.OnSetup;
+import std.OnDraw;
 
 class WinApp implements OnSetup, OnDraw {
     Gui gui;

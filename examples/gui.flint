@@ -8,6 +8,10 @@
 import std.App;
 import std.Image;
 import std.Window;
+import std.OnDraw;
+import std.OnKey;
+import std.OnButton;
+import std.OnMotion;
 
 class Demo implements OnDraw, OnKey, OnButton, OnMotion {
     App app;

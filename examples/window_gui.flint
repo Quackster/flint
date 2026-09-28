@@ -8,6 +8,10 @@
 // quit (or close the app from the compositor).
 import std.Gui;
 import std.Image;
+import std.Label;
+import std.TextBox;
+import std.OnSetup;
+import std.OnDraw;
 
 class FormApp implements OnSetup, OnDraw {
     Gui gui;

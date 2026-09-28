@@ -9,6 +9,18 @@
 // the compositor).
 import std.Gui;
 import std.Image;
+import std.Label;
+import std.TextBox;
+import std.PasswordBox;
+import std.NumberBox;
+import std.TextArea;
+import std.Checkbox;
+import std.RadioButton;
+import std.Slider;
+import std.Dropdown;
+import std.Button;
+import std.OnSetup;
+import std.OnDraw;
 
 class FormApp implements OnSetup, OnDraw {
     Gui gui;
