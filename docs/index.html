@@ -1641,7 +1641,10 @@ escaping objects go to the heap with a refcount header.</p></div>
 <h2>Ownership (compile-time, like Rust)</h2>
 <p>Each value has an <em>owner</em>; there is only one owner at a time; when
 the owner goes out of scope the value is dropped — a real
-<code>munmap</code>, verified by the <code>frees</code> test. There is no
+<code>munmap</code>, verified by the <code>frees</code> test (a move
+frees nothing — the memory is released only when the current owner,
+or the last owner after <code>.move()</code> sharing, is dropped;
+<code>examples/move_free.flint</code> shows this with RSS). There is no
 <code>alloc</code> or <code>free</code>: buffers come only from typed
 initialization (<code>int buf[n]</code>, <code>string s[n]</code>),
 array/string literals, and calls that return fresh values.

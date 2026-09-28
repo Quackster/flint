@@ -1,0 +1,88 @@
+// move_free: where a moved variable's memory actually goes. A move
+// (`int moved[] = buf`) does not free anything — it transfers ownership
+// and `buf` becomes invalid (using it afterwards is a compile error).
+// The memory is freed only when the *current* owner is dropped: at
+// scope end, or when a slot is reassigned (the old value is released
+// first). `.move()` shares instead: it retains, so the block survives
+// until every owner is dropped, and the last drop does the munmap.
+//
+// Proof at runtime: churn 2MB buffers through moves and measure
+// resident pages (/proc/self/statm). Real frees keep RSS flat; a leak
+// would show ~25k pages (100MB).
+//
+//   flintc src/stdlib/file.flint examples/move_free.flint -o move_free
+import std.File;
+
+// Resident pages of this process (second field of /proc/self/statm).
+int rssPages() {
+    string statm = File.readAll("/proc/self/statm");
+    int i = 0;
+    while (statm[i] != 32) {
+        i = i + 1;
+    }
+    i = i + 1;
+    int v = 0;
+    while (statm[i] != 32 && statm[i] != 0) {
+        v = v * 10 + (statm[i] - 48);
+        i = i + 1;
+    }
+    return v;
+}
+
+// One round: allocate 2MB, touch every page, move the buffer, share it,
+// and let scope end do the freeing.
+void round(int k) {
+    int buf[262144];                 // owner 1: `buf` (2MB, zero-filled)
+    int p = 0;
+    while (p < 262144) {
+        buf[p] = k;                 // touch every page so it is resident
+        p = p + 512;
+    }
+    int moved[] = buf;              // move: the 2MB block is now owned by
+                                    // `moved`; `buf` is invalid. The move
+                                    // frees nothing — it is a transfer of
+                                    // the name, not a deallocation.
+    int share[] = moved.move();     // share: retains (refcount 2); `moved`
+                                    // stays valid and the block has two
+                                    // owners.
+    // Scope ends here: `share` and `moved` are dropped in turn —
+    // refcount 2 -> 1 -> 0 — and the runtime munmaps the block at the
+    // last drop. That is the only place this memory is released.
+}
+
+// Reassignment drops the old owner immediately: the new buffer is
+// stored into `a` only after `a`'s old 2MB block is released.
+void reassignFrees() {
+    int a[262144];
+    int p = 0;
+    while (p < 262144) {
+        a[p] = 1;
+        p = p + 512;
+    }
+    int b[262144];                  // second 2MB buffer
+    a = b;                          // `a`'s old block is released here;
+                                    // `b` is now invalid. Scope end below
+                                    // releases `a`'s new block.
+}
+
+int main() {
+    int k = 0;
+    while (k < 5) {
+        round(k);
+        k = k + 1;
+    }
+    reassignFrees();
+    int before = rssPages();
+    k = 0;
+    while (k < 50) {
+        round(k);
+        reassignFrees();
+        k = k + 1;
+    }
+    int after = rssPages();
+    // 200MB churned; allow 256 pages (1MB) of slop. A leak would show
+    // ~50k pages.
+    print(after - before < 256 ? 1 : 0);
+    print("\n");
+    return 0;
+}

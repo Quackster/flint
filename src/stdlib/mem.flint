@@ -1,11 +1,12 @@
 // std/mem — reference-count helpers for the collections' unsafe core
 // (import std.Mem).
 //
-// Buffers are declared with typed syntax now (`int buf[n]`, `byte buf[n]`,
-// `string s[n]`): each declaration owns a fresh zero-filled heap value
-// that frees itself when it goes out of scope. There is no `alloc` or
-// `free` anymore; ownership (`T x = y` moves, calls borrow, `x.move()`
-// clones) is checked at compile time — see the Memory model docs.
+// Buffers are declared with typed syntax now (`int buf[n]`,
+// `byte buf[n]`, `short buf[n]`, `string s[n]`): each declaration owns
+// a fresh zero-filled heap value that frees itself when it goes out of
+// scope. There is no `alloc` or `free` anymore; ownership (`T x = y`
+// moves, calls borrow, `x.move()` clones) is checked at compile time —
+// see the Memory model docs.
 //
 // Usage:
 //   import std.Mem;
