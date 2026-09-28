@@ -1,0 +1,48 @@
+// frees: owned buffers really munmap when they go out of scope (not just
+// a refcount no-op). Churn 2MB buffers and assert RSS stays flat via
+// /proc/self/statm (second field = resident pages).
+import std.File;
+
+// Resident pages of this process.
+int rssPages() {
+    string statm = File.readAll("/proc/self/statm");
+    int i = 0;
+    while (sys.byteLoad(statm + i) != 32) {
+        i = i + 1;
+    }
+    i = i + 1;
+    int v = 0;
+    while (sys.byteLoad(statm + i) != 32 && sys.byteLoad(statm + i) != 0) {
+        v = v * 10 + (sys.byteLoad(statm + i) - 48);
+        i = i + 1;
+    }
+    return v;
+}
+
+// Allocate, touch every page, and drop a 2MB buffer per iteration. The
+// re-declared slot releases the previous buffer first, so RSS must not
+// grow no matter how many rounds run.
+void churn(int rounds) {
+    int k = 0;
+    while (k < rounds) {
+        int buf[262144];
+        int p = 0;
+        while (p < 262144) {
+            buf[p] = k;
+            p = p + 512;
+        }
+        k = k + 1;
+    }
+}
+
+int main() {
+    churn(5);
+    int before = rssPages();
+    churn(50);
+    int after = rssPages();
+    // 100MB churned; allow 256 pages (1MB) of slop for the live buffer
+    // and read helpers. A leak would show ~25k pages.
+    print(after - before < 256 ? 1 : 0);
+    print("\n");
+    return 0;
+}

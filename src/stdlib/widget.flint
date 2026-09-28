@@ -98,7 +98,7 @@ class TextBox extends Widget {
     public TextBox(int x, int y, int w, int h, int max) {
         super(x, y, w, h);
         this.max = max;
-        this.buf = alloc(max + 1);
+        this.buf = string[max + 1];
         sys.byteStore(this.buf, 0);
         this.len = 0;
         this.focused = 0;
@@ -220,7 +220,7 @@ class PasswordBox extends TextBox {
     string mask;   // max+1 bytes of '*' shadowing buf, NUL-terminated
     public PasswordBox(int x, int y, int w, int h, int max) {
         super(x, y, w, h, max);
-        this.mask = alloc(max + 1);
+        this.mask = string[max + 1];
         sys.byteStore(this.mask, 0);
     }
     public void append(int c) {
@@ -409,9 +409,9 @@ class TextArea extends TextBox {
             }
             if (c == 10) {
                 if (y + 7 < this.y + this.h) {
-                    sys.byteStore(this.buf + i, 0);
-                    im.text(this.x + 4, y, this.buf + ls, 0xFFFFFFFF);
-                    sys.byteStore(this.buf + i, c);
+                    // A `buf + ls` view has no header to retain, so pass a
+                    // materialized line (frees itself after the call).
+                    im.text(this.x + 4, y, str.substring(this.buf, ls, i - ls), 0xFFFFFFFF);
                 }
                 y = y + 8;
                 ls = i + 1;

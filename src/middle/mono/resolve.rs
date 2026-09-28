@@ -530,7 +530,11 @@ fn desugar_for_each(prog: &Program, fe: &Stmt, n: usize) -> CompileResult<Vec<St
         )
     })?;
     let (elem_ty, kind) = match &base_ty {
-        Ty::Array => (ty.clone().unwrap_or(Ty::Array), AccessKind::Array),
+        // Array slots hold plain 64-bit ints; only an explicit `[]`
+        // annotation (`int r[]`, `var row[]`) makes the loop variable an
+        // array (for nested arrays). A bare `var x` infers `int`, so the
+        // slot is never treated as an owned array by mistake.
+        Ty::Array => (ty.clone().unwrap_or(Ty::Int), AccessKind::Array),
         Ty::Struct(s) => {
             let (get, size) = find_accessors(prog, *s);
             let get = match get {

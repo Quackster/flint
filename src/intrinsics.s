@@ -219,6 +219,94 @@ flint_release:
     ret
     .size flint_release, .-flint_release
 
+    .globl flint_mem_retain_str
+    .type flint_mem_retain_str, @function
+# flint_mem_retain_str(v): rdi = raw int holding a string base (the
+# collections store strings as plain slots). Null-guarded retain of the
+# string header; returns the base (like flint_retain_val).
+flint_mem_retain_str:
+    mov %rdi, %rax
+    test %rdi, %rdi
+    jz .Lmem_rs_done
+    incq -16(%rdi)
+.Lmem_rs_done:
+    ret
+    .size flint_mem_retain_str, .-flint_mem_retain_str
+
+    .globl flint_hdr_retain
+    .type flint_hdr_retain, @function
+# flint_hdr_retain(ptr, kind): rdi = array base (len slot) or string data
+# pointer, rsi = 0 for array (refcount 8 below the base) or 1 for string
+# (refcount 16 below the base). Null-guarded; returns the pointer in rax
+# so the value stays usable (the shared-ownership clone behind `x.move()`
+# on strings and arrays, and behind closure captures of them).
+flint_hdr_retain:
+    test %rdi, %rdi
+    jz .Lhret_done
+    test %rsi, %rsi
+    jz .Lhret_arr
+    incq -16(%rdi)
+    jmp .Lhret_done
+.Lhret_arr:
+    incq -8(%rdi)
+.Lhret_done:
+    mov %rdi, %rax
+    ret
+    .size flint_hdr_retain, .-flint_hdr_retain
+
+    .globl flint_array_release
+    .type flint_array_release, @function
+# flint_array_release(base): rdi = array base (the len slot). Null-guarded.
+# Decrements the refcount 8 below the base; at zero, munmaps
+# align16((len+2)*8) at base-8 (refcount + len + elements).
+# Clobbers rax/rcx/r11 (plus the syscall clobbers).
+flint_array_release:
+    test %rdi, %rdi
+    jz .Larel_done
+    decq -8(%rdi)
+    jnz .Larel_done
+    push %rbx
+    mov %rdi, %rbx            # base (len slot)
+    movq (%rbx), %rax         # len
+    add $2, %rax              # refcount + len + elements, in slots
+    shl $3, %rax              # ... in bytes
+    add $15, %rax
+    and $-16, %rax            # align16
+    lea -8(%rbx), %rdi        # raw block
+    mov %rax, %rsi            # size
+    mov $11, %rax             # SYS_munmap
+    syscall
+    pop %rbx
+.Larel_done:
+    ret
+    .size flint_array_release, .-flint_array_release
+
+    .globl flint_str_release
+    .type flint_str_release, @function
+# flint_str_release(base): rdi = string data pointer. Null-guarded.
+# Decrements the refcount 16 below the base; at zero, munmaps
+# align16(len+16) at base-16, where len is the payload length stored 8
+# below the base (exact even with interior NULs).
+# Clobbers rax/rcx/r11 (plus the syscall clobbers).
+flint_str_release:
+    test %rdi, %rdi
+    jz .Lsrel_done
+    decq -16(%rdi)
+    jnz .Lsrel_done
+    push %rbx
+    mov %rdi, %rbx
+    movq -8(%rbx), %rax       # len (payload incl NUL)
+    add $31, %rax             # +16 header +15 round-up...
+    and $-16, %rax            # ...align16
+    lea -16(%rbx), %rdi       # raw block
+    mov %rax, %rsi            # size
+    mov $11, %rax             # SYS_munmap
+    syscall
+    pop %rbx
+.Lsrel_done:
+    ret
+    .size flint_str_release, .-flint_str_release
+
     .globl flint_memcpy
     .type flint_memcpy, @function
 # flint_memcpy(dst, src, n): word loop while n >= 8, then a byte tail.
@@ -378,9 +466,13 @@ flint_strcopy:
     push %r12
     mov %rdi, %rbx            # src
     call flint_strlen           # rax = len
-    lea 1(%rax), %r12         # n = len+1
-    mov %r12, %rdi            # size
-    call flint_alloc            # rax = dst
+    lea 1(%rax), %r12         # n = len+1 (payload incl NUL)
+    lea 16(%r12), %rdi        # + refcount/length header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    movq %r12, 8(%rcx)        # length
+    lea 16(%rcx), %rax        # dst = bytes
     mov %rbx, %rsi            # src
     mov %rax, %rdi            # dst
     mov %r12, %rdx            # n
@@ -410,8 +502,14 @@ flint_strconcat:
     mov %r13, %rdi
     call flint_strlen           # rax = lb
     mov %rax, %r15            # lb
-    lea 1(%r14, %r15), %rdi   # size
-    call flint_alloc            # rax = dst
+    lea 1(%r14, %r15), %rdi   # payload: la+lb+1
+    add $16, %rdi             # + refcount/length header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r14, %r15), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rax        # dst = bytes
     mov %r12, %rsi            # a
     mov %rax, %rdi            # dst
     mov %r14, %rdx            # la
@@ -558,8 +656,13 @@ flint_itoa:
     # r13 = first byte, rbp = base+32. digits_len = rbp - r13
     mov %rbp, %r14
     sub %r13, %r14            # r14 = digits_len
-    lea 1(%r14), %rdi        # size = digits_len + 1
-    call flint_alloc            # rax = dst (clobbers r13, r10, rdx, ...)
+    lea 17(%r14), %rdi       # size = digits_len + 1 + 16 header
+    call flint_alloc            # rax = raw block (clobbers r13, r10, rdx, ...)
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r14), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rax        # dst = bytes
     # flint_alloc clobbered r13 (first byte). Recompute: r13 = rbp - r14.
     mov %rbp, %r13
     sub %r14, %r13            # r13 = first byte (recomputed)
@@ -733,9 +836,13 @@ flint_env_get:
     mov %r11, %rdi
     call flint_strlen           # rax = value_len
     mov %rax, %r13          # r13 = value_len (preserve)
-    lea 1(%r13), %rdi        # size = value_len + 1
-    call flint_alloc            # rax = dst
-    mov %rax, %r12          # r12 = dst (flint_memcpy clobbers rax)
+    lea 17(%r13), %rdi       # size = value_len + 1 + 16 header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r13), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %r12      # r12 = dst (flint_memcpy clobbers rax)
     mov %r14, %rsi           # src = value
     mov %r12, %rdi           # dst
     mov %r13, %rdx           # n = value_len
@@ -812,8 +919,14 @@ flint_strconcati:
     call flint_strlen           # rax = len(s)
     mov %rax, %r14            # r14 = len(s)
     # --- allocate ---
-    lea 1(%r14, %r15), %rdi   # size = len(s) + digits + 1
-    call flint_alloc            # rax = dst (clobbers rdi/rsi/rdx/rcx/r8/r9/r10/r11)
+    lea 1(%r14, %r15), %rdi   # payload = len(s) + digits + 1
+    add $16, %rdi             # + refcount/length header
+    call flint_alloc            # rax = raw block (clobbers rdi/rsi/rdx/rcx/r8/r9/r10/r11)
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r14, %r15), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rax        # dst = bytes
     # flint_alloc clobbered r8 (negative flag). Re-derive the sign.
     mov %r13, %r10            # r10 = n
     test %r10, %r10
@@ -886,9 +999,13 @@ flint_str_substring:
     mov %rdi, %r12            # r12 = s
     mov %rsi, %r13            # r13 = start
     mov %rdx, %r14            # r14 = len
-    lea 1(%r14), %rdi        # size = len + 1
-    call flint_alloc            # rax = dst (clobbers rdi/rsi/rdx/rcx/r8/r9/r10/r11)
-    mov %rax, %rbx            # rbx = dst
+    lea 17(%r14), %rdi       # size = len + 1 + 16 header
+    call flint_alloc            # rax = raw block (clobbers rdi/rsi/rdx/rcx/r8/r9/r10/r11)
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r14), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rbx       # rbx = dst
     lea (%r12, %r13), %rsi   # src = s + start
     mov %rbx, %rdi           # dst
     mov %r14, %rdx           # n = len
@@ -1032,10 +1149,16 @@ flint_str_replace:
     mov %r9, %rax            # rax = count
     imul %r10, %rax          # rax = count * delta
     add %r15, %rax           # rax = s_len + count * delta
+    mov %rax, -32(%rbp)      # [rbp-32] = total (for the header)
     # --- allocate ---
-    lea 1(%rax), %rdi        # size = total + 1
-    call flint_alloc            # rax = dst
-    mov %rax, %rbx           # rbx = dst
+    lea 17(%rax), %rdi       # size = total + 1 + 16 header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    movq -32(%rbp), %rdx
+    inc %rdx
+    movq %rdx, 8(%rcx)        # length = total + 1
+    lea 16(%rcx), %rbx       # rbx = dst
     # --- build result ---
     mov -24(%rbp), %r14       # restore r14 = new
     # Stack: [rbp-8] = new_len, r12=s, r13=old, r14=new, r15=s_len, rbx=dst
@@ -1099,9 +1222,13 @@ flint_str_replace:
     jmp .Lsr_ret
 .Lsr_empty_old:
     # empty old: return a copy of s
-    lea 1(%r15), %rdi        # size = s_len + 1
-    call flint_alloc            # rax = dst
-    mov %rax, %rbx           # rbx = dst
+    lea 17(%r15), %rdi       # size = s_len + 1 + 16 header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r15), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rbx       # rbx = dst
     mov %r12, %rsi           # src = s
     mov %rbx, %rdi           # dst
     mov %r15, %rdx           # n = s_len
@@ -1140,9 +1267,14 @@ flint_b64_encode:
     div %r15                 # rax = (n+2)/3
     mov $4, %r15
     imul %r15, %rax          # rax = out_len
-    lea 1(%rax), %rdi
-    call flint_alloc            # rax = dst
-    mov %rax, %rbx           # rbx = dst
+    mov %rax, %r15           # stash (reused as i below)
+    lea 17(%rax), %rdi       # +1 NUL +16 header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r15), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rbx       # rbx = dst
     lea .Lb64_alpha(%rip), %r14  # r14 = alphabet
     xor %r15, %r15           # r15 = i (pos in s)
     mov $0, -8(%rbp)         # [rbp-8] = j (pos in dst)
@@ -1320,9 +1452,14 @@ flint_b64_decode:
     div %r14                 # rax = n/4
     mov $3, %r14
     imul %r14, %rax          # rax = out_len
-    lea 1(%rax), %rdi
-    call flint_alloc            # rax = dst
-    mov %rax, %rbx           # rbx = dst
+    mov %rax, %r15           # stash (reused as i below)
+    lea 17(%rax), %rdi       # +1 NUL +16 header
+    call flint_alloc            # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)           # refcount
+    lea 1(%r15), %rdx
+    movq %rdx, 8(%rcx)        # length
+    lea 16(%rcx), %rbx       # rbx = dst
     lea .Lb64_rev(%rip), %r14  # r14 = reverse lookup table
     xor %r15, %r15           # r15 = i (pos in s)
     mov $0, -8(%rbp)         # [rbp-8] = j (pos in dst)
@@ -2349,8 +2486,13 @@ flint_json_get:
     .Ljson_nonstr_done:
     # Allocate and copy the value
     sub %r15, %r13  # len = end - start
-    mov %r13, %rdi  # size for flint_alloc
-    call flint_alloc  # rax = allocated pointer
+    lea 17(%r13), %rdi  # size = len + 1 + 16 header
+    call flint_alloc  # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)  # refcount
+    lea 1(%r13), %rdx
+    movq %rdx, 8(%rcx)  # length
+    lea 16(%rcx), %rax  # dst
     lea (%r12, %r15), %rsi  # src pointer
     xor %rcx, %rcx  # i = 0
     .Ljson_copy:
@@ -2361,8 +2503,7 @@ flint_json_get:
     inc %rcx
     jmp .Ljson_copy
     .Ljson_copy_done:
-    xor %al, %al
-    mov %al, (%rax, %r13, 1)  # NUL terminate
+    movb $0, (%rax, %r13, 1)  # NUL terminate (no scratch reg: rax is dst)
     pop %r15
     pop %r14
     pop %r13
@@ -2398,8 +2539,13 @@ flint_json_get:
     .Ljson_strdone:
     # r13 points to the closing quote; the value is from r15 to r13
     sub %r15, %r13  # len = end - start
-    mov %r13, %rdi  # size for flint_alloc
-    call flint_alloc  # rax = allocated pointer
+    lea 17(%r13), %rdi  # size = len + 1 + 16 header
+    call flint_alloc  # rax = raw block
+    mov %rax, %rcx
+    movq $1, (%rcx)  # refcount
+    lea 1(%r13), %rdx
+    movq %rdx, 8(%rcx)  # length
+    lea 16(%rcx), %rax  # dst
     lea (%r12, %r15), %rsi  # src pointer
     xor %rcx, %rcx  # i = 0
     .Ljson_strcopy:
@@ -2410,8 +2556,7 @@ flint_json_get:
     inc %rcx
     jmp .Ljson_strcopy
     .Ljson_strcopy_done:
-    xor %al, %al
-    mov %al, (%rax, %r13, 1)  # NUL terminate
+    movb $0, (%rax, %r13, 1)  # NUL terminate (no scratch reg: rax is dst)
     pop %r15
     pop %r14
     pop %r13
@@ -2513,8 +2658,14 @@ flint_str_format:
     inc %r11
     mov -72(%rbp), %r15
     mov %r11, %rdi
-    call flint_alloc
-    mov %rax, %r14
+    push %r11             # stash payload (r11 is reused below)
+    add $16, %rdi         # + refcount/length header
+    call flint_alloc      # rax = raw block
+    pop %rcx              # payload
+    mov %rax, %rdx        # raw
+    movq $1, (%rdx)       # refcount
+    movq %rcx, 8(%rdx)    # length
+    lea 16(%rdx), %r14    # r14 = dst
     # Second pass: fill the result
     xor %rcx, %rcx
     xor %r9, %r9

@@ -21,32 +21,41 @@ class File {
         if (fd < 0) {
             return -1;
         }
-        // Ownership: `st` is a fresh buffer (single owner); free it on all
-        // paths (the owner frees; `free` consumes).
-        string st = alloc(280);
+        // Ownership: `st` is a fresh buffer (single owner); it frees
+        // itself when it goes out of scope.
+        string st = string[280];
         int r = sys.syscall(5, fd, st, 0, 0, 0);
         sys.close(fd);
         if (r < 0) {
-            free(st);
             return -1;
         }
         int sz = st[6];  // struct stat: st_size at offset 48
-        free(st);
         return sz;
     }
-    // NUL-terminated copy of the whole file, or null if it cannot be opened.
+    // NUL-terminated copy of the whole file, or null if it cannot be
+    // opened. Reads in 4KB chunks — files like /proc/self/statm report
+    // size 0, so no pre-sized buffer — doubling the buffer as needed (the
+    // old one frees itself on reassignment).
     static string readAll(string path) {
-        int sz = File.size(path);
-        if (sz < 0) {
-            return null;
-        }
-        string out = alloc(sz + 8);
         int fd = sys.open(path, 0, 0);
         if (fd < 0) {
             return null;
         }
+        int cap = 4096;
+        string out = string[cap];
         int off = 0;
-        while (off < sz) {
+        while (true) {
+            if (off >= cap) {
+                int ncap = cap * 2;
+                string nb = string[ncap];
+                int k = 0;
+                while (k < off) {
+                    sys.byteStore(nb + k, sys.byteLoad(out + k));
+                    k = k + 1;
+                }
+                out = nb;
+                cap = ncap;
+            }
             int n = sys.syscall(17, fd, out + off, 4096, off, 0);
             if (n <= 0) {
                 break;

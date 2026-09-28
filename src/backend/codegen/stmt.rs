@@ -1,9 +1,9 @@
-use crate::ast::{Block, Expr, Stmt, Ty};
+use crate::ast::{BinOp, Block, Expr, Stmt, Ty};
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 
 use crate::backend::escape::LocalKind;
-use super::{Ctx, Frame, Local, struct_idx_of};
+use super::{Ctx, Frame, Local, RetainKind, e_span, struct_idx_of};
 use super::call::check_ptr_conforms;
 
 impl Ctx<'_> {
@@ -14,43 +14,138 @@ impl Ctx<'_> {
         Ok(())
     }
 
-    /// After a class value is pushed on the expression stack, retain it when
-    /// the value is copied from an existing reference (local read, field
-    /// read, this). Fresh `new` values and call results already own a
-    /// reference and are not retained here. A cast copies the reference, so
-    /// it retains when its inner value is an existing reference.
+    /// How to take a reference for a copied value: objects retain at slot 0
+    /// (`flint_retain`); arrays and strings retain the header below the base
+    /// (`flint_hdr_retain` with kind 0/1).
+    /// After a value is pushed on the expression stack, retain it when the
+    /// value is copied from an existing reference (local read, field read,
+    /// this). Fresh values (`new`, calls, literals, sized buffers) already
+    /// own a reference and are not retained here. A cast copies the
+    /// reference, so it retains when its inner value is an existing
+    /// reference. Index reads never retain here (most yield plain ints);
+    /// binding one to an owned slot retains via `retain_for_slot`.
     pub(crate) fn maybe_retain(&mut self, e: &Expr, frame: &Frame) {
-        if self.should_retain(e, frame) {
+        if let Some(k) = self.retain_kind_for(e, frame) {
             self.emit("\tmov (%rsp), %rdi");
-            self.emit("\tcall flint_retain");
+            match k {
+                RetainKind::Object => self.emit("\tcall flint_retain"),
+                RetainKind::Array => {
+                    self.emit("\tmov $0, %rsi");
+                    self.emit("\tcall flint_hdr_retain");
+                }
+                RetainKind::Str => {
+                    self.emit("\tmov $1, %rsi");
+                    self.emit("\tcall flint_hdr_retain");
+                }
+            }
         }
     }
 
     pub(crate) fn should_retain(&self, e: &Expr, frame: &Frame) -> bool {
+        self.retain_kind_for(e, frame).is_some()
+    }
+
+    fn retain_kind_for(&self, e: &Expr, frame: &Frame) -> Option<RetainKind> {
+        fn kind_of(t: &Ty) -> Option<RetainKind> {
+            match t {
+                Ty::Struct(_) | Ty::Interface(_) => Some(RetainKind::Object),
+                Ty::Array => Some(RetainKind::Array),
+                Ty::Str => Some(RetainKind::Str),
+                _ => None,
+            }
+        }
         match e {
             Expr::Ident { name, .. } => {
                 if let Some(l) = frame.find(name) {
-                    l.kind == LocalKind::Heap || matches!(l.ty, Ty::Interface(_))
+                    if l.kind == LocalKind::Heap {
+                        return Some(RetainKind::Object);
+                    }
+                    kind_of(&l.ty)
                 } else if let Some(sidx) = frame.this_class {
                     // implicit this field (bare field name in a method)
                     self.struct_field_type(sidx, name)
-                        .map_or(false, |t| matches!(t, Ty::Struct(_) | Ty::Interface(_)))
+                        .ok()
+                        .and_then(|t| kind_of(&t))
                 } else {
-                    false
+                    None
                 }
             }
-            Expr::This { .. } => frame.this_class.is_some(),
-            Expr::SuperBase { .. } => frame.this_class.is_some(),
+            Expr::This { .. } => frame.this_class.map(|_| RetainKind::Object),
+            Expr::SuperBase { .. } => frame.this_class.map(|_| RetainKind::Object),
             Expr::Field { base, name, .. } => {
                 self.expr_struct_type(base, frame)
                     .ok()
                     .flatten()
                     .and_then(|s| self.struct_field_type(s, name).ok())
-                    .map_or(false, |t| matches!(t, Ty::Struct(_) | Ty::Interface(_)))
+                    .and_then(|t| kind_of(&t))
             }
-            Expr::Cast { e, .. } => self.should_retain(e, frame),
-            _ => false,
+            Expr::Cast { e, .. } => self.retain_kind_for(e, frame),
+            _ => None,
         }
+    }
+
+    /// After a value is evaluated for an owned slot (declaration,
+    /// assignment, argument, field, return), take a reference for the new
+    /// slot when the value is a borrow-provenance read (`a[i]`). Every
+    /// other value form either retained already (via `maybe_retain`:
+    /// locals, fields, `this`, casts) or is a fresh transfer needing
+    /// nothing (calls, literals, sized buffers). An unknown slot type
+    /// (`None`) behaves like `int` (borrow only). Pointer arithmetic and
+    /// addresses (`buf + off`, `&x`, `*p`, `@f`) have no header to retain
+    /// and can never own a slot: passing one where an owned value is
+    /// required is a compile error (materialize it first, e.g. with
+    /// `str.substring`).
+    pub(crate) fn retain_for_slot(
+        &mut self,
+        slot_ty: Option<&Ty>,
+        value: &Expr,
+        vty: &Ty,
+        frame: &Frame,
+    ) -> CompileResult<()> {
+        let owned = matches!(
+            slot_ty,
+            Some(Ty::Struct(_) | Ty::Interface(_) | Ty::Str | Ty::Array)
+        );
+        if owned {
+            match value {
+                Expr::BinOp { op, .. } => {
+                    // `+` of two strings is concatenation (a fresh string,
+                    // owned); every other binary op yields an address or a
+                    // scalar that owns nothing.
+                    let is_concat = matches!(op, BinOp::Add) && matches!(vty, Ty::Str);
+                    if !is_concat {
+                        return Err(CompileError::new(
+                            e_span(value),
+                            "cannot store pointer arithmetic in an owned slot; it has no header to retain (materialize it first, e.g. with str.substring)",
+                        ));
+                    }
+                }
+                Expr::AddrOf { .. } | Expr::Deref { .. } | Expr::FnAddr { .. } => {
+                    return Err(CompileError::new(
+                        e_span(value),
+                        "cannot store an address in an owned slot; it has no header to retain",
+                    ));
+                }
+                _ => {}
+            }
+        }
+        self.maybe_retain(value, frame);
+        if !owned || !matches!(value, Expr::Index { .. }) {
+            return Ok(());
+        }
+        self.emit("\tmov (%rsp), %rdi");
+        match slot_ty {
+            Some(Ty::Str) => {
+                self.emit("\tmov $1, %rsi");
+                self.emit("\tcall flint_hdr_retain");
+            }
+            Some(Ty::Array) => {
+                self.emit("\tmov $0, %rsi");
+                self.emit("\tcall flint_hdr_retain");
+            }
+            _ => self.emit("\tcall flint_retain"),
+        }
+        Ok(())
     }
 
     /// True when an assignment target holds a string value.
@@ -98,6 +193,26 @@ impl Ctx<'_> {
             }
         }
         false
+    }
+
+    /// The slot type of an assignment target (variable or instance field),
+    /// when it holds an owned value. Index stores hold raw int slots and
+    /// static fields live for the whole process, so neither counts here.
+    pub(crate) fn assign_slot_ty(&self, target: &Expr, frame: &Frame) -> Option<Ty> {
+        match target {
+            Expr::Ident { name, .. } => frame.find(name).map(|l| l.ty.clone()),
+            Expr::Field { base, name, .. } => {
+                if let Some(sidx) = self.is_class_name(base) {
+                    if self.is_static_field(sidx, name) {
+                        return None;
+                    }
+                }
+                self.base_struct_idx(base, frame)
+                    .ok()
+                    .and_then(|s| self.struct_field_type(s, name).ok())
+            }
+            _ => None,
+        }
     }
 
     /// Struct index when an assignment target holds a class value.
@@ -149,13 +264,18 @@ impl Ctx<'_> {
                 let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
                 check_ptr_conforms(&vty, &Some(lty.clone()), *span, "cannot assign")?;
-                self.maybe_retain(value, frame);
+                self.retain_for_slot(Some(&lty), value, &vty, frame)?;
                 let is_iface = matches!(lty, Ty::Interface(_));
-                if lkind == LocalKind::Heap || is_iface {
+                let is_str_arr = matches!(lty, Ty::Str | Ty::Array);
+                if lkind == LocalKind::Heap || is_iface || is_str_arr {
                     // overwrite: release the old reference, then store
+                    // (slots start zeroed, and the release helpers are
+                    // null-safe, so a fresh slot simply skips)
                     let rel: Option<String> = match (lsidx, is_iface) {
                         (Some(s), _) => Some(format!("flint_release_{}", self.prog.structs[s].name)),
                         (None, true) => Some("flint_release".to_string()),
+                        _ if matches!(lty, Ty::Str) => Some("flint_str_release".to_string()),
+                        _ if matches!(lty, Ty::Array) => Some("flint_array_release".to_string()),
                         (None, false) => None,
                     };
                     self.emit("\tpop %r10");
@@ -194,6 +314,27 @@ impl Ctx<'_> {
                     self.emit("\tpop %rax");
                     self.emit("\tmov %rax, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
+                } else if matches!(t, Ty::Str | Ty::Array)
+                    && !matches!(
+                        expr,
+                        Expr::Index { .. }
+                            | Expr::AddrOf { .. }
+                            | Expr::Deref { .. }
+                            | Expr::SuperBase { .. }
+                            | Expr::Str { .. }
+                    )
+                {
+                    // a string/array value used as a statement: drop the
+                    // fresh reference (or the retain just taken above, for a
+                    // net zero on plain reads). Borrow-provenance reads
+                    // (indexing, addresses) and literals hold no reference
+                    // of their own and are simply discarded.
+                    self.emit("\tpop %rax");
+                    self.emit("\tmov %rax, %rdi");
+                    match t {
+                        Ty::Str => self.emit("\tcall flint_str_release"),
+                        _ => self.emit("\tcall flint_array_release"),
+                    }
                 } else {
                     self.emit("\tpop %rax"); // discard
                 }
@@ -211,11 +352,18 @@ impl Ctx<'_> {
                 if let Ok(tty) = self.lvalue_value_type(target, frame) {
                     check_ptr_conforms(&vty, &Some(tty), *span, "cannot assign")?;
                 }
-                self.maybe_retain(value, frame);
-                // class target: release the old reference before storing
+                // The slot type decides the copy: owned slots take a
+                // reference for the new value (borrow-provenance reads
+                // included); anything else just borrows.
+                let slot_ty = self.assign_slot_ty(target, frame);
+                self.retain_for_slot(slot_ty.as_ref(), value, &vty, frame)?;
+                // owned target: release the old reference before storing
+                // (index stores hold raw int slots and never release)
                 let target_class = self.assign_target_class(target, frame)?;
                 let target_iface = !self.is_static_target(target)
                     && self.expr_interface_type(target, frame)?.is_some();
+                let target_str = matches!(slot_ty, Some(Ty::Str));
+                let target_arr = matches!(slot_ty, Some(Ty::Array));
                 self.emit("\tpop %r10"); // value -> r10 (caller-saved temp)
                 self.emit_lvalue_addr(target, frame)?; // pushes address
                 // Hold the address in %rdx: flint_release clobbers %rax (the
@@ -226,6 +374,12 @@ impl Ctx<'_> {
                     self.emit("\tmovq (%rdx), %r11");
                     self.emit("\tmov %r11, %rdi");
                     self.emit(&format!("\tcall flint_release_{}", cname));
+                } else if target_str {
+                    self.emit("\tmovq (%rdx), %rdi");
+                    self.emit("\tcall flint_str_release");
+                } else if target_arr {
+                    self.emit("\tmovq (%rdx), %rdi");
+                    self.emit("\tcall flint_array_release");
                 } else if target_iface {
                     // interface target: release the old reference (the generic
                     // release has no null check and is a v1 no-op at refcount
@@ -481,8 +635,13 @@ impl Ctx<'_> {
                 finally,
                 ..
             } => {
-                // Declare the catch variable as a local.
+                // Declare the catch variable as a local. String/array slots
+                // start null: the end-releases must see null (and skip) on
+                // paths where no exception is caught.
                 let off = frame.slot();
+                if matches!(catch_type, Ty::Str | Ty::Array) {
+                    self.emit(&format!("\tmovq $0, {}(%rbp)", off));
+                }
                 frame.locals.push(Local {
                     name: catch_var.clone(),
                     off,
@@ -573,9 +732,9 @@ impl Ctx<'_> {
                     if frame.ret_type == Some(Ty::Str) {
                         self.str_copy = true;
                     }
-                    self.gen_expr(v, frame)?;
+                    let vty = self.gen_expr(v, frame)?;
                     self.str_copy = saved;
-                    self.maybe_retain(v, frame);
+                    self.retain_for_slot(frame.ret_type.as_ref(), v, &vty, frame)?;
                     // a `finally` block must run before the return takes effect
                     if let Some((target, val_off, flag_off)) = &frame.ret_capture {
                         self.emit_end_releases(frame);

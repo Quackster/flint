@@ -1,10 +1,12 @@
 // Per-class release functions. A class value is a pointer to a heap object
 // laid out as [refcount:8][field0:8][field1:8]... (see flint_alloc in
 // intrinsics.s). flint_release_<C> decrements the refcount and, when it reaches
-// zero, recursively releases class-typed fields and munmaps the object.
+// zero, recursively releases owned fields (class values via their own
+// release, strings via flint_str_release, arrays via flint_array_release)
+// and munmaps the object.
 // Cyclic structures therefore leak (each cycle edge holds a reference that
 // keeps the refcount above zero) but never crash.
-use crate::ast::Program;
+use crate::ast::{Program, Ty};
 use super::codegen::{Ctx, struct_idx_of};
 use super::layout;
 
@@ -58,13 +60,19 @@ impl Ctx<'_> {
         let base = layout::field_base_offset(self.prog, sidx);
         for (i, (_, fty)) in layout::all_fields(self.prog, sidx).iter().enumerate() {
             let off = base + i as i64 * 8;
-            if let Some(fs) = struct_idx_of(fty) {
+            // The release helpers are null-safe; string/array helpers check
+            // for null internally like the per-class ones do here.
+            let helper = match fty {
+                Ty::Str => Some("flint_str_release".to_string()),
+                Ty::Array => Some("flint_array_release".to_string()),
+                _ => struct_idx_of(fty).map(|fs| format!("flint_release_{}", self.prog.structs[fs].name)),
+            };
+            if let Some(h) = helper {
                 // class-typed field: release recursively
-                let fname = &self.prog.structs[fs].name;
                 self.emit(&format!("\tmovq {}(%rbx), %rdi", off));
-                self.emit("\ttest %rdi, %rdi");
+                self.emit(&format!("\ttest %rdi, %rdi"));
                 self.emit(&format!("\tjz .Lrc_{}_f{}", s.name, i));
-                self.emit(&format!("\tcall flint_release_{}", fname));
+                self.emit(&format!("\tcall {}", h));
                 self.emit(&format!(".Lrc_{}_f{}:", s.name, i));
             }
         }

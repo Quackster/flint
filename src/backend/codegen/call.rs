@@ -54,6 +54,29 @@ impl Ctx<'_> {
         frame: &mut Frame,
         span: Span,
     ) -> CompileResult<Ty> {
+        // Removed raw-memory builtins: every value is now a typed,
+        // compile-time-checked owner that frees itself at scope end.
+        match callee.join(".").as_str() {
+            "alloc" | "sys.alloc" | "mem.alloc" => {
+                return Err(CompileError::new(
+                    span,
+                    "alloc() was removed; declare a typed buffer instead (`int buf[n]`, `string s[n]`)",
+                ))
+            }
+            "free" | "sys.free" | "mem.free" => {
+                return Err(CompileError::new(
+                    span,
+                    "free() was removed; owned values free themselves when they go out of scope",
+                ))
+            }
+            "memcpy" | "mem.memcpy" => {
+                return Err(CompileError::new(
+                    span,
+                    "memcpy() was removed; copy elements with a loop",
+                ))
+            }
+            _ => {}
+        }
         if let Some(b) = builtin_for(callee) {
             if args.len() != b.arity {
                 return Err(CompileError::new(
@@ -152,12 +175,12 @@ impl Ctx<'_> {
             if i < args.len() {
                 let aty = self.gen_expr(&args[i], frame)?;
                 check_ptr_conforms(&aty, &f.params[i].1, span, "cannot pass")?;
-                self.maybe_retain(&args[i], frame);
+                self.retain_for_slot(f.params[i].1.as_ref(), &args[i], &aty, frame)?;
             } else {
                 let d = f.params[i].3.as_ref().unwrap();
                 let aty = self.gen_expr(d, frame)?;
                 check_ptr_conforms(&aty, &f.params[i].1, span, "cannot pass")?;
-                self.maybe_retain(d, frame);
+                self.retain_for_slot(f.params[i].1.as_ref(), d, &aty, frame)?;
             }
         }
         self.str_copy = saved;
@@ -205,6 +228,15 @@ impl Ctx<'_> {
                     ));
                 }
             }
+            // Index reads are borrow-provenance (most yield plain ints, so
+            // no reference can be taken blindly): bind rows first
+            // (`int r[] = a[i]` takes the reference for the new slot).
+            if matches!(base, Expr::Index { .. }) {
+                return Err(CompileError::new(
+                    span,
+                    "cannot .move() an index; bind it first (`int r[] = a[i]`)",
+                ));
+            }
             let struct_ty = self.expr_struct_type(base, frame)?;
             let iface_ty = if struct_ty.is_none() {
                 self.expr_interface_type(base, frame)?
@@ -226,8 +258,15 @@ impl Ctx<'_> {
                 if struct_ty.is_none() && iface_ty.is_none() {
                     // Not a class value and no user method to fall through
                     // to: only strings and arrays get the builtin clone here
-                    // (raw `*T` buffers and scalars are rejected).
+                    // (raw `*T` buffers and scalars are rejected). A string
+                    // literal is force-copied to the heap first: retaining
+                    // read-only rodata would fault.
+                    let saved = self.str_copy;
+                    if matches!(base, Expr::Str { .. }) {
+                        self.str_copy = true;
+                    }
                     let bty = self.gen_expr(base, frame)?;
+                    self.str_copy = saved;
                     match bty {
                         Ty::Str | Ty::Array => {
                             self.maybe_retain(base, frame);
@@ -318,12 +357,12 @@ impl Ctx<'_> {
                     if i < args.len() {
                         let aty = self.gen_expr(&args[i], frame)?;
                         check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                        self.maybe_retain(&args[i], frame);
+                        self.retain_for_slot(meth.params[i].1.as_ref(), &args[i], &aty, frame)?;
                     } else {
                         let d = meth.params[i].3.as_ref().unwrap();
                         let aty = self.gen_expr(d, frame)?;
                         check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                        self.maybe_retain(d, frame);
+                        self.retain_for_slot(meth.params[i].1.as_ref(), d, &aty, frame)?;
                     }
                 }
                 self.str_copy = saved;
@@ -381,12 +420,12 @@ impl Ctx<'_> {
                     if i < args.len() {
                         let aty = self.gen_expr(&args[i], frame)?;
                         check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                        self.maybe_retain(&args[i], frame);
+                        self.retain_for_slot(meth.params[i].1.as_ref(), &args[i], &aty, frame)?;
                     } else {
                         let d = meth.params[i].3.as_ref().unwrap();
                         let aty = self.gen_expr(d, frame)?;
                         check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                        self.maybe_retain(d, frame);
+                        self.retain_for_slot(meth.params[i].1.as_ref(), d, &aty, frame)?;
                     }
                 }
                 self.str_copy = saved;
@@ -470,12 +509,17 @@ impl Ctx<'_> {
                             format!("setter '{}' expects 1 arg, got {}", method, args.len()),
                         ));
                     }
-                    // setter: this + value (callee owns both references)
+                    // setter: this + value (callee owns both references).
+                    // String-literal values arrive as fresh writable
+                    // copies, like string parameters elsewhere.
                     self.gen_expr(base, frame)?;
                     self.maybe_retain(base, frame);
+                    let saved = self.str_copy;
+                    self.str_copy = f.ty == Ty::Str;
                     let aty = self.gen_expr(&args[0], frame)?;
+                    self.str_copy = saved;
                     check_ptr_conforms(&aty, &Some(f.ty.clone()), span, "cannot pass")?;
-                    self.maybe_retain(&args[0], frame);
+                    self.retain_for_slot(Some(&f.ty), &args[0], &aty, frame)?;
                     self.pop_args(2);
                     let mangled = mangle(&class_def.name, &sname);
                     self.emit(&format!("\tcall {}", mangled));
@@ -539,12 +583,12 @@ impl Ctx<'_> {
             if i < args.len() {
                 let aty = self.gen_expr(&args[i], frame)?;
                 check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                self.maybe_retain(&args[i], frame);
+                self.retain_for_slot(meth.params[i].1.as_ref(), &args[i], &aty, frame)?;
             } else {
                 let d = meth.params[i].3.as_ref().unwrap();
                 let aty = self.gen_expr(d, frame)?;
                 check_ptr_conforms(&aty, &meth.params[i].1, span, "cannot pass")?;
-                self.maybe_retain(d, frame);
+                self.retain_for_slot(meth.params[i].1.as_ref(), d, &aty, frame)?;
             }
         }
         self.str_copy = saved;

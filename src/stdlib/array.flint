@@ -24,13 +24,12 @@ class Arrays {
             }
             i = i + 1;
         }
-        *int out = Mem.intArray(m + 1);
-        sys.intStore(out, m);
+        int out[m];
         i = 0;
         int j = 0;
         while (i < n) {
             if (sys.fnCall2(pred, a[i]) == 1) {
-                sys.intStore(out + 8 * (j + 1), a[i]);
+                out[j] = a[i];
                 j = j + 1;
             }
             i = i + 1;

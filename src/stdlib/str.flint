@@ -9,7 +9,7 @@ class Str {
     // Uppercase the ASCII letters of s.
     static string upper(string s) {
         int n = strlen(s);
-        string out = alloc(n + 1);
+        string out = string[n + 1];
         int i = 0;
         while (i < n) {
             int c = sys.byteLoad(s + i);
@@ -25,7 +25,7 @@ class Str {
     // Lowercase the ASCII letters of s.
     static string lower(string s) {
         int n = strlen(s);
-        string out = alloc(n + 1);
+        string out = string[n + 1];
         int i = 0;
         while (i < n) {
             int c = sys.byteLoad(s + i);
@@ -41,7 +41,7 @@ class Str {
     // Reverse s.
     static string reverse(string s) {
         int n = strlen(s);
-        string out = alloc(n + 1);
+        string out = string[n + 1];
         int i = 0;
         while (i < n) {
             sys.byteStore(out + (n - 1 - i), sys.byteLoad(s + i));
@@ -161,7 +161,7 @@ class Str {
         if (nfrom == 0) {
             return str.copy(s);
         }
-        string out = alloc(strlen(s) + strlen(to) + 16);
+        string out = string[strlen(s) + strlen(to) + 16];
         int o = 0;
         int i = 0;
         int n = strlen(s);
@@ -198,7 +198,7 @@ class Str {
     // s repeated n times.
     static string repeat(string s, int n) {
         int ns = strlen(s);
-        string out = alloc(ns * n + 1);
+        string out = string[ns * n + 1];
         int i = 0;
         int o = 0;
         while (i < n) {
@@ -248,7 +248,7 @@ class Str {
     // Pad s on the right with ch up to width w.
     static string ljust(string s, int w, int ch) {
         int ns = strlen(s);
-        string out = alloc(w + 1);
+        string out = string[w + 1];
         int i = 0;
         while (i < ns) {
             sys.byteStore(out + i, sys.byteLoad(s + i));
@@ -264,7 +264,7 @@ class Str {
     // Pad s on the left with ch up to width w.
     static string rjust(string s, int w, int ch) {
         int ns = strlen(s);
-        string out = alloc(w + 1);
+        string out = string[w + 1];
         int i = 0;
         while (i < w - ns) {
             sys.byteStore(out + i, ch);

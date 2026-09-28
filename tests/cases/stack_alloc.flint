@@ -1,5 +1,6 @@
 // Automatic memory: stack-allocated non-escaping objects and heap
-// refcounted escaping objects. No manual alloc/free anywhere.
+// refcounted escaping objects. No manual memory management anywhere:
+// owned values free themselves when they go out of scope.
 class Pair {
     int a;
     int b;

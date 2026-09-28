@@ -19,7 +19,7 @@ class Image {
     public Image(int w, int h) {
         this.w = w;
         this.h = h;
-        this.data = alloc(w * h * 4);
+        this.data = string[w * h * 4];
         int i = 0;
         int n = w * h * 4;
         while (i < n) {
@@ -161,7 +161,7 @@ class Image {
     public void rotate90() {
         int ow = this.w;
         int oh = this.h;
-        string s = alloc(ow * oh * 4);
+        string s = string[ow * oh * 4];
         int y = 0;
         while (y < oh) {
             int x = 0;
@@ -184,7 +184,6 @@ class Image {
             sys.byteStore(this.data + i, sys.byteLoad(s + i));
             i = i + 1;
         }
-        free(s);
     }
     // Nearest-neighbor scale to (nw, nh); returns a new image.
     public Image scale(int nw, int nh) {
@@ -216,7 +215,7 @@ class Image {
     }
     // 3x3 box blur (edges clamped).
     public void blur() {
-        string s = alloc(this.w * this.h * 4);
+        string s = string[this.w * this.h * 4];
         int y = 0;
         while (y < this.h) {
             int x = 0;
@@ -258,7 +257,6 @@ class Image {
             sys.byteStore(this.data + i, sys.byteLoad(s + i));
             i = i + 1;
         }
-        free(s);
     }
     // ---------------------------------------------------------- drawing
     public void hline(int x0, int y, int x1, int c) {
@@ -421,7 +419,7 @@ class Image {
         sys.byteStore(Image.font + o + 6, r6);
     }
     static void fontInit() {
-        Image.font = alloc(95 * 7);
+        Image.font = string[95 * 7];
         int i = 0;
         while (i < 95 * 7) {
             sys.byteStore(Image.font + i, 0);
@@ -564,7 +562,7 @@ class Image {
         }
         string hdr = "P6\n" + str.itoa(this.w) + " " + str.itoa(this.h) + "\n255\n";
         sys.write(fd, hdr, strlen(hdr));
-        string buf = alloc(this.w * 3);
+        string buf = string[this.w * 3];
         int row = 0;
         int written = 0;
         while (row < this.h) {
@@ -590,7 +588,7 @@ class Image {
         }
         string hdr = "P5\n" + str.itoa(this.w) + " " + str.itoa(this.h) + "\n255\n";
         sys.write(fd, hdr, strlen(hdr));
-        string buf = alloc(this.w);
+        string buf = string[this.w];
         int row = 0;
         int written = 0;
         while (row < this.h) {
@@ -616,7 +614,7 @@ class Image {
         int rowsize = (this.w * 3 + 3) & (-1 ^ 3);
         int imgsize = rowsize * this.h;
         int filesize = 54 + imgsize;
-        string hdr = alloc(54);
+        string hdr = string[54];
         sys.byteStore(hdr + 0, 66);
         sys.byteStore(hdr + 1, 77);
         Image.store_u32(hdr, 2, filesize);
@@ -634,7 +632,7 @@ class Image {
         Image.store_u32(hdr, 46, 0);
         Image.store_u32(hdr, 50, 0);
         sys.write(fd, hdr, 54);
-        string row = alloc(rowsize);
+        string row = string[rowsize];
         int r = this.h - 1;
         while (r >= 0) {
             int col = 0;
@@ -690,13 +688,13 @@ class Image {
             return;
         }
         int cap = 4096;
-        string buf = alloc(cap);
+        string buf = string[cap];
         int total = 0;
         int n = 0;
         while (1) {
             if (total + 4096 > cap) {
                 cap = cap * 2;
-                string nb = alloc(cap);
+                string nb = string[cap];
                 int k = 0;
                 while (k < total) {
                     sys.byteStore(nb + k, sys.byteLoad(buf + k));
@@ -982,9 +980,9 @@ class Image {
     // Allocate the scratch buffers and constant tables once (idempotent).
     void dInit() {
         if (this.a_sym == null) {
-            this.a_sym = alloc(300 * 8);
-            this.b_sym = alloc(64 * 8);
-            this.lens = alloc(340 * 8);
+            this.a_sym = string[300 * 8];
+            this.b_sym = string[64 * 8];
+            this.lens = string[340 * 8];
             this.a_count = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             this.a_first = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             this.a_pos = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
@@ -1001,27 +999,27 @@ class Image {
     // Allocate JPEG scratch buffers and constant tables once (idempotent).
     void jInit() {
         if (this.j_sym == null) {
-            this.j_sym = alloc(32 * 256 * 8);
-            this.j_count = alloc(32 * 16 * 8);
-            this.j_first = alloc(32 * 16 * 8);
-            this.j_cp = alloc(32 * 16 * 8);
-            this.j_quant = alloc(4 * 64 * 8);
-            this.j_f = alloc(64 * 8);
-            this.j_tmp = alloc(64 * 8);
-            this.j_blk = alloc(64 * 8);
-            this.je_in = alloc(64 * 8);
-            this.je_f1 = alloc(64 * 8);
-            this.je_ff = alloc(64 * 8);
-            this.j_mcu = alloc(12 * 64 * 8);
-            this.j_dc = alloc(3 * 8);
-            this.j_dct = alloc(64 * 8);
+            this.j_sym = string[32 * 256 * 8];
+            this.j_count = string[32 * 16 * 8];
+            this.j_first = string[32 * 16 * 8];
+            this.j_cp = string[32 * 16 * 8];
+            this.j_quant = string[4 * 64 * 8];
+            this.j_f = string[64 * 8];
+            this.j_tmp = string[64 * 8];
+            this.j_blk = string[64 * 8];
+            this.je_in = string[64 * 8];
+            this.je_f1 = string[64 * 8];
+            this.je_ff = string[64 * 8];
+            this.j_mcu = string[12 * 64 * 8];
+            this.j_dc = string[3 * 8];
+            this.j_dct = string[64 * 8];
             int dt[] = [181, 181, 181, 181, 181, 181, 181, 181, 251, 213, 142, 50, -50, -142, -213, -251, 237, 98, -98, -237, -237, -98, 98, 237, 213, -50, -251, -142, 142, 251, 50, -213, 181, -181, -181, 181, 181, -181, -181, 181, 142, -251, 50, 213, -213, -50, 251, -142, 98, -237, 237, -98, -98, 237, -237, 98, 50, -142, 213, -251, 251, -213, 142, -50];
             int i = 0;
             while (i < 64) {
                 this.j_dct[i] = dt[i];
                 i = i + 1;
             }
-            this.j_zig = alloc(64 * 8);
+            this.j_zig = string[64 * 8];
             int zt[] = [0, 1, 8, 16, 9, 2, 3, 10, 17, 24, 32, 25, 18, 11, 4, 5, 12, 19, 26, 33, 40, 48, 41, 34, 27, 20, 13, 6, 7, 14, 21, 28, 35, 42, 49, 56, 57, 50, 43, 36, 29, 22, 15, 23, 30, 37, 44, 51, 58, 61, 60, 59, 52, 45, 38, 31, 39, 46, 53, 54, 47, 55, 62, 63];
             i = 0;
             while (i < 64) {
@@ -1031,18 +1029,20 @@ class Image {
         }
     }
     // Point the decoder at a fresh source region and reset the output.
-    void dReset(string src, int len) {
+    // Takes the base buffer plus an offset (a `src + off` view has no
+    // header to retain, so callers pass both parts instead).
+    void dReset(string src, int off, int len) {
         this.dInit();
         this.db = src;
         this.dl = len;
-        this.dp = 0;
+        this.dp = off;
         this.dbit = 0;
         this.dbcnt = 0;
         this.dcap = len * 2 + 64;
         if (this.dcap < 256) {
             this.dcap = 256;
         }
-        this.dout = alloc(this.dcap);
+        this.dout = string[this.dcap];
         this.dlen = 0;
     }
     int dBit() {
@@ -1071,7 +1071,7 @@ class Image {
     void dOutb(int b) {
         if (this.dlen >= this.dcap) {
             int nc = this.dcap * 2;
-            string nb = alloc(nc);
+            string nb = string[nc];
             int k = 0;
             while (k < this.dlen) {
                 sys.byteStore(nb + k, sys.byteLoad(this.dout + k));
@@ -1372,7 +1372,7 @@ class Image {
     }
     // Write one PNG chunk (length + type + data + crc) to fd.
     static void pngChunk(int fd, string type, string data, int dlen) {
-        string buf = alloc(8 + dlen + 4);
+        string buf = string[8 + dlen + 4];
         Image.store_u32be(buf, 0, dlen);
         int t = 0;
         while (t < 4) {
@@ -1384,7 +1384,7 @@ class Image {
             sys.byteStore(buf + 8 + t, sys.byteLoad(data + t));
             t = t + 1;
         }
-        string td = alloc(4 + dlen);
+        string td = string[4 + dlen];
         t = 0;
         while (t < 4) {
             sys.byteStore(td + t, sys.byteLoad(type + t));
@@ -1409,7 +1409,7 @@ class Image {
         int h = this.h;
         int rb = w * 4;
         int rawlen = h * (rb + 1);
-        string raw = alloc(rawlen);
+        string raw = string[rawlen];
         int y = 0;
         while (y < h) {
             int base = y * (rb + 1);
@@ -1426,9 +1426,9 @@ class Image {
             }
             y = y + 1;
         }
-        string zb = alloc(rawlen + (rawlen / 65535 + 1) * 9 + 16);
+        string zb = string[rawlen + (rawlen / 65535 + 1) * 9 + 16];
         int zblen = Image.zlibStore(raw, rawlen, zb);
-        string sig = alloc(8);
+        string sig = string[8];
         sys.byteStore(sig + 0, 137);
         sys.byteStore(sig + 1, 80);
         sys.byteStore(sig + 2, 78);
@@ -1438,7 +1438,7 @@ class Image {
         sys.byteStore(sig + 6, 26);
         sys.byteStore(sig + 7, 10);
         sys.write(fd, sig, 8);
-        string ihdr = alloc(13);
+        string ihdr = string[13];
         Image.store_u32be(ihdr, 0, w);
         Image.store_u32be(ihdr, 4, h);
         sys.byteStore(ihdr + 8, 8);
@@ -1448,7 +1448,7 @@ class Image {
         sys.byteStore(ihdr + 12, 0);
         Image.pngChunk(fd, "IHDR", ihdr, 13);
         Image.pngChunk(fd, "IDAT", zb, zblen);
-        string empty = alloc(1);
+        string empty = string[1];
         Image.pngChunk(fd, "IEND", empty, 0);
         sys.close(fd);
         return 0;
@@ -1505,7 +1505,7 @@ class Image {
         int h = 0;
         int ctype = -1;
         int interlace = 0;
-        string idat = alloc(65536);
+        string idat = string[65536];
         int idatlen = 0;
         int idatcap = 65536;
         int p = 8;
@@ -1522,7 +1522,7 @@ class Image {
                     while (idatlen + len > idatcap) {
                         idatcap = idatcap * 2;
                     }
-                    string nb = alloc(idatcap);
+                    string nb = string[idatcap];
                     int k = 0;
                     while (k < idatlen) {
                         sys.byteStore(nb + k, sys.byteLoad(idat + k));
@@ -1555,12 +1555,12 @@ class Image {
         if (idatlen < 2) {
             return null;
         }
-        this.dReset(idat + 2, idatlen - 2);
+        this.dReset(idat, 2, idatlen - 2);
         this.inflate();
         int rowbytes = w * bpp;
         Image im = new Image(w, h);
-        string cur = alloc(rowbytes + 1);
-        string prev = alloc(rowbytes);
+        string cur = string[rowbytes + 1];
+        string prev = string[rowbytes];
         int row = 0;
         while (row < h) {
             int baseoff = row * (rowbytes + 1);
@@ -1770,7 +1770,7 @@ class Image {
     // mode 0: DC at (col0,row0). mode 1: (col1,row0) [horizontal]. mode 2: (col0,row1) [vertical].
     int jProbe(int mode, int val) {
         if (this.j_dct == null) {
-            this.j_dct = alloc(64 * 8);
+            this.j_dct = string[64 * 8];
             int dt[] = [181, 181, 181, 181, 181, 181, 181, 181, 251, 213, 142, 50, -50, -142, -213, -251, 237, 98, -98, -237, -237, -98, 98, 237, 213, -50, -251, -142, 142, 251, 50, -213, 181, -181, -181, 181, 181, -181, -181, 181, 142, -251, 50, 213, -213, -50, 251, -142, 98, -237, 237, -98, -98, 237, -237, 98, 50, -142, 213, -251, 251, -213, 142, -50];
             int i = 0;
             while (i < 64) {
@@ -1779,13 +1779,13 @@ class Image {
             }
         }
         if (this.j_f == null) {
-            this.j_f = alloc(64 * 8);
+            this.j_f = string[64 * 8];
         }
         if (this.j_tmp == null) {
-            this.j_tmp = alloc(64 * 8);
+            this.j_tmp = string[64 * 8];
         }
         if (this.j_blk == null) {
-            this.j_blk = alloc(64 * 8);
+            this.j_blk = string[64 * 8];
         }
         int k = 0;
         while (k < 64) {
@@ -1857,7 +1857,7 @@ class Image {
     void jeWraw(int b) {
         if (this.je_ol >= this.je_oc) {
             int nc = this.je_oc * 2;
-            string nb = alloc(nc);
+            string nb = string[nc];
             int k = 0;
             while (k < this.je_ol) {
                 sys.byteStore(nb + k, sys.byteLoad(this.je_out + k));
@@ -2020,7 +2020,7 @@ class Image {
             return fd;
         }
         this.je_oc = 256;
-        this.je_out = alloc(this.je_oc);
+        this.je_out = string[this.je_oc];
         this.je_ol = 0;
         this.je_bitbuf = 0;
         this.je_bitcnt = 0;
@@ -2339,7 +2339,7 @@ class Image {
                 }
                 this.j_maxH = maxH;
                 this.j_maxV = maxV;
-                this.j_cbase = alloc(3 * 8);
+                this.j_cbase = string[3 * 8];
                 int base = 0;
                 int cb = 0;
                 while (cb < nc && cb < 3) {

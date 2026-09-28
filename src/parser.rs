@@ -1215,8 +1215,15 @@ impl<'a> Parser<'a> {
             };
             // Now expect identifier name
             let member_name = self.expect_ident()?;
-            // C-style array field: `int data[];`
+            // C-style array field: `int data[];` (sized buffers cannot be
+            // fields — layouts are fixed; assign `int[N]` in the constructor).
             if self.at(&Tok::LBracket) {
+                if self.toks.get(self.i + 1).map(|t| &t.kind) != Some(&Tok::RBracket) {
+                    return Err(CompileError::new(
+                        self.cur().span,
+                        "sized buffers cannot be fields; assign a sized array in the constructor",
+                    ));
+                }
                 let t = ret.ok_or_else(|| CompileError::new(self.cur().span, "field cannot be void"))?;
                 ret = Some(self.array_suffix(t)?);
             }
@@ -1626,6 +1633,29 @@ impl<'a> Parser<'a> {
             Some(ty)
         };
         let name = self.expect_ident()?;
+        if let Some(value) = self.sized_decl_value(&ty)? {
+            // `int x[n];` / `string s[n];` — a sized buffer; no initializer
+            // (buffers start zero-filled).
+            if self.at(&Tok::Assign) {
+                return Err(CompileError::new(
+                    self.cur().span,
+                    "sized buffers take no initializer (they start zero-filled)",
+                ));
+            }
+            if expect_semi {
+                self.expect(&Tok::Semicolon, "';'")?;
+            }
+            let vty = match &ty {
+                Some(Ty::Str) => Ty::Str,
+                _ => Ty::Array,
+            };
+            return Ok(Stmt::Decl {
+                span,
+                name,
+                ty: Some(vty),
+                value,
+            });
+        }
         let ty = match ty {
             Some(t) => Some(self.array_suffix(t)?),
             None => self.var_array_suffix()?,
@@ -1641,6 +1671,65 @@ impl<'a> Parser<'a> {
             ty,
             value,
         })
+    }
+
+    /// After a declaration name, `[n]` means a sized buffer (`int x[n];`,
+    /// `string s[n];`); a bare `[]` is the classic unsized suffix and stays
+    /// on the caller's path (None, cursor untouched).
+    fn sized_decl_value(&mut self, ty: &Option<Ty>) -> CompileResult<Option<Expr>> {
+        if !self.at(&Tok::LBracket) {
+            return Ok(None);
+        }
+        if self.toks.get(self.i + 1).map(|t| &t.kind) == Some(&Tok::RBracket) {
+            return Ok(None);
+        }
+        // `byte x[n]` would silently mean slots, not bytes: reject it here
+        // (the keyword sits two tokens back: type, name, `[`).
+        if self.i >= 2 {
+            if let Some(t) = self.toks.get(self.i - 2) {
+                if matches!(
+                    t.kind,
+                    Tok::KwByte | Tok::KwShort | Tok::KwChar
+                ) {
+                    return Err(CompileError::new(
+                        t.span,
+                        "byte[n] is ambiguous: use string[n] for bytes or int[n] for slots",
+                    ));
+                }
+            }
+        }
+        let base = ty.clone().ok_or_else(|| {
+            CompileError::new(
+                self.cur().span,
+                "sized buffers need an explicit element type (`int x[n]`, `string s[n]`)",
+            )
+        })?;
+        let vty = match base {
+            Ty::Int | Ty::Bool => Ty::Array,
+            Ty::Str => Ty::Str,
+            _ => {
+                return Err(CompileError::new(
+                    self.cur().span,
+                    "sized buffers require an int or string element type",
+                ))
+            }
+        };
+        let span = self.cur().span;
+        self.bump(); // [
+        let size = self.parse_expr()?;
+        self.expect(&Tok::RBracket, "']' after buffer size")?;
+        if self.at(&Tok::LBracket) {
+            return Err(CompileError::new(
+                self.cur().span,
+                "sized buffers are one-dimensional",
+            ));
+        }
+        let vspan = span.join(&expr_span(&size));
+        Ok(Some(Expr::SizedNew {
+            span: vspan,
+            size: Box::new(size),
+            ty: vty,
+        }))
     }
 
     /// For a `var name[] ...`: consume the trailing `[]` markers and record
@@ -1755,16 +1844,36 @@ impl<'a> Parser<'a> {
                 Some(ty)
             };
             let name = self.expect_ident()?;
-            let ty = match ty {
-                Some(t) => Some(self.array_suffix(t)?),
-                None => self.var_array_suffix()?,
-            };
-            if self.at(&Tok::Colon) {
-                return self.parse_for_each(label.take(), span, name, ty);
+            if let Some(value) = self.sized_decl_value(&ty)? {
+                // `int x[n];` as a for-init (no initializer allowed).
+                if self.at(&Tok::Assign) {
+                    return Err(CompileError::new(
+                        self.cur().span,
+                        "sized buffers take no initializer (they start zero-filled)",
+                    ));
+                }
+                let vty = match &ty {
+                    Some(Ty::Str) => Ty::Str,
+                    _ => Ty::Array,
+                };
+                Some(Stmt::Decl {
+                    span,
+                    name,
+                    ty: Some(vty),
+                    value,
+                })
+            } else {
+                let ty = match ty {
+                    Some(t) => Some(self.array_suffix(t)?),
+                    None => self.var_array_suffix()?,
+                };
+                if self.at(&Tok::Colon) {
+                    return self.parse_for_each(label.take(), span, name, ty);
+                }
+                self.expect(&Tok::Assign, "'=' after variable name")?;
+                let value = self.parse_expr()?;
+                Some(Stmt::Decl { span, name, ty, value })
             }
-            self.expect(&Tok::Assign, "'=' after variable name")?;
-            let value = self.parse_expr()?;
-            Some(Stmt::Decl { span, name, ty, value })
         } else {
             Some(self.parse_expr_or_assign()?)
         };
@@ -2312,8 +2421,60 @@ impl<'a> Parser<'a> {
         Ok(e)
     }
 
+    /// `int[n]` / `byte[n]` (an `Array`) or `string[n]` (a `Str`) as an
+    /// expression: a fresh zero-filled heap buffer of `n` elements/bytes.
+    /// `int [` can never start a lambda (lambdas need an identifier after
+    /// the type), so this is unambiguous.
+    fn sized_new_ty_at(&self) -> Option<Ty> {
+        if self.next_kind() != Tok::LBracket {
+            return None;
+        }
+        match &self.cur().kind {
+            Tok::KwString => Some(Ty::Str),
+            k if is_type_keyword(k) => Some(Ty::Array),
+            _ => None,
+        }
+    }
+
+    /// `byte[n]` / `short[n]` / `char[n]` look like byte buffers but would
+    /// silently mean 8-byte slots; point at the unambiguous forms instead.
+    fn byte_sized_at(&self) -> bool {
+        matches!(
+            &self.cur().kind,
+            Tok::KwByte | Tok::KwShort | Tok::KwChar
+        ) && self.next_kind() == Tok::LBracket
+    }
+
+    fn parse_sized_new(&mut self, ty: Ty, span: Span) -> CompileResult<Expr> {
+        self.bump(); // element type keyword
+        self.expect(&Tok::LBracket, "'[' after buffer element type")?;
+        let size = self.parse_expr()?;
+        self.expect(&Tok::RBracket, "']' after buffer size")?;
+        if self.at(&Tok::LBracket) {
+            return Err(CompileError::new(
+                self.cur().span,
+                "sized buffers are one-dimensional",
+            ));
+        }
+        let vspan = span.join(&expr_span(&size));
+        Ok(Expr::SizedNew {
+            span: vspan,
+            size: Box::new(size),
+            ty,
+        })
+    }
+
     fn parse_atom(&mut self) -> CompileResult<Expr> {
         let span = self.cur().span;
+        if self.byte_sized_at() {
+            return Err(CompileError::new(
+                span,
+                "byte[n] is ambiguous: use string[n] for bytes or int[n] for slots",
+            ));
+        }
+        if let Some(ty) = self.sized_new_ty_at() {
+            return self.parse_sized_new(ty, span);
+        }
         // Java-style lambda: `int x -> boolean { ... }`,
         // `(int a, int b) -> int { ... }`, or `() -> void { ... }`.
         // A type keyword (or a paren starting with one) cannot start any
@@ -2571,6 +2732,7 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::Field { span, .. }
         | Expr::StructLit { span, .. }
         | Expr::ArrayLit { span, .. }
+        | Expr::SizedNew { span, .. }
         | Expr::Null { span, .. }
         | Expr::Cond { span, .. }
         | Expr::SuperBase { span, .. }

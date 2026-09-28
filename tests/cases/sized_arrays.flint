@@ -1,0 +1,43 @@
+// sized buffers: `int a[n]` owns n zero-filled slots, `string s[n]` n
+// bytes; both free themselves at scope end. Moves transfer (`int b[] =
+// a` moves `a`); `a.move()` shares explicitly; calls borrow.
+int sum3(int a[]) {
+    return a[0] + a[1] + a[2];
+}
+
+class Holder {
+    int data[];
+    public Holder(int d[]) {
+        this.data = d;
+    }
+}
+
+int main() {
+    int a[3];
+    print(a[0] + a[1] + a[2]);
+    print("\n");                        // 0
+    print(len(a));
+    print("\n");                        // 3
+    a[0] = 7;
+    a[1] = 1;
+    a[2] = 8;
+    print(sum3(a));
+    print("\n");                        // 16 (borrows)
+    int b[] = a.move();           // shared alias, both stay valid
+    b[0] = 1;
+    print(a[0] + b[2]);
+    print("\n");                        // 9 (same block)
+    Holder h = new Holder(a.move());
+    print(h.data[1]);
+    print("\n");                        // 1
+    print(sum3(a));
+    print("\n");                        // 10 (a intact: 1+1+8)
+    string s[6];
+    s[0] = 65;
+    print(s);
+    print("\n");                        // A
+    string t = s.move();
+    print(t);
+    print("\n");                        // A (shared)
+    return 0;
+}

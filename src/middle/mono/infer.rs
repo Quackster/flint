@@ -139,6 +139,7 @@ impl<'a> Mono<'a> {
                 }
             }
             Expr::ArrayLit { .. } => Ok(Ty::Array),
+            Expr::SizedNew { ty, .. } => Ok(ty.clone()),
             Expr::Cast { ty, .. } => self.resolve_type(ty, subst),
             Expr::Instanceof { .. } => Ok(Ty::Bool),
             Expr::Cond { then, .. } => self.expr_type(then, subst),

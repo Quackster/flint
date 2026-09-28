@@ -74,7 +74,7 @@ class Socket {
     static void sendAll(int fd, string msg) { sys.write(fd, msg, strlen(msg)); }
     // Read up to 64 bytes; NUL-terminated string, or null when the peer closed.
     static string recv(int fd) {
-        string buf = alloc(64);
+        string buf = string[64];
         int n = sys.read(fd, buf, 64);
         if (n <= 0) {
             return null;

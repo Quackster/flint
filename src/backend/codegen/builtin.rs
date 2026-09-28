@@ -83,18 +83,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Ptr(None),
             noreturn: false,
         }),
-        "sys.alloc" | "alloc" | "mem.alloc" => Some(Builtin {
-            target: "flint_alloc",
-            arity: 1,
-            ret: Ty::Ptr(None),
-            noreturn: false,
-        }),
-        "sys.free" | "free" | "mem.free" => Some(Builtin {
-            target: "flint_free",
-            arity: 1,
-            ret: Ty::Void,
-            noreturn: false,
-        }),
+
         // Reference counting for class objects: bump / drop the refcount.
         "mem.retain" => Some(Builtin {
             target: "flint_retain",
@@ -108,12 +97,7 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Void,
             noreturn: false,
         }),
-        "memcpy" | "mem.memcpy" => Some(Builtin {
-            target: "flint_memcpy",
-            arity: 3,
-            ret: Ty::Void,
-            noreturn: false,
-        }),
+
         "strlen" | "str.len" => Some(Builtin {
             target: "flint_strlen",
             arity: 1,
@@ -458,6 +442,24 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Ptr(None),
             noreturn: false,
         }),
+        // Retain a string held as a raw int slot (the collections' unsafe
+        // core stores strings as plain 8-byte values the checker cannot
+        // see); null-guarded. Returns the value.
+        "mem.retainStr" => Some(Builtin {
+            target: "flint_mem_retain_str",
+            arity: 1,
+            ret: Ty::Int,
+            noreturn: false,
+        }),
+        // Release a string held as a raw int slot (the collections drop
+        // string elements this way); null-guarded.
+        "mem.releaseStr" => Some(Builtin {
+            target: "flint_str_release",
+            arity: 1,
+            ret: Ty::Void,
+            noreturn: false,
+        }),
+
         // Retain a class value regardless of its static type (lambda
         // captures); null-guarded. Returns the value.
         "mem.retainVal" => Some(Builtin {

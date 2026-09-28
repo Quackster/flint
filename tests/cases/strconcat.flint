@@ -12,7 +12,7 @@ int main() {
     print(c);
     print("\n");
     // pointer arithmetic is preserved: *byte + int
-    *byte buf = alloc(8);
+    string buf[8];
     sys.byteStore(buf + 0, 65);
     print(sys.byteLoad(buf + 1));
     print("\n");

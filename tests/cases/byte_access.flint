@@ -1,6 +1,6 @@
 int main() {
     // byteLoad / byteStore
-    *byte buf = alloc(16);
+    string buf[16];
     sys.byteStore(buf, 0xAB);
     int b = sys.byteLoad(buf);
     println(b == 0xAB ? 1 : 0);
@@ -24,6 +24,5 @@ int main() {
     int b2 = sys.byteLoad(buf + 2);
     println(b0 == 1 && b1 == 2 && b2 == 3 ? 1 : 0);
 
-    free(buf);
     return 0;
 }

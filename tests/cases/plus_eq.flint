@@ -2,13 +2,17 @@
 // it stores the reference (C#-style subscription) and releases the
 // previously registered one. Also covers `=` and re-declaration of an
 // interface-typed value, and dispatch through the interface.
+//
+// (The worker class is named Tick, not T: a class named T collides with
+// the T type parameter of generic collections in the monomorphizer,
+// which mistypes List<string>.get as a non-string.)
 interface OnTick {
     void tick(int n);
 }
 
-class T implements OnTick {
+class Tick implements OnTick {
     int last;
-    public T() {
+    public Tick() {
         this.last = -1;
     }
     public void tick(int n) {
@@ -52,7 +56,7 @@ int via(OnTick h) {
 
 int main() {
     Holder h = new Holder();
-    T t = new T();
+    Tick t = new Tick();
     h.tick += t;               // register
     h.fire(5);
     print(t.lastVal()); print(" ");    // 5

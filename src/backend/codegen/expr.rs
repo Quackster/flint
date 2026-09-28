@@ -3,7 +3,9 @@ use crate::error::{CompileError, CompileResult};
 use crate::backend::escape::LocalKind;
 use crate::backend::layout;
 
-use super::{ARGREGS, Ctx, Frame, binop_result, e_span, is_temp_class, struct_idx_of, ty_name};
+use super::{
+    ARGREGS, Ctx, Frame, RetainKind, binop_result, e_span, is_temp_class, struct_idx_of, ty_name,
+};
 
 impl Ctx<'_> {
     /// Evaluate an expression, leaving its 64-bit result pushed on the stack.
@@ -377,11 +379,25 @@ impl Ctx<'_> {
                 for (i, cap) in captures.iter().enumerate() {
                     self.gen_expr(cap, frame)?;
                     self.emit("\tpop %r11"); // value
-                    if self.is_class_expr(cap, frame) {
-                        // class capture: retain it into a new reference that
-                        // the block owns (v1: the block's ref is never dropped)
+                    if let Some(k) = self.capture_kind(cap, frame) {
+                        // owned capture: retain it into a new reference that
+                        // the block owns (v1: the block's ref is never
+                        // dropped). Objects retain at slot 0; strings and
+                        // arrays retain the header below the base.
                         self.emit("\tmov %r11, %rdi");
-                        self.emit("\tcall flint_retain_val");
+                        match k {
+                            RetainKind::Object => {
+                                self.emit("\tcall flint_retain_val");
+                            }
+                            RetainKind::Array => {
+                                self.emit("\tmov $0, %rsi");
+                                self.emit("\tcall flint_hdr_retain");
+                            }
+                            RetainKind::Str => {
+                                self.emit("\tmov $1, %rsi");
+                                self.emit("\tcall flint_hdr_retain");
+                            }
+                        }
                         self.emit("\tmov %rax, %r11");
                     }
                     self.emit("\tpop %r10"); // block
@@ -429,8 +445,8 @@ impl Ctx<'_> {
                     let saved = self.str_copy;
                     for (i, (_, expr)) in fields.iter().enumerate() {
                         self.str_copy = ctor.params[i].1.as_ref() == Some(&Ty::Str);
-                        self.gen_expr(expr, frame)?;
-                        self.maybe_retain(expr, frame);
+                        let ety = self.gen_expr(expr, frame)?;
+                        self.retain_for_slot(ctor.params[i].1.as_ref(), expr, &ety, frame)?;
                     }
                     self.str_copy = saved;
                     // stack: base, arg0, arg1, ... (last arg on top)
@@ -517,8 +533,8 @@ impl Ctx<'_> {
                     match fields.iter().find(|(nm, _)| nm == &f.name) {
                         Some((_, expr)) => {
                             self.str_copy = f.ty == Ty::Str;
-                            self.gen_expr(expr, frame)?; // value pushed above base
-                            self.maybe_retain(expr, frame);
+                            let ety = self.gen_expr(expr, frame)?; // value pushed above base
+                            self.retain_for_slot(Some(&f.ty), expr, &ety, frame)?;
                             self.emit("\tpop %rax"); // value
                             self.emit("\tpop %r10"); // base
                             self.emit(&format!("\tmov %rax, {}(%r10)", off));
@@ -537,15 +553,19 @@ impl Ctx<'_> {
                 Ok(Ty::Struct(sidx))
             }
             Expr::ArrayLit { elems, span, .. } => {
-                // heap block of 8-byte slots; nested literals (multi-dim)
-                // each allocate their own block. The base stays on the
-                // expression stack so nested element codegen cannot clobber it.
+                // heap block of 8-byte slots: [refcount][len][elem0]... with
+                // the base pointing at `len`, exactly like a sized buffer.
+                // Nested literals (multi-dim) each allocate their own block.
+                // The base stays on the expression stack so nested element
+                // codegen cannot clobber it.
                 let n = elems.len();
-                let size = ((n + 1) * 8) as i64; // slot 0 = length header
+                let size = ((n + 2) * 8) as i64; // refcount + length + slots
                 self.emit(&format!("\tmovq ${}, %rdi", size));
                 self.emit("\tcall flint_alloc");
-                self.emit("\tpush %rax"); // base on stack (survives element codegen)
-                self.emit("\tpop %r10"); // base
+                self.emit("\tpush %rax"); // raw block (survives element codegen)
+                self.emit("\tpop %r10"); // raw
+                self.emit("\tmovq $1, (%r10)"); // refcount
+                self.emit("\tlea 8(%r10), %r10"); // base = len slot
                 self.emit(&format!("\tmovq ${}, (%r10)", n)); // length header
                 self.emit("\tpush %r10"); // base back
                 for (i, el) in elems.iter().enumerate() {
@@ -558,6 +578,48 @@ impl Ctx<'_> {
                 // base is already on the stack — it is the result
                 let _ = span;
                 Ok(Ty::Array)
+            }
+            Expr::SizedNew { size, ty, .. } => {
+                // A fresh zero-filled heap buffer: `int[n]` / `byte[n]` (an
+                // `Array`: [refcount][len][elem0]... with the base pointing
+                // at `len`, exactly like a literal) or `string[n]` (a `Str`:
+                // [refcount][len][bytes...] with the base pointing at the
+                // bytes). mmap zero-fills, so elements start as 0 and
+                // strings as NUL-terminated. The value owns its single
+                // reference (refcount 1).
+                self.gen_expr(size, frame)?;
+                self.emit("\tpop %r10"); // n
+                self.emit("\tpush %r10"); // stash n across the alloc call
+                match ty {
+                    Ty::Array => {
+                        self.emit("\tlea 1(%r10), %rdi");
+                        self.emit("\tshl $3, %rdi"); // (n+1) slots...
+                        self.emit("\tadd $8, %rdi"); // ...plus the refcount
+                        self.emit("\tcall flint_alloc");
+                        self.emit("\tpop %r10"); // n
+                        self.emit("\tmov %rax, %r11"); // raw block
+                        self.emit("\tlea 8(%rax), %rax"); // base = len slot
+                        self.emit("\tmovq $1, (%r11)"); // refcount
+                        self.emit("\tmovq %r10, (%rax)"); // length header
+                        self.emit("\tpush %rax");
+                        Ok(Ty::Array)
+                    }
+                    Ty::Str => {
+                        self.emit("\tlea 16(%r10), %rdi"); // header + n bytes
+                        self.emit("\tcall flint_alloc");
+                        self.emit("\tpop %r10"); // n
+                        self.emit("\tmov %rax, %r11"); // raw block
+                        self.emit("\tlea 16(%rax), %rax"); // base = bytes
+                        self.emit("\tmovq $1, (%r11)"); // refcount
+                        self.emit("\tmovq %r10, 8(%r11)"); // length
+                        self.emit("\tpush %rax");
+                        Ok(Ty::Str)
+                    }
+                    _ => Err(CompileError::new(
+                        e_span(e),
+                        "sized buffers require an int or string element type",
+                    )),
+                }
             }
             Expr::SuperBase { span, .. } => {
                 let c = frame
@@ -604,8 +666,8 @@ impl Ctx<'_> {
                     let saved = self.str_copy;
                     for (i, a) in args.iter().enumerate() {
                         self.str_copy = ctor.params[i].1.as_ref() == Some(&Ty::Str);
-                        self.gen_expr(a, frame)?;
-                        self.maybe_retain(a, frame);
+                        let aty = self.gen_expr(a, frame)?;
+                        self.retain_for_slot(ctor.params[i].1.as_ref(), a, &aty, frame)?;
                     }
                     self.str_copy = saved;
                     let total = args.len() + 1;
@@ -631,8 +693,12 @@ impl Ctx<'_> {
                 if *ty == Ty::Str && matches!(vty, Ty::Int | Ty::Bool) {
                     self.emit("\tpop %r12"); // value
                     self.emit("\tpush %r12"); // keep it: flint_alloc clobbers r10/r11/rcx
-                    self.emit("\tmovq $2, %rdi");
+                    self.emit("\tmovq $18, %rdi"); // 16 header + char + NUL
                     self.emit("\tcall flint_alloc");
+                    self.emit("\tmov %rax, %r11"); // raw block
+                    self.emit("\tmovq $1, (%r11)"); // refcount
+                    self.emit("\tmovq $2, 8(%r11)"); // length
+                    self.emit("\tlea 16(%r11), %rax"); // base = bytes
                     self.emit("\tand $255, %r12");
                     self.emit("\tmov %r12, (%rax)"); // char; bytes 1+ zero (NUL)
                     self.emit("\tpop %r12");
@@ -706,13 +772,28 @@ impl Ctx<'_> {
     }
 
     /// True when the expression evaluates to a managed (class) value.
-    fn is_class_expr(&self, e: &Expr, frame: &Frame) -> bool {
+    /// The retain kind when an expression denotes an owned value held in a
+    /// variable, field, or `this` (used for closure captures).
+    fn capture_kind(&self, e: &Expr, frame: &Frame) -> Option<RetainKind> {
+        fn kind_of(t: &Ty) -> Option<RetainKind> {
+            match t {
+                Ty::Struct(_) | Ty::Interface(_) => Some(RetainKind::Object),
+                Ty::Array => Some(RetainKind::Array),
+                Ty::Str => Some(RetainKind::Str),
+                _ => None,
+            }
+        }
         match e {
-            Expr::This { .. } => frame.this_class.is_some(),
-            Expr::Ident { name, .. } => frame
-                .find(name)
-                .map_or(false, |l| matches!(l.ty, Ty::Struct(_))),
-            _ => false,
+            Expr::This { .. } => frame.this_class.map(|_| RetainKind::Object),
+            Expr::Ident { name, .. } => frame.find(name).and_then(|l| kind_of(&l.ty)),
+            Expr::Field { base, name, .. } => self
+                .expr_struct_type(base, frame)
+                .ok()
+                .flatten()
+                .and_then(|s| self.struct_field_type(s, name).ok())
+                .and_then(|t| kind_of(&t)),
+            Expr::Cast { e, .. } => self.capture_kind(e, frame),
+            _ => None,
         }
     }
 }

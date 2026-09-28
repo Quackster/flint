@@ -298,6 +298,23 @@ impl<'a> Mono<'a> {
                     .collect::<CompileResult<_>>()?;
                 Ok(Expr::ArrayLit { span: *span, elems })
             }
+            Expr::SizedNew { span, size, ty } => {
+                let ty = self.resolve_type(ty, subst)?;
+                match ty {
+                    Ty::Array | Ty::Str => {}
+                    _ => {
+                        return Err(CompileError::new(
+                            *span,
+                            "sized buffers require an int or string element type",
+                        ))
+                    }
+                }
+                Ok(Expr::SizedNew {
+                    span: *span,
+                    size: Box::new(self.resolve_expr(size, subst)?),
+                    ty,
+                })
+            }
             Expr::Cond {
                 span,
                 cond,

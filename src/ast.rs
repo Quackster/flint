@@ -359,6 +359,15 @@ pub enum Expr {
         span: Span,
         elems: Vec<Expr>,
     },
+    // A freshly allocated, zero-filled buffer of `size` elements:
+    // `int[n]` / `byte[n]` (an `Array` with a length header) or
+    // `string[n]` (a `Str` NUL-terminated buffer of `n` bytes). The value
+    // owns its single reference; the owner frees it at scope end.
+    SizedNew {
+        span: Span,
+        size: Box<Expr>,
+        ty: Ty,
+    },
     Null {
         span: Span,
     },

@@ -95,15 +95,15 @@ class Window {
         this.frame_pending = 0;
         this.last_commit = 0;
         this.next_id = 16;
-        this.msg = alloc(32);
-        this.pollfd = alloc(12);
-        this.rb = alloc(4096);
+        this.msg = string[32];
+        this.pollfd = string[12];
+        this.rb = string[4096];
         this.rb_n = 0; this.rb_i = 0;
         this.last_fd = -1;
-        this.gname = alloc(64 * 4);
+        this.gname = string[64 * 4];
         this.gn = 0;
-        this.gver = alloc(64 * 4);
-        this.giface = alloc(64 * 48);
+        this.gver = string[64 * 4];
+        this.giface = string[64 * 48];
         this.ev_type = 0;
         this.ev_x = 0; this.ev_y = 0;
         this.ev_button = 0; this.ev_key = 0; this.ev_state = 0;
@@ -145,7 +145,7 @@ class Window {
             path = dir + "/" + disp;
         }
         // sockaddr_un: 16-bit family = 1, then the NUL-terminated path.
-        string addr = alloc(110);
+        string addr = string[110];
         sys.byteStore(addr, 1);
         sys.byteStore(addr + 1, 0);
         int n = strlen(path);
@@ -182,7 +182,7 @@ class Window {
         // wl_shm.create_pool: (pool id 8, size) — the fd is passed ONLY via
         // SCM_RIGHTS (no in-band fd slot, matching libwayland's serialize
         // which skips WL_ARG_FD). 4 words = 16 bytes.
-        string m = alloc(16);
+        string m = string[16];
         Window.put32(m, 0, 5);                       // wl_shm
         Window.put32(m, 4, (16 << 16) | 0);         // create_pool, size = 16
         Window.put32(m, 8, 8);                      // pool id
@@ -192,7 +192,7 @@ class Window {
         }
         // wl_shm_pool.create_buffer: (buffer id 9, offset 0, w, h,
         // stride, format 0 = ARGB8888). 6 args -> 8 + 6*4 = 32 bytes.
-        m = alloc(32);
+        m = string[32];
         Window.put32(m, 0, 8);
         Window.put32(m, 4, (32 << 16) | 0);
         Window.put32(m, 8, 9);
@@ -203,13 +203,13 @@ class Window {
         Window.put32(m, 28, 0);
         self.sendPlain(m, 32);
         // wl_compositor.create_surface: (surface id 10).
-        m = alloc(12);
+        m = string[12];
         Window.put32(m, 0, 4);
         Window.put32(m, 4, (12 << 16) | 0);
         Window.put32(m, 8, 10);
         self.sendPlain(m, 12);
         // wl_seat.get_pointer (id 11) and get_keyboard (id 12).
-        m = alloc(12);
+        m = string[12];
         Window.put32(m, 0, 6);
         Window.put32(m, 4, (12 << 16) | 0);
         Window.put32(m, 8, 11);
@@ -218,14 +218,14 @@ class Window {
         Window.put32(m, 8, 12);
         self.sendPlain(m, 12);
         // xdg_wm_base.get_xdg_surface: (id 13, surface 10). 2 args -> 16.
-        m = alloc(16);
+        m = string[16];
         Window.put32(m, 0, 7);
         Window.put32(m, 4, (16 << 16) | 2);         // get_xdg_surface
         Window.put32(m, 8, 13);
         Window.put32(m, 12, 10);
         self.sendPlain(m, 16);
         // xdg_surface.get_toplevel: (id 14, parent 0). 2 args -> 16.
-        m = alloc(16);
+        m = string[16];
         Window.put32(m, 0, 13);
         Window.put32(m, 4, (16 << 16) | 1);         // get_toplevel
         Window.put32(m, 8, 14);
@@ -247,7 +247,7 @@ class Window {
         while (di < self.gn) {
             if (self.ifaceEq(di, "zxdg_decoration_manager_v1")) {
                 self.doBind(15, di, 1);
-                m = alloc(16);
+                m = string[16];
                 Window.put32(m, 0, 15);
                 Window.put32(m, 4, (16 << 16) | 1);   // get_toplevel_decoration
                 Window.put32(m, 8, 16);               // (id, toplevel)
@@ -258,7 +258,7 @@ class Window {
                 // KWin withholds presentation until the mode is set
                 // (Qt does exactly this). Waiting for the configure
                 // first deadlocks: no done arrives to unblock present().
-                m = alloc(12);
+                m = string[12];
                 Window.put32(m, 0, 16);
                 Window.put32(m, 4, (12 << 16) | 1);   // set_mode
                 Window.put32(m, 8, 2);                // server_side
@@ -271,7 +271,7 @@ class Window {
         // configure event. Commit (empty) to trigger it, wait for
         // configure, then ack_configure. When decorations were
         // requested, also wait for the decoration configure (mode).
-        m = alloc(8);
+        m = string[8];
         Window.put32(m, 0, 10);                     // wl_surface
         Window.put32(m, 4, (8 << 16) | 6);          // commit
         self.sendPlain(m, 8);
@@ -296,7 +296,7 @@ class Window {
         // Tell the compositor the window's visible bounds, like Qt
         // does: KWin lays out server decorations from this, and never
         // maps a decorated surface without it.
-        m = alloc(24);
+        m = string[24];
         Window.put32(m, 0, 13);
         Window.put32(m, 4, (24 << 16) | 3);         // set_window_geometry
         Window.put32(m, 8, 0);
@@ -307,19 +307,19 @@ class Window {
         // Attach the buffer and commit the first frame. attach takes
         // (buffer, x, y) since wayland 1.25 (x = y = 0) -> 20 bytes.
         self.buf1 = 9;
-        m = alloc(20);
+        m = string[20];
         Window.put32(m, 0, 10);
         Window.put32(m, 4, (20 << 16) | 1);         // attach, size = 20
         Window.put32(m, 8, self.buf1);
         Window.put32(m, 12, 0);
         Window.put32(m, 16, 0);
         self.sendPlain(m, 20);
-        m = alloc(12);
+        m = string[12];
         Window.put32(m, 0, 10);
         Window.put32(m, 4, (12 << 16) | 3);         // frame
         Window.put32(m, 8, 17);
         self.sendPlain(m, 12);
-        m = alloc(32);
+        m = string[32];
         Window.put32(m, 0, 10);
         Window.put32(m, 4, (24 << 16) | 9);         // damage_buffer
         Window.put32(m, 8, 0);
@@ -327,7 +327,7 @@ class Window {
         Window.put32(m, 16, self.w);
         Window.put32(m, 20, self.h);
         self.sendPlain(m, 24);
-        m = alloc(8);
+        m = string[8];
         Window.put32(m, 0, 10);
         Window.put32(m, 4, (8 << 16) | 6);          // commit
         self.sendPlain(m, 8);
@@ -335,7 +335,7 @@ class Window {
         self.frame_pending = 1;
         // Create a second buffer (id 18) from the same pool at offset 0 for
         // double buffering; both read the same pool memory.
-        m = alloc(32);
+        m = string[32];
         Window.put32(m, 0, 8);
         Window.put32(m, 4, (32 << 16) | 0);
         Window.put32(m, 8, 18);
@@ -540,7 +540,7 @@ class Window {
         int b1 = pool + 1;
         int b2 = pool + 2;
         this.next_id = b2 + 1;
-        string m = alloc(32);
+        string m = string[32];
         Window.put32(m, 0, 5);                       // wl_shm
         Window.put32(m, 4, (16 << 16) | 0);         // create_pool
         Window.put32(m, 8, pool);
@@ -575,7 +575,7 @@ class Window {
         // makes it keep the window at the old size (and the title bar
         // at the old width) after a resize. Qt and GTK re-send it on
         // every size change.
-        string gm = alloc(24);
+        string gm = string[24];
         Window.put32(gm, 0, 13);                     // xdg_surface
         Window.put32(gm, 4, (24 << 16) | 3);         // set_window_geometry
         Window.put32(gm, 8, 0);
@@ -749,9 +749,9 @@ class Window {
     // Send a request with an ancillary message: kind 2 = SCM_RIGHTS
     // carrying f (cmsg_len = 16 + 4 for the single fd).
     int sendMsg(string m, int n, int kind, int f) {
-        string iov = alloc(16);
-        string mh = alloc(56);
-        string ctrl = alloc(32);
+        string iov = string[16];
+        string mh = string[56];
+        string ctrl = string[32];
         Window.put64(iov, 0, m);
         Window.put64(iov, 8, n);
         Window.put64(mh, 0, 0);
@@ -871,7 +871,7 @@ class Window {
             if (ml > 200) {
                 ml = 200;
             }
-            string mb = alloc(ml + 1);
+            string mb = string[ml + 1];
             int mk = 0;
             while (mk < ml) {
                 int c = sys.byteLoad(this.rb + 20 + mk);
@@ -1004,13 +1004,13 @@ class Window {
     int connect() {
         // get_registry: (registry id 2). Sent as a plain write — the
         // compositor learns client credentials via SO_PEERCRED.
-        string m = alloc(12);
+        string m = string[12];
         Window.put32(m, 0, 1);                       // wl_display
         Window.put32(m, 4, (12 << 16) | 1);
         Window.put32(m, 8, 2);
         this.sendPlain(m, 12);
         // sync: (callback id 3) — marks the end of the global burst.
-        m = alloc(12);
+        m = string[12];
         Window.put32(m, 0, 1);
         Window.put32(m, 4, (12 << 16) | 0);
         Window.put32(m, 8, 3);
@@ -1073,7 +1073,7 @@ class Window {
         int sl = ilen + 1;
         int pad = (sl + 3) / 4 * 4;
         int total = 24 + pad;
-        string m = alloc(total);
+        string m = string[total];
         Window.put32(m, 0, 2);                           // target = registry
         Window.put32(m, 4, (total << 16) | 0);          // opcode 0 = bind
         Window.put32(m, 8, name);                       // name (uint)
@@ -1095,7 +1095,7 @@ class Window {
         int sl = n + 1;
         int pad = (sl + 3) / 4 * 4;
         int total = 12 + pad;                         // hdr + len + padded string
-        string m = alloc(total);
+        string m = string[total];
         Window.put32(m, 0, target);
         Window.put32(m, 4, (total << 16) | opcode);
         Window.put32(m, 8, sl);                     // length (incl. NUL)

@@ -1,7 +1,0 @@
-int main() {
-    *int p = alloc(16);
-    p[0] = 1;
-    free(p);
-    print(p[0]);
-    return 0;
-}

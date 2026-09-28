@@ -5,8 +5,8 @@
 //   int a[] = [3, 1, 2];
 //   Sort.sort(a);            // [1, 2, 3]
 //
-// `sort`/`sortDesc` are a merge sort (stable); the scratch buffer is
-// `alloc`ed per merge step and `free`d (a no-op in v1).
+// `sort`/`sortDesc` are a merge sort (stable); the scratch buffer is a
+// sized string that frees itself when the merge step returns.
 package std;
 class Sort {
     static void sort(int a[]) { Sort.sortImpl(a, 0, len(a), 0); }
@@ -19,7 +19,7 @@ class Sort {
         int mid = lo + n / 2;
         Sort.sortImpl(a, lo, mid, desc);
         Sort.sortImpl(a, mid, hi, desc);
-        string scratch = alloc(n * 8);
+        string scratch = string[n * 8];
         int i = lo;
         int j = mid;
         int k = 0;
@@ -41,7 +41,6 @@ class Sort {
             a[lo + i] = scratch[i];
             i = i + 1;
         }
-        free(scratch);
     }
     static void reverse(int a[]) {
         int n = len(a);
@@ -189,7 +188,7 @@ class Sort {
         if (k < 0) {
             k = k + n;
         }
-        string scratch = alloc(n * 8);
+        string scratch = string[n * 8];
         int i = 0;
         while (i < n) {
             scratch[i] = a[(i + k) % n];
@@ -200,6 +199,5 @@ class Sort {
             a[i] = scratch[i];
             i = i + 1;
         }
-        free(scratch);
     }
 }

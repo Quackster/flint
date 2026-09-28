@@ -55,7 +55,7 @@ properties, statics, and enums.</p></div>
 <code>HashSet</code>, and <code>HashMap</code> over a shared
 <code>Collection</code> base, with int, string, and object elements.</p></div>
 <div class="card"><a class="title" href="memory.html">Raw memory</a>
-<p>Escape analysis, <code>alloc</code>/<code>free</code>, raw pointers,
+<p>Escape analysis, ownership and typed buffers, raw pointers,
 sized load/store, and direct syscalls.</p></div>
 <div class="card"><a class="title" href="concurrency.html">Concurrency</a>
 <p>Threads, mutexes, atomic CAS, and network I/O for building servers.</p></div>
@@ -175,9 +175,10 @@ intrinsic.s (the Flint runtime: memory, syscalls, objects)
 <h2>The runtime</h2>
 <p>One flat-assembly file is linked into every binary:</p>
 <ul>
-<li><b><code>intrinsic.s</code></b> — <code>alloc</code>/<code>free</code>,
-retain/release (<code>mem.retain</code> / <code>mem.release</code>),
-<code>memcpy</code>, the syscall bridge, per-class object destructors
+<li><b><code>intrinsic.s</code></b> — the mmap heap, refcount headers and
+retain/release (<code>mem.retain</code> / <code>mem.release</code>,
+<code>flint_str_release</code>, <code>flint_array_release</code>), string
+helpers, the syscall bridge, per-class object destructors
 (including the <code>destroy()</code> hook), and thread/mutex primitives.
 There is no separate collection runtime: the stdlib collections are ordinary
 classes compiled from <code>src/stdlib/coll.flint</code>.</li>
@@ -1639,24 +1640,25 @@ escaping objects go to the heap with a refcount header.</p></div>
 
 <h2>Ownership (compile-time, like Rust)</h2>
 <p>Each value has an <em>owner</em>; there is only one owner at a time; when
-the owner goes out of scope the value is dropped (class values are released;
-buffers are freed explicitly). <code>T x = y</code>, <code>x = y</code>,
-<code>return y</code> and <code>obj.field = y</code> <em>move</em> a class
-object or <code>*T</code> buffer (<code>y</code> becomes invalid — using it
+the owner goes out of scope the value is dropped — a real
+<code>munmap</code>, verified by the <code>frees</code> test. There is no
+<code>alloc</code> or <code>free</code>: buffers come only from typed
+initialization (<code>int buf[n]</code>, <code>string s[n]</code>),
+array/string literals, and calls that return fresh values.
+<code>T x = y</code>, <code>x = y</code>,
+<code>return y</code> and <code>obj.field = y</code> <em>move</em> class
+objects, strings, and arrays (<code>y</code> becomes invalid — using it
 after is a compile error). Calls borrow (like <code>&amp;T</code>):
 <code>x.foo()</code> and <code>f(x)</code> leave <code>x</code> valid, and
 so do <code>str.concat</code>, <code>strlen</code>, and the
 <code>for (x : c)</code> iteration temporaries.
-<code>free(p)</code> / <code>Mem.freeInt</code> / <code>Mem.freeByte</code>
-consume (use-after-free and double-free are use-of-moved errors).
-<code>int</code> / <code>bool</code> / enum are <code>Copy</code>.
-<code>string</code> and arrays also move (they still leak rather than drop,
-so a move transfers the single live name). Clone explicitly with
-<code>x.move()</code> on any object, string, or array (a shared alias: same
-address, both stay valid; <code>mem.retainVal(x)</code> is the same
-operation as a free function); use <code>str.copy(s)</code> for an
-independent string. Raw <code>*T</code> buffers have no <code>move()</code>
-(they follow explicit free discipline).
+<code>int</code> / <code>bool</code> / enum are <code>Copy</code>; raw
+<code>*T</code> pointers never own and are never freed. Clone explicitly
+with <code>x.move()</code> on any object, string, or array (a shared
+alias: same address, both stay valid); use <code>str.copy(s)</code> for an
+independent string. Views have no header to retain, so passing
+<code>buf + off</code>, <code>&amp;x</code>, or <code>*p</code> where an
+owned value is required is a compile error — materialize it first.
 See <a href="https://doc.rust-lang.org/book/ch04-01-what-is-ownership.html">Rust Ch 4.1</a>.</p>
 
 <h2>Escape analysis</h2>
@@ -1730,8 +1732,8 @@ int main() {
 through one is visible through the other).</li>
 <li><b>Borrowed calls:</b> <code>sum_of(h)</code> and <code>h.method()</code>
 borrow (like <code>&amp;</code>); <code>h</code> stays valid.</li>
-<li><b>Consuming free:</b> <code>free(p)</code> / <code>Mem.freeInt(p)</code>
-consume <code>p</code>; use-after-free and double-free are compile errors.</li>
+<li><b>Self-freeing owners:</b> dropping means a real <code>munmap</code> at
+scope end — there is no <code>free</code> to call (or forget).</li>
 <li><b>Stack slot:</b> <code>Pair s = new Pair(3,4)</code> used only
 locally — no refcount traffic.</li>
 <li><b>Heap + refcount:</b> once the object escapes (argument, return,
@@ -1747,70 +1749,49 @@ or array value (borrows the receiver, returns a fresh owner). A user-defined
 <section id="pointers" class="doc-section" data-label="Pointers & raw memory">
 <div class="page-head"><h1>Pointers &amp; raw memory</h1>
 <p class="lede">Raw pointers (<code>*T</code>, <code>&amp;x</code>,
-<code>*p</code>) and the heap (<code>alloc</code>/<code>free</code>/
-<code>memcpy</code>) are the low-level escape hatch, plus sub-word
-little-endian access and a generic syscall.</p></div>
+<code>*p</code>) are non-owning views: addresses of locals, function
+addresses, and ints-as-pointers for syscalls. Heap buffers are always
+typed (<code>int buf[n]</code>, <code>string s[n]</code>) and free
+themselves at scope end — there is no <code>alloc</code> or
+<code>free</code> anymore. Plus sub-word little-endian access and a
+generic syscall.</p></div>
 
 <h2>Example</h2>
-<div class="code"><div class="head"><span>examples/rawmem.flint</span></div>
+<div class="code"><div class="head"><span>tests/cases/byte_access.flint (selected)</span></div>
 <pre><code class="flint">int main() {
     // *int pointer to a local: writes go through the address
     int x = 10;
     *int p = &amp;x;
     *p = 99;
     print(x);                     // 99
-    // dynamic array over alloc(); buf[i] is an 8-byte slot
-    int n = 5;
-    *int fib = alloc(n * 8);
-    fib[0] = 0;
-    fib[1] = 1;
-    int i = 2;
-    while (i &lt; n) {
-        fib[i] = fib[i - 1] + fib[i - 2];
-        i = i + 1;
-    }
-    // ownership transfer: `t` takes over the buffer
-    *int t = fib;
-    int s = 0;
-    i = 0;
-    while (i &lt; n) {
-        s = s + t[i];
-        i = i + 1;
-    }
-    print(s);                     // 0+1+1+2+3 = 7
-    free(t);                      // `t` is consumed here
-    // sub-word little-endian access into a buffer
-    *byte buf = alloc(16);
-    sys.byteStore(buf + 8, 65);
-    print(sys.byteLoad(buf + 8));   // 65 ('A')
-    sys.shortStore(buf, 1000);
-    print(sys.shortLoad(buf));      // 1000
-    sys.intStore(buf + 12, 0x12345678);
-    print(sys.intLoad(buf + 12));   // 305419896 (== 0x12345678)
-    free(buf);
-    // memcpy: copy 16 bytes
-    *byte src = alloc(16);
-    src[0] = 111;
-    src[1] = 222;
-    *byte dst = alloc(16);
-    memcpy(dst, src, 16);
-    print(dst[0] * 1000 + dst[1]);   // 111222
-    free(src);
-    free(dst);
+    print("\n");
+    // typed heap buffer: string[16] owns 16 zero-filled bytes and frees
+    // itself at scope end (no alloc/free anymore)
+    string buf[16];
+    sys.byteStore(buf, 0xAB);
+    int b = sys.byteLoad(buf);
+    println(b == 0xAB ? 1 : 0);   // 1
+    sys.shortStore(buf, 0x1234);
+    int s = sys.shortLoad(buf);
+    println(s == 0x1234 ? 1 : 0);   // 1
+    sys.intStore(buf, 0xDEADBEEF);
+    int i = sys.intLoad(buf);
+    println(i == 0xDEADBEEF ? 1 : 0);   // 1
     // generic syscall escape hatch: getpid (39), open (2), close (3)
     int pid = sys.syscall(39, 0, 0, 0, 0, 0);
     print(pid &gt; 0 ? 1 : 0);        // 1
+    print("\n");
     int fd = sys.syscall(2, "/dev/null", 0, 0, 0, 0);
     print(fd &gt;= 0 ? 1 : 0);        // 1
+    print("\n");
     print(sys.syscall(3, fd, 0, 0, 0, 0));  // 0 (close ok)
+    print("\n");
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>99
-7
-65
-1000
-305419896
-111222
+1
+1
+1
 1
 1
 0</div>
@@ -1822,11 +1803,12 @@ little-endian access and a generic syscall.</p></div>
 the pointee: <code>&amp;s</code> for a <code>string s</code> is a
 <code>*string</code>); <code>*p</code> dereferences (a typed pointer
 yields its pointee); <code>buf[i]</code> reads/writes the 8-byte slot
-at <code>i</code>.</li>
+at <code>i</code>. Raw pointers never own: they are never freed and
+<code>move()</code> rejects them.</li>
 <li><b>Pointee checking:</b> a <code>*T</code> parameter, declaration or
 assignment target is checked against the value's pointee — passing or
 storing a <code>*string</code> where a <code>*int</code> is expected is
-a compile error. <code>alloc</code>, <code>null</code> and
+a compile error. <code>null</code> and
 <code>@fn</code> are untyped and conform to any <code>*T</code>; an
 <code>int</code> argument always conforms (a 64-bit int is a pointer
 holder); a <code>string</code> conforms to <code>*string</code> and
@@ -1834,15 +1816,14 @@ holder); a <code>string</code> conforms to <code>*string</code> and
 <li><b>No dangling returns:</b> <code>return &amp;x</code> for a local or
 parameter <code>x</code> is a compile error — the address would outlive
 the frame. (Other lifetime cases are the programmer's in v1.)</li>
-<li><b>Heap + ownership:</b> <code>alloc(n)</code> returns a fresh owner;
-<code>*int q = p</code> <em>moves</em> <code>p</code>;
-<code>free(p)</code> / <code>Mem.freeInt</code> / <code>Mem.freeByte</code>
-<em>consume</em> (use-after-free and double-free are compile errors, like
-Rust); <code>memcpy(dst, src, n)</code> and <code>sys.*</code> borrow.</li>
+<li><b>Heap + ownership:</b> <code>int buf[n]</code> and
+<code>string s[n]</code> return fresh owners; <code>*int q = p</code>
+<em>moves</em> <code>p</code>; owned values free themselves at scope end
+(real <code>munmap</code>, verified by the <code>frees</code> test);
+<code>sys.*</code> borrows.</li>
 <li><b>Sub-word little-endian access:</b>
 <code>sys.byte/short/intLoad</code> and
-<code>sys.byte/short/intStore</code>.
-<code>0x12345678</code> loads back as <code>305419896</code>.</li>
+<code>sys.byte/short/intStore</code>.</li>
 <li><b>Generic syscall:</b> <code>sys.syscall(num, a1..a5)</code> — arguments
 land in <code>rdi rsi rdx r10 r8 r9</code> (the 4th is
 <code>r10</code>). <code>getpid</code>=39, <code>open</code>=2,
@@ -1962,11 +1943,8 @@ use <code>alloc</code> + byte stores + a NUL terminator.</li>
     string w = "";
     w[0] = 65;
     print(w);                    // A
-    // multi-char construction: alloc + byte stores + NUL
-    string m = alloc(8);
-    sys.byteStore(m + 0, 65);
-    sys.byteStore(m + 1, 66);
-    sys.byteStore(m + 2, 0);
+    // multi-char construction: concatenate single-char strings
+    string m = (string)65 + (string)66;   // AB
     print(m);                    // AB
     print(str.cmp(m, "AB") == 0 ? 1 : 0);  // 1
     return 0;
@@ -3120,7 +3098,7 @@ utilities. They are compiled directly to the runtime — no
 <code>select poll epollCreate1 epollCtl epollWait</code> ·
 <code>clone futex threadCreate threadJoin nanosleep</code> ·
  <code>mutexLock mutexUnlock atomicCas</code> ·
- <code>byte/short/intLoad/store</code> · <code>alloc free</code> ·
+ <code>byte/short/intLoad/store</code> ·
  <code>fnCall2</code></td>
 <td><a href="io.html">I/O</a> / <a href="concurrency.html">Concurrency</a> /
 <a href="networking.html">Networking</a></td></tr>
@@ -3131,7 +3109,7 @@ utilities. They are compiled directly to the runtime — no
 <td><code>itof ftoi fadd fsub fmul fdiv fcmp</code></td>
 <td><a href="fixed-point.html">Fixed-point</a></td></tr>
 <tr><td><code>mem</code></td>
-<td><code>alloc free memcpy</code> · <code>retain release retainVal</code></td>
+<td><code>retain release retainVal retainStr releaseStr</code></td>
 <td><a href="pointers.html">Pointers</a></td></tr>
 <tr><td><code>io</code></td>
 <td><code>print println</code></td>
@@ -3854,27 +3832,21 @@ int main() {
 </section>
 <section id="std-mem" class="doc-section" data-label="Mem">
 <div class="page-head"><h1>Standard library: <code>Mem</code></h1>
-<p class="lede"><code>import std.Mem;</code> — the high-level way to get
-buffers and dynamic arrays, wrapping raw <code>alloc</code> /
-<code>free</code> / <code>memcpy</code>. Use this in application code
-instead of raw <code>alloc</code> (only <code>examples/rawmem.flint</code>
-shows the raw API). Ownership: <code>intArray</code> / <code>bytes</code>
-return fresh owners; <code>freeInt</code> / <code>freeByte</code> consume
-(use-after-free is a compile error); <code>copy</code> borrows.</p></div>
+<p class="lede"><code>import std.Mem;</code> — reference-count helpers for
+the collections' unsafe core. Buffers use typed syntax now
+(<code>int buf[n]</code>, <code>string s[n]</code>): each declaration
+owns a fresh zero-filled heap value that frees itself at scope end.
+There is no <code>alloc</code> or <code>free</code> anymore.</p></div>
 
 <h2>Methods</h2>
-<p><code>intArray</code> <code>bytes</code> <code>copy</code>
-<code>freeInt</code> <code>freeByte</code> <code>retain</code>
-<code>release</code> (plus <code>x.move()</code> on any object to clone
-explicitly)</p>
+<p><code>retain</code> <code>release</code> (plus <code>x.move()</code> on
+any object, string, or array to clone explicitly)</p>
 
 <h2>Example</h2>
 <div class="code"><div class="head"><span>examples/alloc_demo.flint</span></div>
-<pre><code class="flint">import std.Mem;
-
-// a fresh array of the first n Fibonacci numbers (moved to the caller)
-*int fibs(int n) {
-    *int f = Mem.intArray(n);   // a fresh array of n 8-byte slots
+<pre><code class="flint">// a fresh array of the first n Fibonacci numbers (moved to the caller)
+int[] fibs(int n) {
+    int f[n];   // owns n zero-filled slots; frees itself at scope end
     f[0] = 0;
     f[1] = 1;
     for (int i = 2; i &lt; n; i = i + 1) {
@@ -3885,7 +3857,7 @@ explicitly)</p>
 
 int main() {
     int n = 10;
-    *int fib = fibs(n);
+    int fib[] = fibs(n);
     int j = 0;
     int sum = 0;
     while (j &lt; n) {
@@ -3897,7 +3869,6 @@ int main() {
     print("\nsum=");
     print(sum);                   // 88
     print("\n");
-    Mem.freeInt(fib);
     return 0;
 }</code></pre></div>
 <div class="output"><span class="lbl">output</span>0 1 1 2 3 5 8 13 21 34

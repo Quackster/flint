@@ -16,6 +16,15 @@ use std::collections::HashMap;
 
 pub(crate) use ctx::{Ctx, Frame, Local};
 
+/// How a copied value takes its reference: objects retain the refcount at
+/// slot 0; arrays and strings retain the header below the base.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RetainKind {
+    Object,
+    Array,
+    Str,
+}
+
 pub(crate) const ARGREGS: [&str; 6] = ["%rdi", "%rsi", "%rdx", "%rcx", "%r8", "%r9"];
 
 fn mangle(class_name: &str, method_name: &str) -> String {

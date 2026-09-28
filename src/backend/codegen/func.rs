@@ -183,11 +183,17 @@ impl Ctx<'_> {
 
     /// Zero heap-class slots (so the first decl's old-release sees a null)
     /// and zero stack-object regions (header + fields) so the first `new`
-    /// into a region sees null class fields.
+    /// into a region sees null class fields. String/array slots are zeroed
+    /// too: a conditionally-declared buffer must read null (skipped by the
+    /// null-safe release) on paths that never initialize it.
     pub(crate) fn zero_class_slots(&mut self, frame: &Frame, nparams: usize) {
+        use crate::ast::Ty;
         for l in frame.locals.iter().skip(nparams) {
             match l.kind {
                 LocalKind::Heap => {
+                    self.emit(&format!("\tmovq $0, {}(%rbp)", l.off));
+                }
+                _ if matches!(l.ty, Ty::Str | Ty::Array) => {
                     self.emit(&format!("\tmovq $0, {}(%rbp)", l.off));
                 }
                 LocalKind::StackOwner => {
@@ -205,9 +211,13 @@ impl Ctx<'_> {
         }
     }
 
-    /// Release every heap reference held by the frame (params, this, locals)
-    /// and the class-typed fields of stack-allocated objects.
+    /// Release every owned reference held by the frame (params — the caller
+    /// retained one for each argument — and locals) and the owned fields of
+    /// stack-allocated objects. Class values use their per-class release;
+    /// strings and arrays use the header-based helpers (both null-safe, so
+    /// moved/borrowed/conditional slots simply skip).
     pub(crate) fn emit_end_releases(&mut self, frame: &Frame) {
+        use crate::ast::Ty;
         let skip_this = frame.this_class.is_some() && !frame.release_this;
         for (i, l) in frame.locals.iter().enumerate() {
             if skip_this && i == 0 {
@@ -226,19 +236,40 @@ impl Ctx<'_> {
                         if let Some(roff) = l.region {
                             let base = layout::field_base_offset(self.prog, s);
                             for (fi, (_, fty)) in layout::all_fields(self.prog, s).iter().enumerate() {
-                                if let Some(fs) = struct_idx_of(fty) {
-                                    let fname = &self.prog.structs[fs].name;
+                                let helper = match fty {
+                                    Ty::Str => Some("flint_str_release".to_string()),
+                                    Ty::Array => Some("flint_array_release".to_string()),
+                                    _ => struct_idx_of(fty).map(|fs| {
+                                        format!("flint_release_{}", self.prog.structs[fs].name)
+                                    }),
+                                };
+                                if let Some(h) = helper {
                                     self.emit(&format!(
                                         "\tmovq {}(%rbp), %rdi",
                                         roff + base + fi as i64 * 8
                                     ));
-                                    self.emit(&format!("\tcall flint_release_{}", fname));
+                                    self.emit(&format!("\tcall {}", h));
                                 }
                             }
                         }
                     }
                 }
-                _ => {}
+                _ => {
+                    // Plain slots (and stack aliases, which are always
+                    // class-typed and skipped by the helper match): release
+                    // strings and arrays. Every slot holds exactly one
+                    // reference (callers retain for parameters), so this
+                    // balances everywhere.
+                    let helper = match l.ty {
+                        Ty::Str => Some("flint_str_release"),
+                        Ty::Array => Some("flint_array_release"),
+                        _ => None,
+                    };
+                    if let Some(h) = helper {
+                        self.emit(&format!("\tmovq {}(%rbp), %rdi", l.off));
+                        self.emit(&format!("\tcall {}", h));
+                    }
+                }
             }
         }
     }

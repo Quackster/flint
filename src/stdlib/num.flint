@@ -158,7 +158,7 @@ class Num {
     // Uppercase hex of n (two's complement for negatives).
     static string toUpperHex(int n) {
         string s = Num.toHex(n);
-        string out = alloc(strlen(s) + 1);
+        string out = string[strlen(s) + 1];
         int i = 0;
         while (i < strlen(s)) {
             int c = sys.byteLoad(s + i);

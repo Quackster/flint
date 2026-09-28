@@ -19,7 +19,7 @@ class Time {
         if (n >= 2) {
             return s;
         }
-        string out = alloc(4);
+        string out = string[4];
         sys.byteStore(out, 48);
         if (n == 1) {
             sys.byteStore(out + 1, sys.byteLoad(s));
@@ -37,7 +37,7 @@ class Time {
         if (n >= 4) {
             return s;
         }
-        string out = alloc(8);
+        string out = string[8];
         int o = 0;
         while (o < 4 - n) {
             sys.byteStore(out + o, 48);

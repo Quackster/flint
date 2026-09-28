@@ -58,8 +58,9 @@ Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> ownership
   monomorphization (`ensure`, `expand`, `infer`, `resolve`, `resolve_expr`):
   generic templates are expanded to concrete types/functions. Then
   `ownership.rs`: compile-time move / borrow checking like Rust Ch 4.1
-  (each value has a single owner; `T x = y` moves, calls borrow like `&T`,
-  `free` consumes; `x.move()` / `str.copy(s)` clone explicitly).
+  (each value has a single owner; `T x = y` moves, calls borrow like `&T`;
+  `x.move()` / `str.copy(s)` clone explicitly). Owned values free
+  themselves at scope end (real `munmap`, verified by the `frees` test).
 - **backend/**: code generation (`codegen/`: `accessor`, `binop`, `builtin`,
   `call`, `ctx`, `expr`, `func`, `lvalue`, `new`, `stmt`) plus
   `escape.rs` (stack-vs-heap escape analysis), `layout.rs`, and `release.rs`.

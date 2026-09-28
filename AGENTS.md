@@ -9,7 +9,7 @@ x86_64 Linux assembly (no libc).
 
 ```sh
 cargo build                 # -> target/debug/flintc (release: --release)
-bash tests/run_tests.sh     # full suite (expect: PASS=108  FAIL=0)
+bash tests/run_tests.sh     # full suite (expect: PASS=107  FAIL=0)
 ```
 
 Requires `as` and `ld` (binutils) on the PATH. Compile one program:
@@ -44,7 +44,7 @@ Follow the Java conventions the language is built around:
 - **Function naming: every function and method is `camelCase` — including the
   standard functions (builtins such as `sys.byteLoad`, `sys.threadCreate`,
   `str.indexOf`) and all `std` library methods (`Thread.nCpu`,
-  `Socket.bindPort`, `Mem.intArray`). Never use `snake_case` for a function
+  `Socket.bindPort`, `Mem.retain`). Never use `snake_case` for a function
   name** (`nCpu`, not `n_cpu`; `readAll`, not `read_all`).
 - One statement per line; keep bodies short.
 
@@ -59,12 +59,19 @@ scope the value is dropped.
   array — `y` becomes invalid and using it afterwards is a compile error.
   `*int q = p` moves `p`; `string b = a` moves `a`.
 - **Borrows:** calls borrow like `&T` — `x.foo()`, `f(x)`, `str.*`,
-  `sys.*`, and `Mem.copy` leave their arguments valid; `&x` borrows;
-  `this` (the method receiver) never moves. Strings and arrays still leak
-  rather than drop, so a move transfers the single live name (overwriting
-  one leaks, as before). `int`/`bool`/enum are `Copy`.
-- **Free consumes:** `free(p)` / `Mem.freeInt` / `Mem.freeByte` invalidate
-  `p`; use-after-free and double-free are compile errors.
+  and `sys.*` leave their arguments valid; `&x` borrows;
+  `this` (the method receiver) never moves. `int`/`bool`/enum are `Copy`.
+- **Owned values free themselves:** dropping means a real `munmap` at scope
+  end (or reassignment), verified by the `frees` test — no `free` call
+  exists. There is no `alloc` either: buffers come only from typed
+  initialization (`int buf[n]`, `byte` is rejected as ambiguous,
+  `string s[n]`), array/string literals, and calls that return fresh
+  values. `*int q = p` still moves `p` (raw pointers never own and are
+  never freed).
+- **Never store a view in an owned slot:** `buf + off`, `&x`, `*p`, and
+  `@f` have no header to retain, so passing one where an owned value is
+  required (argument, field, return, binding) is a compile error —
+  materialize it first (e.g. `str.substring`).
 - **Clone explicitly with `x.move()`:** `x.move()` is available on any
   object, `string`, or array value — it borrows the receiver and returns a
   fresh owner of the same type (on objects just `mem.retainVal`, which still
@@ -91,35 +98,32 @@ like ordinary application code, **not** like a systems-programming demo:
   `sys.shortLoad`/`shortStore`, `sys.intLoad`/`intStore`, and the raw
   `sys.read`/`write`/`syscall` pass-throughs). When an example needs one
   of these, wrap it in a `std` class instead of calling it inline.
-- **Do not use `alloc` in an example.** Allocate through `std.Mem`
-  (`Mem.intArray` / `Mem.bytes` / `Mem.copy`, released with
-  `Mem.freeInt` / `Mem.freeByte`); raw `alloc`/`free`/`memcpy` appear in
-  exactly one example, `rawmem.flint`.
+- **Do not use `alloc` in an example.** There is no `alloc`: declare typed
+  buffers (`int buf[n]` for slots, `string s[n]` for bytes — never `byte`
+  for byte arithmetic, it would mean slots); owned values free themselves
+  at scope end, so there is no `free` either.
 - **Use the high-level stdlib API** (`src/stdlib/*.flint`). Do **not** call the
   low-level primitives directly in an example:
-  - `alloc`, `free`, `memcpy`
   - `sys.syscall`, `sys.read`, `sys.write`, `sys.mmap`, ...
   - raw memory ops: `sys.byteLoad`/`byteStore`, `sys.shortLoad`/`shortStore`,
     `sys.intLoad`/`intStore`
 - If a capability an example needs is missing from the stdlib, **add a stdlib
   wrapper for it** (in `package std;`, e.g. `class Thread`) and have the example
-  call that wrapper. Keep the raw `sys.*` / `alloc` calls *inside* the stdlib
+  call that wrapper. Keep the raw `sys.*` calls *inside* the stdlib
   module, where they belong. Models: `thread.flint` (Thread: nCpu/spawn/join),
   `net.flint` (Socket: stream/bindPort/bindHost/listen/accept/connectHost/
   sendAll/recv/close/nthDot), `sync.flint` (Sync: lock/unlock/cas/nanosleep),
   `mem.flint`
-  (Mem: intArray/bytes/copy/freeInt/freeByte), `file.flint` (File: readAll/writeAll/
+  (Mem: retain/release), `file.flint` (File: readAll/writeAll/
   copy/size/...).
 - Show the build line in the header comment, including the stdlib files it
   needs (e.g. `flintc src/stdlib/thread.flint examples/...flint -o ...`).
-- **Exactly one** example may show raw `alloc` / `free` / `memcpy`:
-  `rawmem.flint`, the low-level memory reference. **Every other example must
-  allocate through `std.Mem`** (`Mem.intArray` / `Mem.bytes` / `Mem.freeInt` /
-  `Mem.freeByte` /
-  `Mem.copy`) and use the stdlib (`File`, `Socket`, `Thread`, `Sync`) for any
-  other capability. (The byte-level parts of `strings2.flint` also *document*
-  the raw string API and may show `sys.byteLoad`, but must not use raw
-  `alloc`.)
+- **No example uses raw `alloc` / `free` / `memcpy`** (they no longer
+  exist): declare typed buffers (`int buf[n]`, `string s[n]`) and use the
+  stdlib (`File`, `Socket`, `Thread`, `Sync`) for any other capability.
+  (The byte-level parts of `strings2.flint` also *document* the raw string
+  API and may show `sys.byteLoad`.) `byte_access.flint` is the low-level
+  memory reference (typed buffers, sub-word access, syscalls).
 - Prefer `for` loops and small, focused helpers; use `str.itoa(n)` (or
   `println(n)`) to print numbers — never rely on `string + int`.
 

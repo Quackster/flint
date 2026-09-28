@@ -58,7 +58,7 @@ class Rand {
     }
     // n random bytes, NUL-terminated.
     static string bytes(int n) {
-        string out = alloc(n + 1);
+        string out = string[n + 1];
         int i = 0;
         while (i < n) {
             sys.byteStore(out + i, Rand.next() & 255);

@@ -346,6 +346,8 @@ fn is_builtin_callee(callee: &[String]) -> bool {
             | "json.geti"
             | "str.format"
             | "mem.retainVal"
+            | "mem.retainStr"
+            | "mem.releaseStr"
             | "sys.fnCall2"
             | "fnCall2"
     )
@@ -402,6 +404,8 @@ impl<'p> Checker<'p> {
                 }
                 Ok(())
             }
+            // A fresh owned buffer (moved into its slot, never from one).
+            Expr::SizedNew { size, .. } => self.check_expr_borrow(size),
             Expr::Cond { cond, then, els, .. } => {
                 self.check_expr_value(cond)?;
                 // Ternary moves like an if: merge the two branches.

@@ -26,6 +26,17 @@ impl Ctx<'_> {
                 self.emit("\tcall flint_retain");
                 self.emit("\tpop %rax");
             }
+            Ty::Str | Ty::Array => {
+                // string/array field: same, retaining the header below base
+                let kind = if matches!(field.ty, Ty::Str) { 1 } else { 0 };
+                self.emit(&format!("\tmovq {}(%rdi), %rax", off));
+                self.emit("\tpush %rax");
+                self.emit(&format!("\tcall flint_release_{}", cname));
+                self.emit("\tmov (%rsp), %rdi");
+                self.emit(&format!("\tmov ${}, %rsi", kind));
+                self.emit("\tcall flint_hdr_retain");
+                self.emit("\tpop %rax");
+            }
             _ => {
                 self.emit(&format!("\tmovq {}(%rdi), %rax", off));
                 self.emit("\tpush %rax");
@@ -54,15 +65,22 @@ impl Ctx<'_> {
         self.emit("\tpush %rax");
         self.emit("\tpush %rsi");
         self.emit("\tpush %rdi");
-        self.emit(&format!("\tmovq {}(%rsp), %r10", off)); // old field value
-        self.emit(&format!("\tcall flint_release_{}", cname)); // release this
+        self.emit("\tmovq (%rsp), %rdi"); // this (the destroy hook below may
+        self.emit(&format!("\tcall flint_release_{}", cname)); // clobber r10, so
+        self.emit("\tmovq (%rsp), %r10"); // reload this only afterwards...
+        self.emit(&format!("\tmovq {}(%r10), %r10", off)); // ...then old field
         self.emit("\tmov %r10, %rdi");
         self.emit("\ttest %rdi, %rdi");
         self.emit(&format!("\tjz .Lset_skip{}", self.strn));
         self.strn += 1;
-        if let Ty::Struct(fs) = field.ty {
-            let fname = &self.prog.structs[fs].name;
-            self.emit(&format!("\tcall flint_release_{}", fname));
+        match field.ty {
+            Ty::Struct(fs) => {
+                let fname = &self.prog.structs[fs].name;
+                self.emit(&format!("\tcall flint_release_{}", fname));
+            }
+            Ty::Str => self.emit("\tcall flint_str_release"),
+            Ty::Array => self.emit("\tcall flint_array_release"),
+            _ => {}
         }
         self.emit(&format!(".Lset_skip{}:", self.strn - 1));
         self.emit("\tpop %rdi");

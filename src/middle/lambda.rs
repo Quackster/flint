@@ -80,6 +80,7 @@ impl<'a> Lookup<'a> {
             Expr::Str { .. } => Some(Ty::Str),
             Expr::Null { .. } => Some(Ty::Ptr(None)),
             Expr::ArrayLit { .. } => Some(Ty::Array),
+            Expr::SizedNew { ty, .. } => Some(ty.clone()),
             Expr::Ident { name, .. } => known.get(name).cloned(),
             Expr::StructLit { name, type_args, .. } => {
                 let ci = *self.class_by_name.get(name)?;
@@ -310,6 +311,7 @@ fn block_has_lambda(b: &Block) -> bool {
             Expr::Field { base, .. } => expr_has(base.as_ref()),
             Expr::StructLit { fields, .. } => fields.iter().any(|(_, v)| expr_has(v)),
             Expr::ArrayLit { elems, .. } => elems.iter().any(expr_has),
+            Expr::SizedNew { size, .. } => expr_has(size.as_ref()),
             Expr::Cond { cond, then, els, .. } => {
                 expr_has(cond.as_ref()) || expr_has(then.as_ref()) || expr_has(els.as_ref())
             }
@@ -460,6 +462,7 @@ fn free_names(
                     walk(free, this, declared, params, v, span)?;
                 }
             }
+            Expr::SizedNew { size, .. } => walk(free, this, declared, params, size, span)?,
             Expr::Cond { cond, then, els, .. } => {
                 walk(free, this, declared, params, cond, span)?;
                 walk(free, this, declared, params, then, span)?;
@@ -636,6 +639,7 @@ fn rewrite_body(e: &mut Expr, scalar_off: &HashMap<String, i64>, this_captured: 
                 rewrite_body(v, scalar_off, this_captured);
             }
         }
+        Expr::SizedNew { size, .. } => rewrite_body(size, scalar_off, this_captured),
         Expr::Cond { cond, then, els, .. } => {
             rewrite_body(cond, scalar_off, this_captured);
             rewrite_body(then, scalar_off, this_captured);
@@ -725,11 +729,18 @@ fn rewrite_stmt(s: &mut Stmt, scalar_off: &HashMap<String, i64>, this_captured: 
     stmt(s, scalar_off, this_captured);
 }
 
-/// True when a type is a managed (reference-counted) object.
+/// True when a type needs an owned shadow slot in the lifted function:
+/// managed (reference-counted) objects plus strings and arrays (whose slot
+/// drops its reference at scope end, so a borrowed `ctx[i]` read would
+/// dangle once the owner goes out of scope).
 fn is_class_ty(t: &Option<Ty>) -> bool {
     matches!(
         t,
-        Some(Ty::Struct(_)) | Some(Ty::Inst(_, _)) | Some(Ty::Interface(_))
+        Some(Ty::Struct(_))
+            | Some(Ty::Inst(_, _))
+            | Some(Ty::Interface(_))
+            | Some(Ty::Str)
+            | Some(Ty::Array)
     )
 }
 
@@ -880,25 +891,23 @@ fn desugar_stmt(
                             span.start + 100 + slot as usize * 3,
                             span.start + 100 + slot as usize * 3 + 2,
                         );
+                        // A plain borrow-provenance read: the backend's
+                        // declaration rule takes a reference for the new
+                        // owned slot (like `x.move()` spelled without one).
                         shadow.push(Stmt::Decl {
                             span: dspan,
                             name: sym,
                             ty: ty.clone(),
-                            value: Expr::Call {
+                            value: Expr::Index {
                                 span: dspan,
-                                callee: vec!["mem".to_string(), "retainVal".to_string()],
-                                type_args: Vec::new(),
-                                args: vec![Expr::Index {
+                                base: Box::new(Expr::Ident {
                                     span: dspan,
-                                    base: Box::new(Expr::Ident {
-                                        span: dspan,
-                                        name: "ctx".to_string(),
-                                    }),
-                                    idx: Box::new(Expr::Int {
-                                        span: dspan,
-                                        value: slot as i64,
-                                    }),
-                                }],
+                                    name: "ctx".to_string(),
+                                }),
+                                idx: Box::new(Expr::Int {
+                                    span: dspan,
+                                    value: slot as i64,
+                                }),
                             },
                         });
                         if *is_this {
@@ -1002,6 +1011,9 @@ fn desugar_stmt(
                 for v in elems.iter_mut() {
                     expr(pkg, base, scope, v, lifted, n)?;
                 }
+            }
+            Expr::SizedNew { size, .. } => {
+                expr(pkg, base, scope, size, lifted, n)?;
             }
             Expr::Cond {
                 cond, then, els, ..
