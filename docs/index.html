@@ -2134,9 +2134,9 @@ doubling. The element flavour is derived from <code>T</code>
 <tr><td><code>T get(int i)</code></td><td>read the element by index
 (<code>0</code> out of range; object elements get a fresh reference) —
 a <code>string</code> for <code>List&lt;string&gt;</code></td></tr>
-<tr><td><code>T set(int i, T v)</code></td><td>write a slot (releases
-the displaced element, retains <code>v</code>); returns the displaced
-element</td></tr>
+<tr><td><code>T set(int i, T v)</code></td><td>write a slot (retains
+<code>v</code>); returns the displaced element (the slot's old reference
+transfers to it, so the caller owns the return value)</td></tr>
 <tr><td><code>contains(T v)</code></td><td>int compare; string content
 compare</td></tr>
 <tr><td><code>insert(int i, T v)</code></td><td>insert at index (tail

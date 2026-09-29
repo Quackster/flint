@@ -102,6 +102,10 @@ abstract class Collection {
     }
     static int hash(int kind, int v) {
         if (kind == 1) {
+            // v arrives as a raw int slot (no reference taken), but
+            // hashStr's epilogue drops its string param: take here what it
+            // drops there.
+            mem.retainStr(v);
             return Collection.hashStr(v);
         }
         return Collection.hashInt(v);
@@ -184,6 +188,9 @@ class List<T> extends Collection {
         Collection.releaseElem(this.kind, old);
         Collection.retainElem(this.kind, v);
         this.slots[i] = v;
+        // The slot's reference died above; hand the caller a fresh one
+        // for the displaced element (it owns the return value).
+        Collection.retainElem(this.kind, old);
         return old;
     }
     // Insert at i (the tail shifts right; i >= size appends).
@@ -209,8 +216,9 @@ class List<T> extends Collection {
         this.slots[i] = v;
         this.count = this.count + 1;
     }
-    // The removed element (0 when i >= size; object elements get a
-    // fresh reference).
+    // The removed element (0 when i >= size): the stored reference
+    // transfers to the caller (the stale tail slot is cleared, so the
+    // list keeps no reference behind).
     T remove(int i) {
         if (i >= this.count) {
             return 0;
@@ -223,9 +231,8 @@ class List<T> extends Collection {
         }
         this.count = this.count - 1;
         // The tail slot is stale after the shift; clear it so the
-        // element's reference lives only in the caller's retained copy.
+        // element's reference lives only in the returned copy.
         this.slots[this.count] = 0;
-        Collection.retainElem(this.kind, v);
         return v;
     }
     int contains(T v) {
@@ -302,11 +309,14 @@ class List<T> extends Collection {
         int i = 0;
         while (i < this.count) {
             int v = this.slots[i];
-            // A class-typed element is retained for the predicate call
-            // (the predicate releases its copy on return; a no-op for
-            // int / string elements).
+            // A class- or string-typed element is retained for the
+            // predicate call (the predicate releases its copy on
+            // return; a no-op for ints).
             Collection.retainElem(this.kind, v);
             if (sys.fnCall2(pred, v) == 1) {
+                // out.add takes another reference for the new list
+                // (the epilogue drops the call's own copy).
+                Collection.retainElem(this.kind, v);
                 out.add(v);
             }
             i = i + 1;
@@ -391,6 +401,8 @@ class Queue<T> extends Collection {
             int v = this.slots[(this.head + i) % this.cap];
             Collection.retainElem(this.kind, v);
             if (sys.fnCall2(pred, v) == 1) {
+                // Another reference for the new list (see List.filter).
+                Collection.retainElem(this.kind, v);
                 out.add(v);
             }
             i = i + 1;
@@ -765,6 +777,10 @@ class CopyOnWriteList<T> extends Collection {
         Collection.retainElem(this.kind, old);
         Collection.retainElem(this.kind, v);
         ns[i] = v;
+        // old's pointer is gone from ns now: drop copyOf's take on it
+        // (install drops the old array's slot reference; the caller
+        // drops the extra reference above).
+        Collection.releaseElem(this.kind, old);
         this.install(ns, n, n);
         return old;
     }
@@ -782,6 +798,10 @@ class CopyOnWriteList<T> extends Collection {
             ns[j] = ns[j + 1];
             j = j + 1;
         }
+        // old is gone from ns now (shifted out), so copyOf's take on it
+        // would leak: drop it here. (install drops the old array's slot
+        // reference; the caller drops the extra reference above.)
+        Collection.releaseElem(this.kind, old);
         this.install(ns, n, n - 1);
         return old;
     }
@@ -909,6 +929,8 @@ class CopyOnWriteList<T> extends Collection {
             int v = a[i];
             Collection.retainElem(this.kind, v);
             if (sys.fnCall2(pred, v) == 1) {
+                // Another reference for the new list (see List.filter).
+                Collection.retainElem(this.kind, v);
                 out.add(v);
             }
             i = i + 1;

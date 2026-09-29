@@ -218,11 +218,13 @@ impl Ctx<'_> {
     /// retained one for each argument — and locals) and the owned fields of
     /// stack-allocated objects. Class values use their per-class release;
     /// strings and arrays use the header-based helpers (both null-safe, so
-    /// moved/borrowed/conditional slots simply skip).
+    /// moved/borrowed/conditional slots simply skip). Reverse declaration
+    /// (LIFO) order: a later slot may hold a reference into an earlier one
+    /// (e.g. a collection's elements), so it must drop first.
     pub(crate) fn emit_end_releases(&mut self, frame: &Frame) {
         use crate::ast::Ty;
         let skip_this = frame.this_class.is_some() && !frame.release_this;
-        for (i, l) in frame.locals.iter().enumerate() {
+        for (i, l) in frame.locals.iter().enumerate().rev() {
             if skip_this && i == 0 {
                 continue;
             }

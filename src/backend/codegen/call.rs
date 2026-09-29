@@ -459,6 +459,10 @@ impl Ctx<'_> {
                     return self.gen_async_call(&mangled, total, span);
                 }
                 self.pop_args(total);
+                // The callee never releases `this`: spill the retained base
+                // for the post-call release below (async returns early and
+                // keeps its retain — the worker borrows past the spawn).
+                let base_spilled = self.spill_base(base, frame);
                 // vtable dispatch when the static type has a vtable slot and
                 // this is not a super call (super calls the parent's version
                 // statically, bypassing the vtable)
@@ -481,9 +485,15 @@ impl Ctx<'_> {
                 if meth.ret == Some(Ty::Void) {
                     self.emit("\tmovq $0, %rax");
                     self.emit("\tpush %rax");
+                    if base_spilled {
+                        self.release_spilled_base(base, frame);
+                    }
                     return Ok(Ty::Void);
                 } else {
                     self.emit("\tpush %rax");
+                    if base_spilled {
+                        self.release_spilled_base(base, frame);
+                    }
                     return Ok(meth.ret.clone().unwrap_or(Ty::Int));
                 }
             }
@@ -506,6 +516,9 @@ impl Ctx<'_> {
                         ));
                     }
                     // synthesize getter: no privacy check (consider public)
+                    // The getter consumes the transferred `this` reference
+                    // in-body, so (unlike a normal method) there is no
+                    // post-call base release here.
                     self.gen_expr(base, frame)?;
                     self.maybe_retain(base, frame);
                     self.pop_args(1);
@@ -536,6 +549,8 @@ impl Ctx<'_> {
                     check_ptr_conforms(&aty, &Some(f.ty.clone()), span, "cannot pass")?;
                     self.retain_for_slot(Some(&f.ty), &args[0], &aty, frame)?;
                     self.pop_args(2);
+                    // Like the getter, the setter consumes `this` in-body:
+                    // no post-call base release.
                     let mangled = mangle(&class_def.name, &sname);
                     self.emit(&format!("\tcall {}", mangled));
                     self.emit("\tmovq $0, %rax");
@@ -615,6 +630,9 @@ impl Ctx<'_> {
             ));
         }
         self.pop_args(total);
+        // Like instance calls the callee never releases `this`: spill the
+        // retained base for the post-call release (async keeps its retain).
+        let base_spilled = self.spill_base(base, frame);
         let slot = layout::interface_slot(self.prog, method).ok_or_else(|| {
             CompileError::new(span, format!("method '{}' not in vtable", method))
         })?;
@@ -624,9 +642,15 @@ impl Ctx<'_> {
         if meth.ret == Some(Ty::Void) {
             self.emit("\tmovq $0, %rax");
             self.emit("\tpush %rax");
+            if base_spilled {
+                self.release_spilled_base(base, frame);
+            }
             return Ok(Ty::Void);
         } else {
             self.emit("\tpush %rax");
+            if base_spilled {
+                self.release_spilled_base(base, frame);
+            }
             return Ok(meth.ret.clone().unwrap_or(Ty::Int));
         }
     }

@@ -225,6 +225,22 @@ flint_release:
     ret
     .size flint_release, .-flint_release
 
+    .globl flint_release_nofree
+    .type flint_release_nofree, @function
+# flint_release_nofree(obj): null-safe plain refcount decrement that never
+# destroys. Undoes a protection reference taken across a method call (the
+# caller retains the base because the callee never releases `this`). A
+# destroying release here would be wrong: during teardown the object may
+# be kept alive only by the destroy hook's own retain, and dropping it to
+# zero would re-enter destroy() forever (self-deadlock in practice).
+flint_release_nofree:
+    test %rdi, %rdi
+    jz .Lrelease_nf_done
+    decq (%rdi)
+.Lrelease_nf_done:
+    ret
+    .size flint_release_nofree, .-flint_release_nofree
+
     .globl flint_mem_retain_str
     .type flint_mem_retain_str, @function
 # flint_mem_retain_str(v): rdi = raw int holding a string base (the

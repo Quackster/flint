@@ -46,6 +46,40 @@ impl Ctx<'_> {
         self.retain_kind_for(e, frame).is_some()
     }
 
+    /// Spill a just-evaluated method-call base (in %rdi after `pop_args`)
+    /// for the post-call protection release below. Emits nothing (and
+    /// returns false) when `maybe_retain` took no reference on the base.
+    pub(crate) fn spill_base(&mut self, e: &Expr, frame: &Frame) -> bool {
+        if !self.should_retain(e, frame) {
+            return false;
+        }
+        self.emit("\tpush %rdi"); // base, below the upcoming return value
+        true
+    }
+
+    /// Drop the protection reference `maybe_retain` took on a synchronous
+    /// method base (the callee owns arguments but never `this`, so the
+    /// caller's retain would otherwise leak one reference per call). Call after the return value is pushed; consumes the
+    /// spilled slot so the value stack stays balanced. Async calls keep
+    /// their retain: the worker borrows the raw slot past the spawn.
+    pub(crate) fn release_spilled_base(&mut self, e: &Expr, frame: &Frame) {
+        // The protection release never destroys (flint_release_nofree):
+        // during teardown the base may be kept alive only by the destroy
+        // hook's own retain, and a destroying release would drop it back
+        // to zero and re-enter destroy() forever.
+        let helper = match self.retain_kind_for(e, frame) {
+            Some(RetainKind::Object) => "flint_release_nofree",
+            Some(RetainKind::Array) => "flint_array_release",
+            Some(RetainKind::Str) => "flint_str_release",
+            None => return,
+        };
+        self.emit("\tmovq 8(%rsp), %rdi"); // spilled base, below the return
+        self.emit("\tpop %r10"); // return value aside
+        self.emit("\tadd $8, %rsp"); // drop the spill slot
+        self.emit("\tpush %r10"); // return value back on top
+        self.emit(&format!("\tcall {}", helper));
+    }
+
     fn retain_kind_for(&self, e: &Expr, frame: &Frame) -> Option<RetainKind> {
         fn kind_of(t: &Ty) -> Option<RetainKind> {
             match t {
@@ -157,8 +191,15 @@ impl Ctx<'_> {
                 _ => {}
             }
         }
+        // Raw (`int`) slots own nothing: storing an object-typed value
+        // there takes no reference (the collections' unsafe core retains
+        // explicitly via Mem.retain). Retaining here would leak: no release
+        // ever balances an int slot.
+        if !owned {
+            return Ok(());
+        }
         self.maybe_retain(value, frame);
-        if !owned || !matches!(value, Expr::Index { .. }) {
+        if !matches!(value, Expr::Index { .. }) {
             return Ok(());
         }
         self.emit("\tmov (%rsp), %rdi");
