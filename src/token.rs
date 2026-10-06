@@ -62,6 +62,7 @@ pub enum Tok {
     ShrEq,    // >>=
     Tilde,    // ~ (bitwise not)
     RArrow,   // -> (lambda)
+    FatArrow, // => (match arm)
 
     // keywords
     If,
@@ -105,6 +106,7 @@ pub enum Tok {
     Finally,
     Async,
     Await,
+    Match, // `match`: pattern-matching expression
     Var, // `var`: the type is inferred from the initializer
     // type keywords
     KwByte,

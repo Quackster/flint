@@ -1,5 +1,6 @@
 use crate::ast::*;
 use crate::error::{CompileError, CompileResult};
+use crate::parser::is_lvalue;
 use crate::span::Span;
 
 use super::{Mono, fqn};
@@ -33,6 +34,20 @@ fn dotted_path(e: &Expr) -> Option<Vec<String>> {
         }
     }
     Some(names)
+}
+
+/// A `match` scrutinee that is safe to re-read per arm: an lvalue (a
+/// plain read) or a side-effect-free literal.
+fn is_matchable_scrutinee(e: &Expr) -> bool {
+    is_lvalue(e)
+        || matches!(
+            e,
+            Expr::Int { .. }
+                | Expr::Bool { .. }
+                | Expr::Str { .. }
+                | Expr::EnumVariant { .. }
+                | Expr::Null { .. }
+        )
 }
 
 impl<'a> Mono<'a> {
@@ -459,7 +474,175 @@ impl<'a> Mono<'a> {
                 let ty = self.resolve_type(ty, subst)?;
                 Ok(Expr::Instanceof { span: *span, e, ty })
             }
+            Expr::Match { span, scrutinee, arms } => {
+                self.resolve_match(*span, scrutinee, arms, subst)
+            }
         }
+    }
+
+    /// Desugar a `match` into a nested `Cond` chain. The scrutinee is an
+    /// lvalue in v1, so re-evaluating it per arm is a plain read (no
+    /// double side effects). Supported scrutinee types: int, char (a code
+    /// point), enum, and string.
+    fn resolve_match(
+        &mut self,
+        span: Span,
+        scrutinee: &Expr,
+        arms: &Vec<MatchArm>,
+        subst: &[(String, Ty)],
+    ) -> CompileResult<Expr> {
+        let st = self.expr_type(scrutinee, subst)?;
+        // The desugared chain re-reads the scrutinee per arm, so it must be
+        // a plain read: an lvalue or a side-effect-free literal. A call
+        // scrutinee would run once per arm. Restricted in v1.
+        if !is_matchable_scrutinee(scrutinee) {
+            return Err(CompileError::new(
+                span,
+                "match scrutinee must be a variable, field, index, or literal in v1 (a call is evaluated once per arm)",
+            ));
+        }
+        let scrut = Box::new(self.resolve_expr(scrutinee, subst)?);
+        let is_value = matches!(st, Ty::Int | Ty::Enum(_));
+        let is_str = matches!(st, Ty::Str);
+        if !is_value && !is_str {
+            return Err(CompileError::new(
+                span,
+                format!(
+                    "match on a {} is not supported in v1 (supported: int, char, enum, string)",
+                    match &st {
+                        Ty::Bool => "bool".to_string(),
+                        Ty::Void => "void".to_string(),
+                        Ty::Ptr(_) => "pointer".to_string(),
+                        Ty::Array => "array".to_string(),
+                        Ty::ByteArray => "byte buffer".to_string(),
+                        Ty::ShortArray => "short buffer".to_string(),
+                        Ty::Struct(_) => "class".to_string(),
+                        Ty::Interface(_) => "interface".to_string(),
+                        _ => "value".to_string(),
+                    }
+                ),
+            ));
+        }
+        if arms.is_empty() {
+            return Err(CompileError::new(span, "a match must have at least one arm"));
+        }
+        // The zero value, used as the fallback when no arm matches and
+        // there is no wildcard.
+        let fallback = match &st {
+            Ty::Int | Ty::Enum(_) => Expr::Int { span, value: 0 },
+            Ty::Str => Expr::Str { span, value: String::new() },
+            _ => unreachable!(),
+        };
+        // Build the chain: iterate arms in reverse so the first arm becomes
+        // the outermost condition; a wildcard arm replaces the fallback.
+        let mut result: Expr = fallback;
+        for arm in arms.iter().rev() {
+            let then = self.resolve_expr(arm.then.as_ref(), subst)?;
+            match &arm.pattern {
+                MatchPat::Wildcard => {
+                    result = then;
+                }
+                MatchPat::Int(v) => {
+                    if is_str {
+                        return Err(CompileError::new(
+                            arm.span,
+                            "an integer pattern cannot match a string scrutinee",
+                        ));
+                    }
+                    let cmp = Expr::BinOp {
+                        span: arm.span,
+                        op: BinOp::Eq,
+                        l: scrut.clone(),
+                        r: Box::new(Expr::Int { span: arm.span, value: *v }),
+                    };
+                    result = Expr::Cond {
+                        span: arm.span,
+                        cond: Box::new(cmp),
+                        then: Box::new(then),
+                        els: Box::new(result),
+                    };
+                }
+                MatchPat::Enum {
+                    enum_name,
+                    variant,
+                } => {
+                    if is_str {
+                        return Err(CompileError::new(
+                            arm.span,
+                            "an enum pattern cannot match a string scrutinee",
+                        ));
+                    }
+                    let val = self.enum_variant_value(span, enum_name, variant)?;
+                    let cmp = Expr::BinOp {
+                        span: arm.span,
+                        op: BinOp::Eq,
+                        l: scrut.clone(),
+                        r: Box::new(Expr::Int { span: arm.span, value: val }),
+                    };
+                    result = Expr::Cond {
+                        span: arm.span,
+                        cond: Box::new(cmp),
+                        then: Box::new(then),
+                        els: Box::new(result),
+                    };
+                }
+                MatchPat::Str(s) => {
+                    if !is_str {
+                        return Err(CompileError::new(
+                            arm.span,
+                            "a string pattern cannot match an int/char/enum scrutinee",
+                        ));
+                    }
+                    // strcmp(scrut, lit) == 0 (value equality; `==` on
+                    // strings would be a pointer comparison).
+                    let cmp_call = Expr::Call {
+                        span: arm.span,
+                        callee: vec!["strcmp".to_string()],
+                        type_args: Vec::new(),
+                        args: vec![
+                            scrut.as_ref().clone(),
+                            Expr::Str { span: arm.span, value: s.clone() },
+                        ],
+                    };
+                    let cmp = Expr::BinOp {
+                        span: arm.span,
+                        op: BinOp::Eq,
+                        l: Box::new(cmp_call),
+                        r: Box::new(Expr::Int { span: arm.span, value: 0 }),
+                    };
+                    result = Expr::Cond {
+                        span: arm.span,
+                        cond: Box::new(cmp),
+                        then: Box::new(then),
+                        els: Box::new(result),
+                    };
+                }
+            }
+        }
+        Ok(result)
+    }
+
+    /// The int value of an enum variant (`Enum.Variant`).
+    fn enum_variant_value(
+        &self,
+        span: Span,
+        enum_name: &str,
+        variant: &str,
+    ) -> CompileResult<i64> {
+        let eidx = self
+            .prog
+            .enums
+            .iter()
+            .position(|e| e.name == enum_name)
+            .ok_or_else(|| CompileError::new(span, format!("unknown enum '{}'", enum_name)))?;
+        self.prog.enums[eidx]
+            .variants
+            .iter()
+            .find(|(vn, _)| vn == variant)
+            .map(|(_, v)| *v)
+            .ok_or_else(|| {
+                CompileError::new(span, format!("unknown variant '{}.{}'", enum_name, variant))
+            })
     }
 
     /// The declared return type of a resolved non-generic free-function

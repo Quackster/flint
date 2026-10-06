@@ -176,6 +176,7 @@ impl<'a> Lexer<'a> {
             "finally" => Tok::Finally,
             "async" => Tok::Async,
             "await" => Tok::Await,
+            "match" => Tok::Match,
             "var" => Tok::Var,
             "byte" => Tok::KwByte,
             "short" => Tok::KwShort,
@@ -588,11 +589,16 @@ impl<'a> Lexer<'a> {
                 _ => Tok::Gt,
             },
             b'=' => {
-                if self.peek() == Some(b'=') {
-                    self.bump();
-                    Tok::EqEq
-                } else {
-                    Tok::Assign
+                match self.peek() {
+                    Some(b'=') => {
+                        self.bump();
+                        Tok::EqEq
+                    }
+                    Some(b'>') => {
+                        self.bump();
+                        Tok::FatArrow
+                    }
+                    _ => Tok::Assign,
                 }
             }
             other => {

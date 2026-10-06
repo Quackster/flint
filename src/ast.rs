@@ -345,6 +345,31 @@ pub enum UnOp {
     FnAddr, // @ (function address)
 }
 
+/// A pattern in a `match` arm.
+#[derive(Debug, Clone)]
+pub enum MatchPat {
+    /// An integer (or char, which is a code point) literal.
+    Int(i64),
+    /// A string literal.
+    Str(String),
+    /// An enum variant (`Enum.Variant`); resolved to its int value by the
+    /// monomorphizer.
+    Enum {
+        enum_name: String,
+        variant: String,
+    },
+    /// The wildcard `_`, which matches anything and serves as the fallback.
+    Wildcard,
+}
+
+/// One arm of a `match`: a pattern and the expression it yields.
+#[derive(Debug, Clone)]
+pub struct MatchArm {
+    pub span: Span,
+    pub pattern: MatchPat,
+    pub then: Box<Expr>,
+}
+
 #[derive(Debug, Clone)]
 pub enum Expr {
     Int {
@@ -543,5 +568,13 @@ pub enum Expr {
     Tuple {
         span: Span,
         elems: Vec<Expr>,
+    },
+    // `match <scrutinee> { <pat> => <expr>, ... }` — pattern matching.
+    // Supported scrutinee types: int, char (a code point), enum, and
+    // string. The monomorphizer desugars it into a nested `Cond` chain.
+    Match {
+        span: Span,
+        scrutinee: Box<Expr>,
+        arms: Vec<MatchArm>,
     },
 }

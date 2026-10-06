@@ -1,0 +1,10 @@
+int f(int n) {
+    int x = 5;
+    return match n {
+        x => 1,
+        _ => 2,
+    };
+}
+int main() {
+    return 0;
+}

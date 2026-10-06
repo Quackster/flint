@@ -92,14 +92,14 @@ class Str {
         int n = strlen(s);
         while (i + nsub <= n) {
             int k = 0;
-            int match = 1;
+            int found = 1;
             while (k < nsub) {
                 if (s[i + k] != sub[k]) {
-                    match = 0;
+                    found = 0;
                 }
                 k = k + 1;
             }
-            if (match == 1) {
+            if (found == 1) {
                 c = c + 1;
                 i = i + nsub;
             } else {
@@ -122,14 +122,14 @@ class Str {
         int i = n - nsub;
         while (i >= 0) {
             int k = 0;
-            int match = 1;
+            int found = 1;
             while (k < nsub) {
                 if (s[i + k] != sub[k]) {
-                    match = 0;
+                    found = 0;
                 }
                 k = k + 1;
             }
-            if (match == 1) {
+            if (found == 1) {
                 return i;
             }
             i = i - 1;
@@ -167,17 +167,17 @@ class Str {
         int n = strlen(s);
         while (i < n) {
             int k = 0;
-            int match = 0;
+            int found = 0;
             if (i + nfrom <= n) {
-                match = 1;
+                found = 1;
                 while (k < nfrom) {
                     if (s[i + k] != from[k]) {
-                        match = 0;
+                        found = 0;
                     }
                     k = k + 1;
                 }
             }
-            if (match == 1) {
+            if (found == 1) {
                 int j = 0;
                 int nto = strlen(to);
                 while (j < nto) {
@@ -225,14 +225,14 @@ class Str {
         int i = 0;
         while (i + nsep <= n) {
             int k = 0;
-            int match = 1;
+            int found = 1;
             while (k < nsep) {
                 if (s[i + k] != sep[k]) {
-                    match = 0;
+                    found = 0;
                 }
                 k = k + 1;
             }
-            if (match == 1) {
+            if (found == 1) {
                 out.add(str.substring(s, start, i - start));
                 i = i + nsep;
                 start = i;

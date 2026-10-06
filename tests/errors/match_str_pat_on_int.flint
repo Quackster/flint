@@ -1,0 +1,9 @@
+int f(int n) {
+    return match n {
+        "a" => 1,
+        _ => 2,
+    };
+}
+int main() {
+    return 0;
+}

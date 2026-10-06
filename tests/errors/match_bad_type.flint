@@ -1,0 +1,9 @@
+class C { int x; }
+int f(C c) {
+    return match c {
+        _ => 1,
+    };
+}
+int main() {
+    return 0;
+}

@@ -148,6 +148,12 @@ impl<'a> Mono<'a> {
             Expr::Cast { ty, .. } => self.resolve_type(ty, subst),
             Expr::Instanceof { .. } => Ok(Ty::Bool),
             Expr::Cond { then, .. } => self.expr_type(then, subst),
+            Expr::Match { arms, .. } => {
+                let first = arms.first().ok_or_else(|| {
+                    CompileError::new(Span::new(0, 0), "a match must have at least one arm")
+                })?;
+                self.expr_type(first.then.as_ref(), subst)
+            }
             Expr::OptChain { base, rest, .. } => {
                 let bt = self.expr_type(base, subst)?;
                 let saved = std::mem::replace(&mut self.opt_ref_ty, Some(bt));

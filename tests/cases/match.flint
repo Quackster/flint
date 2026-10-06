@@ -1,0 +1,80 @@
+// match: pattern matching over int/char/enum/string scrutinees.
+// Desugared (by the monomorphizer) into a chained conditional. The
+// scrutinee is read once per arm; a trailing `_` arm is the fallback, and
+// an int/enum match with no `_` falls back to 0.
+
+enum Color {
+    RED,
+    GREEN,
+    BLUE,
+}
+
+int grade(int n) {
+    return match n {
+        1 => 100,
+        2 => 200,
+        _ => 0,
+    };
+}
+
+int no_wild(int n) {
+    return match n {
+        5 => 50,
+        6 => 60,
+    };
+}
+
+int letter(char c) {
+    return match c {
+        'a' => 1,
+        'b' => 2,
+        'c' => 3,
+        _ => 9,
+    };
+}
+
+int col(Color c) {
+    return match c {
+        Color.RED => 1,
+        Color.GREEN => 2,
+        Color.BLUE => 3,
+        _ => 4,
+    };
+}
+
+int tag(string s) {
+    return match s {
+        "hello" => 1,
+        "world" => 2,
+        _ => 3,
+    };
+}
+
+int main() {
+    // 1. int match with a wildcard.
+    println(grade(1));    // 100
+    println(grade(2));    // 200
+    println(grade(9));    // 0 (wildcard)
+
+    // 2. int match without a wildcard: no arm matches -> 0.
+    println(no_wild(5));  // 50
+    println(no_wild(6));  // 60
+    println(no_wild(7));  // 0 (no match, no wildcard)
+
+    // 3. char match.
+    println(letter('a')); // 1
+    println(letter('c')); // 3
+    println(letter('z')); // 9 (wildcard)
+
+    // 4. enum match.
+    println(col(Color.RED));    // 1
+    println(col(Color.BLUE));   // 3
+    println(col(Color.GREEN));  // 2
+
+    // 5. string match (value equality via strcmp).
+    println(tag("hello")); // 1
+    println(tag("world")); // 2
+    println(tag("other")); // 3 (wildcard)
+
+    return 0;
+}

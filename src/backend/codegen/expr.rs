@@ -20,6 +20,10 @@ impl Ctx<'_> {
                 // Should be resolved to Expr::Int by the mono pass.
                 Err(CompileError::new(*span, "enum variant not resolved"))
             }
+            Expr::Match { span, .. } => {
+                // Should be desugared to a Cond chain by the mono pass.
+                Err(CompileError::new(*span, "match not desugared"))
+            }
             Expr::Bool { value, .. } => {
                 self.emit(&format!("\tmovq ${}, %rax", if *value { 1 } else { 0 }));
                 self.emit("\tpush %rax");

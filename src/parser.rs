@@ -2332,6 +2332,93 @@ impl<'a> Parser<'a> {
         })
     }
 
+    /// `match <expr> { <pattern> => <expr>, ... }` — a pattern-matching
+    /// expression. Supported patterns: an int/char literal, a string
+    /// literal, an enum variant (`Enum.Variant`), and the wildcard `_`.
+    fn parse_match(&mut self) -> CompileResult<Expr> {
+        let span = self.cur().span;
+        self.bump(); // match
+        let scrutinee = self.parse_expr()?;
+        self.expect(&Tok::LBrace, "'{' after 'match' expression")?;
+        let mut arms: Vec<MatchArm> = Vec::new();
+        while !self.at(&Tok::RBrace) {
+            let aspan = self.cur().span;
+            let pattern = self.parse_match_pat()?;
+            self.expect(&Tok::FatArrow, "'=>' after match pattern")?;
+            let then = self.parse_expr()?;
+            arms.push(MatchArm {
+                span: aspan,
+                pattern,
+                then: Box::new(then),
+            });
+            if self.at(&Tok::RBrace) {
+                continue;
+            }
+            self.expect(&Tok::Comma, "',' between match arms")?;
+        }
+        self.expect(&Tok::RBrace, "'}' after 'match' body")?;
+        if arms.is_empty() {
+            return Err(CompileError::new(span, "a match must have at least one arm"));
+        }
+        Ok(Expr::Match {
+            span,
+            scrutinee: Box::new(scrutinee),
+            arms,
+        })
+    }
+
+    fn parse_match_pat(&mut self) -> CompileResult<MatchPat> {
+        let span = self.cur().span;
+        // A negative integer (or char) literal: `-5`.
+        if self.peek_kind() == Tok::Minus {
+            if let Tok::Int(v) = self.next_kind() {
+                self.bump(); // '-'
+                self.bump(); // literal
+                return Ok(MatchPat::Int(-v));
+            }
+        }
+        match self.peek_kind() {
+            Tok::Int(v) => {
+                self.bump();
+                Ok(MatchPat::Int(v))
+            }
+            Tok::Str(s) => {
+                self.bump();
+                Ok(MatchPat::Str(s))
+            }
+            Tok::Ident(n) => {
+                if n == "_" {
+                    self.bump();
+                    Ok(MatchPat::Wildcard)
+                } else if self.next_kind() == Tok::Dot {
+                    let enum_name = n.clone();
+                    self.bump(); // name
+                    self.bump(); // '.'
+                    let variant = self.expect_ident()?;
+                    Ok(MatchPat::Enum {
+                        enum_name,
+                        variant,
+                    })
+                } else {
+                    Err(CompileError::new(
+                        span,
+                        format!(
+                            "unsupported match pattern '{}'; use an int/char literal, a string, an enum variant, or '_'",
+                            n
+                        ),
+                    ))
+                }
+            }
+            other => Err(CompileError::new(
+                span,
+                format!(
+                    "unsupported match pattern; use an int/char literal, a string, an enum variant, or '_' (found {:?})",
+                    other
+                ),
+            )),
+        }
+    }
+
     /// Parse one statement (or a desugared run of them) and append to `out`.
     fn parse_stmt(&mut self, out: &mut Vec<Stmt>) -> CompileResult<()> {
         match self.peek_kind() {
@@ -2729,6 +2816,9 @@ impl<'a> Parser<'a> {
                 span: span.join(&expr_span(&e)),
                 e: Box::new(e),
             });
+        }
+        if kind == Tok::Match {
+            return self.parse_match();
         }
         self.parse_postfix()
     }
@@ -3258,7 +3348,8 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::OptChain { span, .. }
         | Expr::OptRef { span, .. }
         | Expr::Coalesce { span, .. }
-        | Expr::Tuple { span, .. } => *span,
+        | Expr::Tuple { span, .. }
+        | Expr::Match { span, .. } => *span,
     }
 }
 

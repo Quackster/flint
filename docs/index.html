@@ -13,7 +13,7 @@
 <a class="brand" href="#index">Flint<span> docs</span></a>
 <input class="search" id="nav-search" type="search" placeholder="Filter sections…" aria-label="Filter sections">
 <div class="nav-section"><div class="nav-title">Getting started</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#index">Overview</a></li><li><a href="#getting-started">Getting started</a></li><li><a href="#compiler">The toolchain</a></li><li><a href="#modules">Modules & multi-file</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#lambdas">Lambdas &amp; closures</a></li><li><a href="#exceptions">Exceptions</a></li><li><a href="#tuples">Tuples &amp; multi-value returns</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#lambdas">Lambdas &amp; closures</a></li><li><a href="#exceptions">Exceptions</a></li><li><a href="#tuples">Tuples &amp; multi-value returns</a></li><li><a href="#match">Match</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#event-handlers">Event handlers (+=)</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#std-coll">Collections (stdlib)</a></li><li><a href="#coll-list">List</a></li><li><a href="#coll-queue">Queue</a></li><li><a href="#coll-hashset">HashSet</a></li><li><a href="#coll-hashmap">HashMap</a></li><li><a href="#coll-cowlist">CopyOnWriteList</a></li><li><a href="#coll-flavour">The element flavour</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
@@ -1009,10 +1009,121 @@ int main() {
  6
  10
  lit
- 22
- n=11</div>
- </section>
- <section id="classes" class="doc-section" data-label="Classes & fields">
+  22
+  n=11</div>
+  </section>
+  <section id="match" class="doc-section" data-label="Match">
+  <div class="page-head"><h1>Match</h1>
+  <p class="lede">A <code>match</code> expression pattern-matches a scrutinee
+  — an int, char, enum, or string — against a list of patterns, yielding the
+  first arm whose pattern fits. It is an expression (it has a value) and can
+  also stand alone as a statement.</p></div>
+
+  <h2>Shape</h2>
+  <div class="code"><div class="head"><span>shape</span></div>
+  <pre><code class="flint">int result = match scrutinee {
+      1 =&gt; "one",          // int / char literal
+      "two" =&gt; 2,          // string literal
+      Color.RED =&gt; 3,     // enum variant
+      _ =&gt; 0,              // wildcard (the fallback)
+  };</code></pre></div>
+
+  <h2>Semantics (v1)</h2>
+  <ul>
+  <li><b>Scrutinee types.</b> The scrutinee must be an <code>int</code>,
+  <code>char</code> (a code point), an <code>enum</code>, or a
+  <code>string</code>. Matching a class, pointer, or other value is a
+  compile error.</li>
+  <li><b>Patterns.</b> An int/char literal (including negative), a string
+  literal, an enum variant (<code>Enum.Variant</code>), and the wildcard
+  <code>_</code>. A pattern must agree with the scrutinee type.</li>
+  <li><b>First match wins.</b> Arms are tried in order; the first whose
+  pattern fits yields the value. A <code>_</code> arm matches anything and
+  serves as the fallback (arms after it are unreachable).</li>
+  <li><b>No wildcard = zero fallback.</b> An int/enum match with no
+  <code>_</code> yields <code>0</code> when nothing matches; a string match
+  yields the empty string.</li>
+  <li><b>Scrutinee is a plain read.</b> The scrutinee must be a variable,
+  field, index, or literal. It is read once per arm, so a call scrutinee
+  (which would run once per arm) is a compile error.</li>
+  <li><b>String equality is by value.</b> A string pattern compares by value
+  (<code>strcmp</code>), not by pointer.</li>
+  </ul>
+
+  <h2>Worked example</h2>
+  <div class="code"><div class="head"><span>tests/cases/match.flint</span></div>
+  <pre><code class="flint">enum Color {
+    RED,
+    GREEN,
+    BLUE,
+}
+
+int grade(int n) {
+    return match n {
+        1 =&gt; 100,
+        2 =&gt; 200,
+        _ =&gt; 0,
+    };
+}
+
+int letter(char c) {
+    return match c {
+        'a' =&gt; 1,
+        'b' =&gt; 2,
+        'c' =&gt; 3,
+        _ =&gt; 9,
+    };
+}
+
+int col(Color c) {
+    return match c {
+        Color.RED =&gt; 1,
+        Color.GREEN =&gt; 2,
+        Color.BLUE =&gt; 3,
+        _ =&gt; 4,
+    };
+}
+
+int tag(string s) {
+    return match s {
+        "hello" =&gt; 1,
+        "world" =&gt; 2,
+        _ =&gt; 3,
+    };
+}
+
+int main() {
+    println(grade(1));    // 100
+    println(grade(2));    // 200
+    println(grade(9));    // 0 (wildcard)
+    println(letter('a')); // 1
+    println(letter('c')); // 3
+    println(letter('z')); // 9 (wildcard)
+    println(col(Color.RED));   // 1
+    println(col(Color.BLUE));  // 3
+    println(col(Color.GREEN)); // 2
+    println(tag("hello"));     // 1
+    println(tag("world"));     // 2
+    println(tag("other"));     // 3 (wildcard)
+    return 0;
+ }</code></pre></div>
+  <div class="output"><span class="lbl">output</span>100
+  200
+  0
+  1
+  3
+  9
+  1
+  3
+  2
+  1
+  2
+  3</div>
+  <p>The <code>no_wild</code> variant shows the zero fallback: a match on
+  <code>5</code>/<code>6</code> yields <code>50</code>/<code>60</code>, but
+  a value with no matching arm (and no <code>_</code>) yields <code>0</code>.</p>
+  </section>
+  <section id="classes" class="doc-section" data-label="Classes & fields">
 <div class="page-head"><h1>Classes &amp; fields</h1>
 <p class="lede">A <code>class</code> with plain fields is a struct. Objects can
 hold object fields; <code>new</code> fills fields, including nested objects,

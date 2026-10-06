@@ -1,0 +1,12 @@
+int f() {
+    return 1;
+}
+int g() {
+    return match f() {
+        1 => 1,
+        _ => 2,
+    };
+}
+int main() {
+    return 0;
+}
