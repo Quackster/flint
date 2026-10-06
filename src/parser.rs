@@ -2558,6 +2558,7 @@ impl<'a> Parser<'a> {
                         span,
                         base,
                         method: name,
+                        type_args: call_type_args.take().unwrap_or_default(),
                         args,
                     };
                 } else {

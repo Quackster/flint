@@ -179,6 +179,7 @@ impl<'a> Mono<'a> {
                 span,
                 base,
                 method,
+                type_args,
                 args,
             } => {
                 // A dotted-path base may be a qualified free-function call
@@ -192,12 +193,18 @@ impl<'a> Mono<'a> {
                             let call = Expr::Call {
                                 span: *span,
                                 callee: path,
-                                type_args: Vec::new(),
+                                type_args: type_args.clone(),
                                 args: args.clone(),
                             };
                             return self.resolve_expr(&call, subst);
                         }
                     }
+                }
+                if !type_args.is_empty() {
+                    return Err(CompileError::new(
+                        *span,
+                        "methods cannot have type arguments in v1",
+                    ));
                 }
                 let base = Box::new(self.resolve_expr(base, subst)?);
                 let args: Vec<Expr> = args
@@ -208,6 +215,7 @@ impl<'a> Mono<'a> {
                     span: *span,
                     base,
                     method: method.clone(),
+                    type_args: Vec::new(),
                     args,
                 })
             }

@@ -9,7 +9,7 @@ x86_64 Linux assembly (no libc).
 
 ```sh
 cargo build                 # -> target/debug/flintc (release: --release)
-bash tests/run_tests.sh     # full suite (expect: PASS=125  FAIL=0)
+bash tests/run_tests.sh     # full suite (expect: PASS=126  FAIL=0)
 ```
 
 Requires `as` and `ld` (binutils) on the PATH. Compile one program:

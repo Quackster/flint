@@ -1,0 +1,99 @@
+// Combinators: the `map` / `forEach` methods on List / Queue /
+// CopyOnWriteList (same element type) and the free generic functions
+// std.map<T, U> (type-changing map), std.reduce<T, U> (fold), and
+// std.forEach<T>. A lambda is a closure value; its parameters are typed
+// (class-typed parameters need parens: `(Item it) -> Item { ... }`).
+import std.List;
+import std.Queue;
+import std.CopyOnWriteList;
+class Item {
+    string name;
+    Item(string n) {
+        this.name = n;
+    }
+}
+int main() {
+    List<int> xs = new List<int>();
+    xs.add(1);
+    xs.add(2);
+    xs.add(3);
+    // list method map (same type)
+    List<int> doubled = xs.map(int x -> int {
+        return x * 2;
+    });
+    println(doubled.get(0));
+    println(doubled.get(2));
+    // free generic map (type change)
+    List<string> ss = std.map<int, string>(xs, int x -> string {
+        return str.itoa(x * 10);
+    });
+    println(ss.get(1));
+    // map back
+    List<int> back = std.map<string, int>(ss, string s -> int {
+        return atoi(s);
+    });
+    println(back.get(2));
+    // reduce: int fold
+    int sum = std.reduce<int, int>(xs, (int acc, int x) -> int {
+        return acc + x;
+    }, 0);
+    println(sum);
+    // reduce: string accumulator
+    string joined = std.reduce<int, string>(xs, (string acc, int x) -> string {
+        return str.concat(acc, str.itoa(x));
+    }, "");
+    println(joined);
+    // reduce: class elements
+    List<Item> items = new List<Item>();
+    items.add(new Item("ab"));
+    items.add(new Item("cd"));
+    string names = std.reduce<Item, string>(items, (string acc, Item it) -> string {
+        return str.concat(acc, it.name);
+    }, "s:");
+    println(names);
+    // class-element map (Item -> Item, fresh objects)
+    List<Item> copied = std.map<Item, Item>(items, (Item it) -> Item {
+        return new Item(it.name);
+    });
+    println(copied.get(1).name);
+    // forEach over a queue
+    Queue<int> q = new Queue<int>();
+    q.push(10);
+    q.push(20);
+    List<int> qm = q.map(int x -> int {
+        return x + 1;
+    });
+    println(qm.get(0));
+    println(qm.get(1));
+    // forEach over a copy-on-write list
+    CopyOnWriteList<int> cow = new CopyOnWriteList<int>();
+    cow.add(5);
+    cow.add(6);
+    List<int> cm = cow.map(int x -> int {
+        return x * x;
+    });
+    println(cm.get(1));
+    // churn: refcounts stay balanced across null-ish / object flows
+    int i = 0;
+    while (i < 200) {
+        List<string> ws = new List<string>();
+        ws.add(str.concat("a", str.itoa(i % 10)));
+        ws.add("bb");
+        List<int> lens = std.map<string, int>(ws, string s -> int {
+            return str.len(s);
+        });
+        List<string> same = std.map<string, string>(ws, string s -> string {
+            return s;
+        });
+        int total = std.reduce<string, int>(ws, (int acc, string s) -> int {
+            return acc + str.len(s);
+        }, 0);
+        if (lens.get(0) != 2 || same.get(1) != "bb" || total != 4) {
+            println("BAD");
+            return 1;
+        }
+        i = i + 1;
+    }
+    println("done");
+    return 0;
+}

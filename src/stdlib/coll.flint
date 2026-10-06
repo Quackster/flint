@@ -323,6 +323,33 @@ class List<T> extends Collection {
         }
         return out;
     }
+    // A fresh List<T> with `f` applied to each element, in order (the
+    // element type does not change; std.map<T, U> changes it).
+    List<T> map(*int f) {
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[i];
+            // Retained for the lambda call (released on its return).
+            Collection.retainElem(this.kind, v);
+            // r is fresh from the lambda; out.add's epilogue drops the
+            // call's own copy, leaving the slot's own reference.
+            int r = sys.fnCall2(f, v);
+            out.add(r);
+            i = i + 1;
+        }
+        return out;
+    }
+    // Call `f(elem)` for each element, in order; the result is dropped.
+    void forEach(*int f) {
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[i];
+            Collection.retainElem(this.kind, v);
+            sys.fnCall2(f, v);
+            i = i + 1;
+        }
+    }
 }
 class Queue<T> extends Collection {
     int head;
@@ -408,6 +435,28 @@ class Queue<T> extends Collection {
             i = i + 1;
         }
         return out;
+    }
+    // See List.map / List.forEach.
+    List<T> map(*int f) {
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[(this.head + i) % this.cap];
+            Collection.retainElem(this.kind, v);
+            int r = sys.fnCall2(f, v);
+            out.add(r);
+            i = i + 1;
+        }
+        return out;
+    }
+    void forEach(*int f) {
+        int i = 0;
+        while (i < this.count) {
+            int v = this.slots[(this.head + i) % this.cap];
+            Collection.retainElem(this.kind, v);
+            sys.fnCall2(f, v);
+            i = i + 1;
+        }
     }
 }
 class HashSet<T> extends Collection {
@@ -936,6 +985,33 @@ class CopyOnWriteList<T> extends Collection {
             i = i + 1;
         }
         return out;
+    }
+    // See List.map / List.forEach (read over a snapshot, like the
+    // other readers).
+    List<T> map(*int f) {
+        int n = this.count;
+        int a[] = this.slots;
+        List<T> out = new List<T>();
+        int i = 0;
+        while (i < n) {
+            int v = a[i];
+            Collection.retainElem(this.kind, v);
+            int r = sys.fnCall2(f, v);
+            out.add(r);
+            i = i + 1;
+        }
+        return out;
+    }
+    void forEach(*int f) {
+        int n = this.count;
+        int a[] = this.slots;
+        int i = 0;
+        while (i < n) {
+            int v = a[i];
+            Collection.retainElem(this.kind, v);
+            sys.fnCall2(f, v);
+            i = i + 1;
+        }
     }
     // The COW "iterator": a fresh List<T> holding the elements as of
     // now; later mutations install new arrays and do not affect it.

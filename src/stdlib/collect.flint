@@ -1,0 +1,90 @@
+// std/collect — combinators over List<T>: `map`, `reduce`, and
+// `forEach`. The function is a lambda value passed as a closure block
+// (`*int`); `map` and `reduce` carry explicit type arguments because the
+// result element type is not visible in the arguments:
+//
+//   std.map<T, U>(xs, f)      fresh List<U> with `f` applied to each element
+//   std.reduce<T, U>(xs, f, init)   fold: `f(acc, elem)` -> acc
+//   std.forEach<T>(xs, f)    call `f(elem)` for every element (no result)
+//
+// A lambda receives its elements as raw slot values (the runtime does no
+// conversion), so write the parameter with the element type:
+// `string s -> int { ... }` for a List<string>.
+//
+// Usage (call qualified as std.map / std.reduce / std.forEach):
+//   import std.List;
+//   List<int> xs = new List<int>();
+//   List<string> ss = std.map<int, string>(xs, int x -> string {
+//       return str.itoa(x);
+//   });
+//   int sum = std.reduce<int, int>(xs, int acc, int x -> int {
+//       return acc + x;
+//   }, 0);
+package std;
+
+// A fresh List<U> whose elements are `f` applied to the elements of `xs`,
+// in order. The lambda is called as `f(element)` and returns the new
+// element.
+List<U> map<T, U>(List<T> xs, *int f) {
+    List<U> out = new List<U>();
+    int i = 0;
+    while (i < xs.size()) {
+        int v = xs.get(i);
+        // A class- or string-typed element is retained for the lambda
+        // call (the lambda releases its copy on return; a no-op for ints).
+        Collection.retainElem(xs.kind, v);
+        int r = sys.fnCall2(f, v);
+        Collection.releaseElem(xs.kind, v);
+        // r owns one reference (fresh from the lambda); out.add's epilogue
+        // drops the call's copy, leaving the slot's own.
+        out.add(r);
+        i = i + 1;
+    }
+    return out;
+}
+
+// Fold `f` over the elements of `xs`: `acc` starts at `init` and each
+// step computes `f(acc, elem)`. The lambda is called as
+// `f(acc, element)` and returns the next accumulator. The accumulator
+// lives in a one-field box (v1 has no type-parameter locals) so that
+// field-store release keeps the old value's reference balanced.
+class ReduceBox<V> {
+    V v;
+    public ReduceBox(V x) {
+        this.v = x;
+    }
+}
+
+U reduce<T, U>(List<T> xs, *int f, U init) {
+    // A throwaway List<U> to read the baked element flavour of U (the
+    // same dispatch the collections use for retain/release).
+    List<U> probe = new List<U>();
+    int ukind = probe.kind;
+    ReduceBox<U> box = new ReduceBox<U>(init);
+    int i = 0;
+    while (i < xs.size()) {
+        int v = xs.get(i);
+        Collection.retainElem(xs.kind, v);
+        Collection.retainElem(ukind, box.v);
+        int r = sys.fnCall3(f, box.v, v);
+        Collection.releaseElem(xs.kind, v);
+        // The field store releases the old accumulator and takes r's
+        // reference (fresh from the lambda).
+        box.v = r;
+        i = i + 1;
+    }
+    return box.v;
+}
+
+// Call `f(elem)` for every element of `xs`, in order; the return value
+// of the lambda is discarded.
+void forEach<T>(List<T> xs, *int f) {
+    int i = 0;
+    while (i < xs.size()) {
+        int v = xs.get(i);
+        Collection.retainElem(xs.kind, v);
+        sys.fnCall2(f, v);
+        Collection.releaseElem(xs.kind, v);
+        i = i + 1;
+    }
+}

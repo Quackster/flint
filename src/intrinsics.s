@@ -208,6 +208,16 @@ flint_fn_call2:
     ret
     .size flint_fn_call2, .-flint_fn_call2
 
+    .globl flint_fn_call3
+    .type flint_fn_call3, @function
+# flint_fn_call3(block, a, b): invoke a closure. `block` is [fn_ptr][cap...];
+# the lifted function is called as fn(ctx = block, a, b).
+# args: rdi=block, rsi=a, rdx=b
+flint_fn_call3:
+    call *0(%rdi)
+    ret
+    .size flint_fn_call3, .-flint_fn_call3
+
     .globl flint_release
     .type flint_release, @function
 # flint_release(obj): the generic class-object release behind `mem.release`

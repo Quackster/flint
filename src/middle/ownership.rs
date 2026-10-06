@@ -344,6 +344,8 @@ fn is_builtin_callee(callee: &[String]) -> bool {
             | "mem.releaseStr"
             | "sys.fnCall2"
             | "fnCall2"
+            | "sys.fnCall3"
+            | "fnCall3"
             | "assert"
             | "io.assert"
             | "panic"
@@ -369,7 +371,7 @@ impl<'p> Checker<'p> {
             // Calls (even nested in a borrow position) still move their
             // class-typed ident args — e.g. `print(sum(a))` moves `a`.
             Expr::Call { callee, args, span, .. } => self.check_call(callee, args, *span),
-            Expr::MethodCall { base, method, args, span } => {
+            Expr::MethodCall { base, method, args, span, .. } => {
                 self.check_method_call(base, method, args, *span)
             }
             Expr::BinOp { l, r, .. } => {
@@ -476,7 +478,7 @@ impl<'p> Checker<'p> {
         // `new Pair(makeBox(), 1)`) are handled by the nested call checks.
         match e {
             Expr::Call { callee, args, span, .. } => self.check_call(callee, args, *span),
-            Expr::MethodCall { base, method, args, span } => {
+            Expr::MethodCall { base, method, args, span, .. } => {
                 self.check_method_call(base, method, args, *span)
             }
             _ => self.check_expr_borrow(e),
@@ -490,7 +492,7 @@ impl<'p> Checker<'p> {
         }
         match e {
             Expr::Call { callee, args, span, .. } => self.check_call(callee, args, *span),
-            Expr::MethodCall { base, method, args, span } => {
+            Expr::MethodCall { base, method, args, span, .. } => {
                 self.check_method_call(base, method, args, *span)
             }
             _ => self.check_expr_borrow(e),
@@ -578,7 +580,7 @@ impl<'p> Checker<'p> {
         match e {
             Expr::Ident { name, span } => self.use_borrow(name, *span),
             Expr::Call { callee, args, span, .. } => self.check_call(callee, args, *span),
-            Expr::MethodCall { base, method, args, span } => {
+            Expr::MethodCall { base, method, args, span, .. } => {
                 self.check_method_call(base, method, args, *span)
             }
             _ => self.check_expr_borrow(e),

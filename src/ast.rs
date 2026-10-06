@@ -361,6 +361,10 @@ pub enum Expr {
         span: Span,
         base: Box<Expr>,
         method: String,
+        /// Type arguments for a qualified generic free-function call
+        /// (`std.map<T, U>(xs, f)`); empty for real method calls (which
+        /// have no method-level generics in v1).
+        type_args: Vec<Ty>,
         args: Vec<Expr>,
     },
     BinOp {

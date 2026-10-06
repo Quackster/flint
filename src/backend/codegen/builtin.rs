@@ -440,6 +440,13 @@ pub(crate) fn builtin_for(path: &[String]) -> Option<Builtin> {
             ret: Ty::Int,
             noreturn: false,
         }),
+        // Call a two-argument closure: fn(ctx = block, a, b).
+        "sys.fnCall3" | "fnCall3" => Some(Builtin {
+            target: "flint_fn_call3",
+            arity: 3,
+            ret: Ty::Int,
+            noreturn: false,
+        }),
         _ => None,
     }
 }
