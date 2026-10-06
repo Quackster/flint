@@ -1,4 +1,5 @@
 use crate::ast::{Block, ClassDef, FuncDef, MethodDef, Stmt, Ty};
+use crate::span::Span;
 use crate::error::{CompileError, CompileResult};
 
 use crate::backend::escape::{self, LocalKind};
@@ -164,7 +165,9 @@ impl Ctx<'_> {
     /// same source order as the escape pre-pass.
     pub(crate) fn prewalk_decls(&mut self, block: &Block, frame: &mut Frame, plan: &escape::FuncPlan) {
         escape::for_each_decl(block, |stmt| {
-            if let Stmt::Decl { span, name, .. } = stmt {
+            // Allocate a slot for a (name, span) using the plan entry for
+            // that span (a tuple destructure has one entry per field).
+            let mut alloc = |name: &str, span: &Span| {
                 if let Some(dp) = plan.decls.get(span) {
                     let off = frame.slot();
                     let region = match dp.nslots {
@@ -172,13 +175,27 @@ impl Ctx<'_> {
                         None => None,
                     };
                     frame.locals.push(Local {
-                        name: name.clone(),
+                        name: name.to_string(),
                         off,
                         ty: dp.ty.clone().unwrap_or(Ty::Int),
                         kind: dp.kind,
                         region,
                     });
                 }
+            };
+            match stmt {
+                Stmt::Decl { span, name, .. } => alloc(name, span),
+                Stmt::TupleDecl { fields, .. } => {
+                    for (_, name, nspan) in fields {
+                        alloc(name, nspan);
+                    }
+                }
+                Stmt::TupleVar { names, .. } => {
+                    for (name, nspan) in names {
+                        alloc(name, nspan);
+                    }
+                }
+                _ => {}
             }
         });
     }

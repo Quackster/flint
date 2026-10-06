@@ -78,6 +78,13 @@ impl<'a> Mono<'a> {
                 };
                 self.resolve_type(&target, subst)
             }
+            Ty::Tuple(elems) => {
+                let resolved: Vec<Ty> = elems
+                    .iter()
+                    .map(|e| self.resolve_type(e, subst))
+                    .collect::<CompileResult<_>>()?;
+                Ok(Ty::Tuple(resolved))
+            }
             other => Ok(other.clone()),
         }
     }
@@ -118,6 +125,81 @@ impl<'a> Mono<'a> {
                     name: name.clone(),
                     ty,
                     value,
+                }])
+            }
+            Stmt::TupleDecl { span, fields, value } => {
+                let value = self.resolve_expr(value, subst)?;
+                let mut fields_r = Vec::new();
+                for (ty, name, nspan) in fields {
+                    let ty = self.resolve_type(ty, subst)?;
+                    self.cur_locals.insert(name.clone(), ty.clone());
+                    fields_r.push((ty, name.clone(), *nspan));
+                }
+                Ok(vec![Stmt::TupleDecl {
+                    span: *span,
+                    fields: fields_r,
+                    value: Box::new(value),
+                }])
+            }
+            Stmt::TupleVar { span, names, value, .. } => {
+                let value = self.resolve_expr(value, subst)?;
+                // Infer the element types from the value: a call's tuple
+                // return type, or a tuple literal's element types.
+                let tys = match &value {
+                    Expr::Call { .. } => {
+                        match self.infer_call_ret(&value) {
+                            Some(Ty::Tuple(ts)) if ts.len() == names.len() => ts,
+                            _ => {
+                                return Err(CompileError::new(
+                                    *span,
+                                    "cannot infer tuple element types",
+                                ))
+                            }
+                        }
+                    }
+                    Expr::Tuple { elems, .. } if elems.len() == names.len() => {
+                        elems
+                            .iter()
+                            .map(|e| self.expr_type(e, subst))
+                            .collect::<CompileResult<_>>()?
+                    }
+                    _ => {
+                        return Err(CompileError::new(
+                            *span,
+                            "tuple destructuring needs a call or tuple literal",
+                        ))
+                    }
+                };
+                for ((name, _), ty) in names.iter().zip(tys.iter()) {
+                    self.cur_locals.insert(name.clone(), ty.clone());
+                }
+                Ok(vec![Stmt::TupleVar {
+                    span: *span,
+                    names: names.clone(),
+                    tys,
+                    value: Box::new(value),
+                }])
+            }
+            Stmt::TupleAssign { span, targets, value } => {
+                let value = self.resolve_expr(value, subst)?;
+                let targets: Vec<Expr> = targets
+                    .iter()
+                    .map(|t| self.resolve_expr(t, subst))
+                    .collect::<CompileResult<_>>()?;
+                for t in &targets {
+                    if let Expr::Ident { name, .. } = t {
+                        if !self.cur_locals.contains_key(name) {
+                            return Err(CompileError::new(
+                                *span,
+                                format!("undefined variable '{}'", name),
+                            ));
+                        }
+                    }
+                }
+                Ok(vec![Stmt::TupleAssign {
+                    span: *span,
+                    targets,
+                    value: Box::new(value),
                 }])
             }
             Stmt::Assign { span, target, value } => {

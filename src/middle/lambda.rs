@@ -276,6 +276,9 @@ fn block_has_lambda(b: &Block) -> bool {
             Stmt::Return { value, .. } => value.as_ref().map_or(false, |v| expr_has(v)),
             Stmt::Throw { value, .. } => expr_has(value),
             Stmt::Defer { expr, .. } => expr_has(expr),
+            Stmt::TupleDecl { value, .. }
+            | Stmt::TupleVar { value, .. }
+            | Stmt::TupleAssign { value, .. } => expr_has(value.as_ref()),
             Stmt::Switch {
                 target, cases, default, ..
             } => {
@@ -326,6 +329,7 @@ fn block_has_lambda(b: &Block) -> bool {
             }
             Expr::OptRef { .. } => false,
             Expr::Coalesce { l, r, .. } => expr_has(l.as_ref()) || expr_has(r.as_ref()),
+            Expr::Tuple { elems, .. } => elems.iter().any(expr_has),
             _ => false,
         }
     }
@@ -340,6 +344,16 @@ fn declared_names(b: &Block) -> HashSet<String> {
         match s {
             Stmt::Decl { name, .. } => {
                 out.insert(name.clone());
+            }
+            Stmt::TupleDecl { fields, .. } => {
+                for (_, name, _) in fields {
+                    out.insert(name.clone());
+                }
+            }
+            Stmt::TupleVar { names, .. } => {
+                for (name, _) in names {
+                    out.insert(name.clone());
+                }
             }
             Stmt::TryCatch {
                 catch_var,
@@ -493,6 +507,11 @@ fn free_names(
                 walk(free, this, declared, params, l, span)?;
                 walk(free, this, declared, params, r, span)?;
             }
+            Expr::Tuple { elems, .. } => {
+                for el in elems {
+                    walk(free, this, declared, params, el, span)?;
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -564,6 +583,11 @@ fn free_names(
                 }
                 Stmt::Throw { value, .. } => walk(free, this, declared, params, value, span)?,
                 Stmt::Defer { expr, .. } => walk(free, this, declared, params, expr, span)?,
+                Stmt::TupleDecl { value, .. }
+                | Stmt::TupleVar { value, .. }
+                | Stmt::TupleAssign { value, .. } => {
+                    walk(free, this, declared, params, value, span)?
+                }
                 Stmt::Switch {
                     target, cases, default, ..
                 } => {
@@ -685,6 +709,11 @@ fn rewrite_body(e: &mut Expr, scalar_off: &HashMap<String, i64>, this_captured: 
             rewrite_body(l, scalar_off, this_captured);
             rewrite_body(r, scalar_off, this_captured);
         }
+        Expr::Tuple { elems, .. } => {
+            for el in elems.iter_mut() {
+                rewrite_body(el, scalar_off, this_captured);
+            }
+        }
         _ => {}
     }
 }
@@ -741,6 +770,9 @@ fn rewrite_stmt(s: &mut Stmt, scalar_off: &HashMap<String, i64>, this_captured: 
             }
             Stmt::Throw { value, .. } => rewrite_body(value, scalar_off, this_captured),
             Stmt::Defer { expr, .. } => rewrite_body(expr, scalar_off, this_captured),
+            Stmt::TupleDecl { value, .. }
+            | Stmt::TupleVar { value, .. }
+            | Stmt::TupleAssign { value, .. } => rewrite_body(value, scalar_off, this_captured),
             Stmt::Switch {
                 target, cases, default, ..
             } => {
@@ -1077,6 +1109,11 @@ fn desugar_stmt(
                 expr(pkg, base, scope, l, lifted, n)?;
                 expr(pkg, base, scope, r, lifted, n)?;
             }
+            Expr::Tuple { elems, .. } => {
+                for el in elems.iter_mut() {
+                    expr(pkg, base, scope, el, lifted, n)?;
+                }
+            }
             _ => {}
         }
         Ok(())
@@ -1141,6 +1178,11 @@ fn desugar_stmt(
         }
         Stmt::Defer { expr: de, .. } => {
             expr(pkg, base, scope, de, lifted, n)?;
+        }
+        Stmt::TupleDecl { value, .. }
+        | Stmt::TupleVar { value, .. }
+        | Stmt::TupleAssign { value, .. } => {
+            expr(pkg, base, scope, value, lifted, n)?;
         }
         Stmt::Switch {
             target, cases, default, ..

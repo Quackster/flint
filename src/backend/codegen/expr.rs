@@ -559,6 +559,10 @@ impl Ctx<'_> {
                 let _ = span;
                 Ok(Ty::Ptr(None))
             }
+            Expr::Tuple { span, .. } => Err(CompileError::new(
+                *span,
+                "a tuple can only be returned or destructured: (a, b) = f() or return (e1, e2);",
+            )),
             Expr::Lambda { span, .. } => Err(CompileError::new(
                 *span,
                 "a lambda cannot be used directly; it is desugared into a closure",

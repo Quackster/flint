@@ -608,6 +608,19 @@ impl<'p> Checker<'p> {
         self.check_expr_value(e)
     }
 
+    /// Check the value of a tuple destructure (`(a, b) = value`): a tuple
+    /// literal moves its bare owned elements into the fresh slots; anything
+    /// else (a call) is checked as a plain move RHS.
+    fn check_tuple_rhs(&mut self, e: &Expr) -> CompileResult<()> {
+        if let Expr::Tuple { elems, .. } = e {
+            for el in elems {
+                self.check_move_rhs(el)?;
+            }
+            return Ok(());
+        }
+        self.check_move_rhs(e)
+    }
+
     fn check_block(&mut self, b: &Block) -> CompileResult<bool> {
         self.scopes.push(HashMap::new());
         let mut diverged = false;
@@ -726,6 +739,50 @@ impl<'p> Checker<'p> {
                     }
                 }
             }
+            Stmt::TupleDecl { fields, value, .. } => {
+                self.check_tuple_rhs(value)?;
+                for (ty, name, _) in fields {
+                    if let Some(top) = self.scopes.last_mut() {
+                        top.insert(
+                            name.clone(),
+                            Var {
+                                ty: ty.clone(),
+                                state: State::Owned,
+                                moved_at: None,
+                            },
+                        );
+                    }
+                }
+                Ok(false)
+            }
+            Stmt::TupleVar { names, tys, value, .. } => {
+                self.check_tuple_rhs(value)?;
+                for ((name, _), ty) in names.iter().zip(tys.iter()) {
+                    if let Some(top) = self.scopes.last_mut() {
+                        top.insert(
+                            name.clone(),
+                            Var {
+                                ty: ty.clone(),
+                                state: State::Owned,
+                                moved_at: None,
+                            },
+                        );
+                    }
+                }
+                Ok(false)
+            }
+            Stmt::TupleAssign { targets, value, .. } => {
+                self.check_tuple_rhs(value)?;
+                for t in targets {
+                    if let Expr::Ident { name, .. } = t {
+                        if self.find(name).is_some() {
+                            let cur = self.var_ty(name).unwrap_or(Ty::Int);
+                            self.reinit(name, cur);
+                        }
+                    }
+                }
+                Ok(false)
+            }
             Stmt::ExprStmt { expr, .. } => {
                 // A bare owned ident as a statement drops it (moves).
                 if let Expr::Ident { name, span } = expr {
@@ -842,9 +899,14 @@ impl<'p> Checker<'p> {
             Stmt::Return { value, .. } => {
                 if let Some(v) = value {
                     // `return &x` for locals is already rejected by codegen;
-                    // other bare owned idents move into the caller.
+                    // other bare owned idents move into the caller. A tuple
+                    // return moves each owned element into the caller.
                     if matches!(v.as_ref(), Expr::AddrOf { .. }) {
                         self.check_expr_borrow(v)?;
+                    } else if let Expr::Tuple { elems, .. } = v.as_ref() {
+                        for el in elems {
+                            self.check_move_rhs(el)?;
+                        }
                     } else {
                         self.check_move_rhs(v)?;
                     }

@@ -13,7 +13,7 @@
 <a class="brand" href="#index">Flint<span> docs</span></a>
 <input class="search" id="nav-search" type="search" placeholder="Filter sections…" aria-label="Filter sections">
 <div class="nav-section"><div class="nav-title">Getting started</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#index">Overview</a></li><li><a href="#getting-started">Getting started</a></li><li><a href="#compiler">The toolchain</a></li><li><a href="#modules">Modules & multi-file</a></li></ul></div>
-<div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#lambdas">Lambdas &amp; closures</a></li><li><a href="#exceptions">Exceptions</a></li></ul></div>
+<div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#lambdas">Lambdas &amp; closures</a></li><li><a href="#exceptions">Exceptions</a></li><li><a href="#tuples">Tuples &amp; multi-value returns</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#event-handlers">Event handlers (+=)</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Memory & data</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#memory">Memory model</a></li><li><a href="#pointers">Pointers & raw memory</a></li><li><a href="#arrays">Arrays</a></li><li><a href="#strings">Strings</a></li><li><a href="#fixed-point">Fixed-point numbers</a></li><li><a href="#std-coll">Collections (stdlib)</a></li><li><a href="#coll-list">List</a></li><li><a href="#coll-queue">Queue</a></li><li><a href="#coll-hashset">HashSet</a></li><li><a href="#coll-hashmap">HashMap</a></li><li><a href="#coll-cowlist">CopyOnWriteList</a></li><li><a href="#coll-flavour">The element flavour</a></li><li><a href="#coll-objects">Object elements</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Systems</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#concurrency">Concurrency</a></li><li><a href="#networking">Networking</a></li><li><a href="#io">I/O & syscalls</a></li><li><a href="#builtins">Builtin namespaces</a></li></ul></div>
@@ -900,8 +900,119 @@ int main() {
 <code>3</code> (from <code>finally</code>) immediately followed by
 <code>5</code> (the return value) — <code>35</code> on one line; and
 <code>1</code> (the caller continued after the silent uncaught throw).</p>
-</section>
-<section id="classes" class="doc-section" data-label="Classes & fields">
+ </section>
+ <section id="tuples" class="doc-section" data-label="Tuples & multi-value returns">
+ <div class="page-head"><h1>Tuples &amp; multi-value returns</h1>
+ <p class="lede">A function may declare a tuple return type
+ <code>(T1, T2, …)</code> and <code>return (e1, e2, …);</code> packs the
+ elements into a fresh block. The caller destructures the result — or a tuple
+ literal — into one or more variables.</p></div>
+
+ <h2>Shape</h2>
+ <div class="code"><div class="head"><span>shape</span></div>
+ <pre><code class="flint">(T1, T2) f() {
+     return (e1, e2);        // pack the elements into a fresh block
+ }
+
+ int main() {
+     (T1 a, T2 b) = f();      // destructure into fresh variables
+     var (x, y) = f();        // infer the element types
+     (a, b) = f();            // reassign existing variables
+     (T1 m, T2 w) = (e1, e2); // destructure a tuple literal directly
+ }</code></pre></div>
+
+ <h2>Semantics (v1)</h2>
+ <ul>
+ <li><b>One value per element.</b> Each element of the returned block owns its
+ value (an int/bool/enum by value, a string/object/array by reference). The
+ caller's destructure takes ownership of each element in turn.</li>
+ <li><b>Destructure, don't bind.</b> A tuple has no value of its own: it can
+ only be <em>returned</em> or <em>destructured</em>. Assigning a tuple to a
+ single variable (<code>int x = f();</code>) is a compile error.</li>
+ <li><b>Arity must match.</b> The number of targets must equal the number of
+ elements; each target's type must match the element (a <code>var</code>
+ target infers the element type).</li>
+ <li><b>Reassignment releases the old value.</b> Reassigning a destructured
+ string/object (<code>(a, b) = f();</code> twice) releases the previous value
+ before storing the new one.</li>
+ <li><b>Discarded calls drop their elements.</b> A tuple-typed call used as a
+ statement releases each element, so no reference is leaked.</li>
+ </ul>
+
+ <h2>Worked example</h2>
+ <div class="code"><div class="head"><span>tests/cases/tuples.flint</span></div>
+ <pre><code class="flint">class Point {
+     int x;
+     int y;
+     Point(int a, int b) { this.x = a; this.y = b; }
+     int manhattan() { return this.x + this.y; }
+ }
+
+ (int, string) stats(int n) {
+     string label = "n=";
+     label = label + str.itoa(n);
+     return (n * 2, label);
+ }
+
+ (Point, int) makePoint(int x, int y) {
+     Point p = new Point(x, y);
+     return (p, x + y);
+ }
+
+ (int, int, int) three() {
+     return (1, 2, 3);
+ }
+
+ int main() {
+     (int dbl, string s) = stats(21);
+     println(dbl);        // 42
+     println(s);          // n=21
+
+     var (a, b) = stats(5);
+     println(a);          // 10
+     println(b);          // n=5
+
+     int x = 0;
+     string y = "old";
+     (x, y) = stats(3);
+     println(x);          // 6
+     println(y);          // n=3
+
+     (Point p, int sum) = makePoint(4, 9);
+     println(p.manhattan());   // 13
+     println(sum);             // 13
+
+     (int i1, int i2, int i3) = three();
+     println(i1 + i2 + i3);    // 6
+
+     (int m, string w) = (10, "lit");
+     println(m);          // 10
+     println(w);          // lit
+
+     stats(100);          // discarded: elements released
+     makePoint(1, 1);
+
+     (int r, string q) = stats(7);
+     (r, q) = stats(11);
+     println(r);          // 22
+     println(q);          // n=11
+     return 0;
+ }</code></pre></div>
+ <div class="output"><span class="lbl">output</span>42
+ n=21
+ 10
+ n=5
+ 6
+ n=3
+ 13
+ 13
+ 6
+ 10
+ lit
+ 22
+ n=11</div>
+ </section>
+ <section id="classes" class="doc-section" data-label="Classes & fields">
 <div class="page-head"><h1>Classes &amp; fields</h1>
 <p class="lede">A <code>class</code> with plain fields is a struct. Objects can
 hold object fields; <code>new</code> fills fields, including nested objects,

@@ -392,6 +392,13 @@ impl<'a> Mono<'a> {
                 ))
             }
             Expr::SuperCall { .. } => Ok(Ty::Void),
+            Expr::Tuple { elems, .. } => {
+                let ts = elems
+                    .iter()
+                    .map(|e| self.expr_type(e, subst))
+                    .collect::<CompileResult<_>>()?;
+                Ok(Ty::Tuple(ts))
+            }
         }
     }
 

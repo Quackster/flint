@@ -1,0 +1,7 @@
+(int, int) two() {
+    return (1, 2);
+}
+int main() {
+    int x = two();
+    return x;
+}

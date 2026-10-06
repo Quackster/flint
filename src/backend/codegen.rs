@@ -93,6 +93,10 @@ fn ty_name(ty: &Ty) -> String {
         Ty::Param(_) => "param".to_string(),
         Ty::Inst(_, _) => "class".to_string(),
         Ty::Alias(_) => "alias".to_string(),
+        Ty::Tuple(elems) => {
+            let inner: Vec<String> = elems.iter().map(ty_name).collect();
+            format!("({})", inner.join(", "))
+        }
     }
 }
 

@@ -219,6 +219,16 @@ impl<'a> Mono<'a> {
                     args,
                 })
             }
+            Expr::Tuple { span, elems } => {
+                let elems = elems
+                    .iter()
+                    .map(|e| self.resolve_expr(e, subst))
+                    .collect::<CompileResult<_>>()?;
+                Ok(Expr::Tuple {
+                    span: *span,
+                    elems,
+                })
+            }
             Expr::BinOp { span, op, l, r } => {
                 let l = Box::new(self.resolve_expr(l, subst)?);
                 let r = Box::new(self.resolve_expr(r, subst)?);
@@ -450,5 +460,22 @@ impl<'a> Mono<'a> {
                 Ok(Expr::Instanceof { span: *span, e, ty })
             }
         }
+    }
+
+    /// The declared return type of a resolved non-generic free-function
+    /// call, used to infer tuple element types in `var (a, b) = f();`.
+    pub(crate) fn infer_call_ret(&self, call: &Expr) -> Option<Ty> {
+        let Expr::Call { callee, .. } = call else {
+            return None;
+        };
+        if callee.len() != 1 {
+            return None;
+        }
+        for (&orig, &new) in &self.func_new {
+            if self.func_names.get(&new).map(|s| s.as_str()) == Some(callee[0].as_str()) {
+                return self.prog.funcs[orig].ret.clone();
+            }
+        }
+        None
     }
 }

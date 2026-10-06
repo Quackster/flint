@@ -269,6 +269,251 @@ impl Ctx<'_> {
         Ok(())
     }
 
+    /// Retain the value in `%rax` for a given type (leaving the value in
+    /// `%rax`). Used when a tuple element is copied into an owned slot.
+    fn retain_value_by_type(&mut self, t: &Ty) {
+        match t {
+            Ty::Struct(_) | Ty::Interface(_) => {
+                self.emit("\tmov %rax, %rdi");
+                self.emit("\tcall flint_retain_val");
+            }
+            Ty::Array => {
+                self.emit("\tmov %rax, %rdi");
+                self.emit("\tmov $0, %rsi");
+                self.emit("\tcall flint_hdr_retain");
+            }
+            Ty::Str | Ty::ByteArray | Ty::ShortArray => {
+                self.emit("\tmov %rax, %rdi");
+                self.emit("\tmov $1, %rsi");
+                self.emit("\tcall flint_hdr_retain");
+            }
+            _ => {}
+        }
+    }
+
+    /// Release the value in `%rdi` for a given type.
+    fn release_value_by_type(&mut self, t: &Ty) {
+        match t {
+            Ty::Struct(_) | Ty::Interface(_) => self.emit("\tcall flint_release"),
+            Ty::Array => self.emit("\tcall flint_array_release"),
+            Ty::Str | Ty::ByteArray => self.emit("\tcall flint_str_release"),
+            Ty::ShortArray => self.emit("\tcall flint_short_release"),
+            _ => {}
+        }
+    }
+
+    /// Drop the element references owned by a tuple block (the block pointer
+    /// is in `%rax`). The block memory itself leaks in v1 (like closures),
+    /// but each element's reference is released so the elements do not.
+    fn release_tuple_block(&mut self, ts: &[Ty]) {
+        // The release helpers clobber %rax, so keep the block pointer in %r14.
+        self.emit("\tmov %rax, %r14");
+        for (i, t) in ts.iter().enumerate() {
+            self.emit(&format!("\tmov {}(%r14), %rdi", i * 8));
+            self.release_value_by_type(t);
+        }
+    }
+
+    /// Emit `return (e1, ..., en);` for a function whose return type is the
+    /// tuple `ts`. Allocates a fresh block, stores each element (retaining
+    /// borrowed references), and returns the block pointer.
+    fn emit_tuple_return(
+        &mut self,
+        elems: &[Expr],
+        ts: &[Ty],
+        frame: &mut Frame,
+    ) -> CompileResult<()> {
+        let n = elems.len();
+        self.emit(&format!("\tmovq ${}, %rdi", n * 8));
+        self.emit("\tcall flint_alloc");
+        self.emit("\tpush %rax"); // block on the value stack
+        self.emit("\tpop %r10"); // r10 = block (flint_alloc clobbers r10)
+        self.emit("\tpush %r10"); // keep the block under each element
+        for (i, el) in elems.iter().enumerate() {
+            let saved = self.str_copy;
+            if matches!(ts.get(i), Some(Ty::Str)) {
+                self.str_copy = true;
+            }
+            self.gen_expr(el, frame)?;
+            self.str_copy = saved;
+            self.emit("\tpop %r11"); // element value
+            if let Some(k) = self.retain_kind_for(el, frame) {
+                self.emit("\tmov %r11, %rdi");
+                match k {
+                    RetainKind::Object => self.emit("\tcall flint_retain_val"),
+                    RetainKind::Array => {
+                        self.emit("\tmov $0, %rsi");
+                        self.emit("\tcall flint_hdr_retain");
+                    }
+                    RetainKind::Str => {
+                        self.emit("\tmov $1, %rsi");
+                        self.emit("\tcall flint_hdr_retain");
+                    }
+                }
+                self.emit("\tmov %rax, %r11");
+            }
+            self.emit("\tpop %r10"); // block (may have been clobbered)
+            self.emit(&format!("\tmov %r11, {}(%r10)", i * 8));
+            self.emit("\tpush %r10"); // block back under the stack
+        }
+        self.emit("\tpop %rax"); // block = the return value
+        self.emit("\tpush %rax");
+        let cap = frame.ret_capture.clone();
+        if let Some((target, val_off, flag_off)) = cap {
+            self.emit_defers(frame)?;
+            self.emit_end_releases(frame);
+            self.emit(&format!("\tmov %rax, {}(%rbp)", val_off));
+            self.emit(&format!("\tmovq $1, {}(%rbp)", flag_off));
+            self.emit(&format!("\tjmp {}", target));
+            return Ok(());
+        }
+        self.emit_defers(frame)?;
+        self.emit_end_releases(frame);
+        self.emit("\tleave");
+        self.emit("\tret");
+        Ok(())
+    }
+
+    /// The value is in `%rax`. When `retain` is set, take a reference for an
+    /// owned slot; release the slot's old value; store into the local at
+    /// `loff`.
+    fn store_rax_into_slot(
+        &mut self,
+        loff: i64,
+        lkind: LocalKind,
+        lsidx: Option<usize>,
+        lty: &Ty,
+        retain: bool,
+    ) {
+        let is_iface = matches!(lty, Ty::Interface(_));
+        let is_str_arr = matches!(lty, Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray);
+        let owned = matches!(
+            lty,
+            Ty::Struct(_) | Ty::Interface(_) | Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+        );
+        if retain && owned {
+            self.retain_value_by_type(lty);
+        }
+        // The value is in %rax; the release helpers clobber %rax, so keep a
+        // copy in %r14 while the slot's old value is released.
+        self.emit("\tmov %rax, %r14");
+        if lkind == LocalKind::Heap || is_iface || is_str_arr {
+            let rel: Option<String> = match (lsidx, is_iface) {
+                (Some(s), _) => Some(format!(
+                    "flint_release_{}",
+                    self.prog.structs[s].name
+                )),
+                (None, true) => Some("flint_release".to_string()),
+                _ if matches!(lty, Ty::Str | Ty::ByteArray) => {
+                    Some("flint_str_release".to_string())
+                }
+                _ if matches!(lty, Ty::Array) => Some("flint_array_release".to_string()),
+                _ if matches!(lty, Ty::ShortArray) => {
+                    Some("flint_short_release".to_string())
+                }
+                _ => None,
+            };
+            if let Some(rel) = rel {
+                self.emit(&format!("\tmovq {}(%rbp), %r11", loff));
+                // the generic release has no null check
+                if rel == "flint_release" {
+                    let g = format!(".Ltskip{}", self.strn);
+                    self.strn += 1;
+                    self.emit("\ttest %r11, %r11");
+                    self.emit(&format!("\tjz {}", g));
+                    self.emit("\tmov %r11, %rdi");
+                    self.emit(&format!("\tcall {}", rel));
+                    self.emit(&format!("{}:", g));
+                } else {
+                    self.emit("\tmov %r11, %rdi");
+                    self.emit(&format!("\tcall {}", rel));
+                }
+            }
+            self.emit(&format!("\tmov %r14, {}(%rbp)", loff));
+        } else {
+            self.emit(&format!("\tmov %r14, {}(%rbp)", loff));
+        }
+    }
+
+    /// The (offset, kind, struct-index, type) of a local's slot.
+    fn slot_info(
+        &self,
+        name: &str,
+        frame: &Frame,
+    ) -> CompileResult<(i64, LocalKind, Option<usize>, Ty)> {
+        let l = frame
+            .find(name)
+            .ok_or_else(|| CompileError::new(Span::new(0, 0), "internal: no slot"))?;
+        Ok((l.off, l.kind, struct_idx_of(&l.ty), l.ty.clone()))
+    }
+
+    /// Destructure `value` (a tuple-typed call or a tuple literal) into the
+    /// named locals `targets`, whose types are `ts`.
+    fn gen_tuple_destructure(
+        &mut self,
+        value: &Expr,
+        targets: &[String],
+        ts: &[Ty],
+        frame: &mut Frame,
+        span: Span,
+    ) -> CompileResult<()> {
+        let n = targets.len();
+        if n != ts.len() {
+            return Err(CompileError::new(span, "tuple destructure arity mismatch"));
+        }
+        match value {
+            Expr::Call { .. } | Expr::MethodCall { .. } => {
+                let vty = self.gen_expr(value, frame)?;
+                let call_ts = match &vty {
+                    Ty::Tuple(t) => t.clone(),
+                    _ => {
+                        return Err(CompileError::new(
+                            span,
+                            "expected a tuple-typed call; destructure with (a, b) = f()",
+                        ))
+                    }
+                };
+                if call_ts.len() != n {
+                    return Err(CompileError::new(span, "tuple destructure arity mismatch"));
+                }
+                self.emit("\tpop %r10"); // block
+                for (i, name) in targets.iter().enumerate() {
+                    let (loff, lkind, lsidx, lty) = self.slot_info(name, frame)?;
+                    self.emit(&format!("\tmov {}(%r10), %rax", i * 8));
+                    self.store_rax_into_slot(loff, lkind, lsidx, &lty, true);
+                }
+                self.emit("\tmov %r10, %rax");
+                self.release_tuple_block(&call_ts);
+                Ok(())
+            }
+            Expr::Tuple { elems, .. } => {
+                if elems.len() != n {
+                    return Err(CompileError::new(span, "tuple destructure arity mismatch"));
+                }
+                for (i, el) in elems.iter().enumerate() {
+                    let saved = self.str_copy;
+                    if matches!(ts.get(i), Some(Ty::Str)) {
+                        self.str_copy = true;
+                    }
+                    self.gen_expr(el, frame)?;
+                    self.str_copy = saved;
+                }
+                for i in (0..n).rev() {
+                    let el = &elems[i];
+                    let (loff, lkind, lsidx, lty) = self.slot_info(&targets[i], frame)?;
+                    self.emit("\tpop %rax");
+                    let retain = self.retain_kind_for(el, frame).is_some();
+                    self.store_rax_into_slot(loff, lkind, lsidx, &lty, retain);
+                }
+                Ok(())
+            }
+            _ => Err(CompileError::new(
+                span,
+                "tuple destructure needs a call or tuple literal",
+            )),
+        }
+    }
+
     /// True when an assignment target holds a string value.
     pub(crate) fn assign_target_is_str(&self, target: &Expr, frame: &Frame) -> CompileResult<bool> {
         match target {
@@ -384,6 +629,12 @@ impl Ctx<'_> {
                 }
                 let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
+                if matches!(vty, Ty::Tuple(_)) {
+                    return Err(CompileError::new(
+                        *span,
+                        "cannot bind a tuple to a single variable; destructure it: (a, b) = f()",
+                    ));
+                }
                 check_ptr_conforms(&vty, &Some(lty.clone()), *span, "cannot assign")?;
                 self.retain_for_slot(Some(&lty), value, &vty, frame)?;
                 let is_iface = matches!(lty, Ty::Interface(_));
@@ -434,9 +685,44 @@ impl Ctx<'_> {
                 self.stack_region = None;
                 Ok(())
             }
+            Stmt::TupleDecl { span, fields, value } => {
+                let ts: Vec<Ty> = fields.iter().map(|(t, _, _)| t.clone()).collect();
+                let targets: Vec<String> = fields.iter().map(|(_, n, _)| n.clone()).collect();
+                self.gen_tuple_destructure(value, &targets, &ts, frame, *span)
+            }
+            Stmt::TupleVar { span, names, tys, value } => {
+                let targets: Vec<String> = names.iter().map(|(n, _)| n.clone()).collect();
+                self.gen_tuple_destructure(value, &targets, tys, frame, *span)
+            }
+            Stmt::TupleAssign { span, targets, value } => {
+                let names: Vec<String> = targets
+                    .iter()
+                    .filter_map(|t| match t {
+                        Expr::Ident { name, .. } => Some(name.clone()),
+                        _ => None,
+                    })
+                    .collect();
+                if names.len() != targets.len() {
+                    return Err(CompileError::new(
+                        *span,
+                        "tuple assignment targets must be plain variables",
+                    ));
+                }
+                let ts: Vec<Ty> = names
+                    .iter()
+                    .map(|n| frame.find(n).map(|l| l.ty.clone()).unwrap_or(Ty::Int))
+                    .collect();
+                self.gen_tuple_destructure(value, &names, &ts, frame, *span)
+            }
             Stmt::ExprStmt { expr, .. } => {
                 let t = self.gen_expr(expr, frame)?;
                 self.maybe_retain(expr, frame);
+                if let Ty::Tuple(ts) = &t {
+                    // a discarded tuple-typed call: drop the block's elements
+                    self.emit("\tpop %rax");
+                    self.release_tuple_block(ts);
+                    return Ok(());
+                }
                 if let Some(s) = struct_idx_of(&t) {
                     // a class value used as a statement: drop the reference
                     let cname = &self.prog.structs[s].name;
@@ -479,6 +765,12 @@ impl Ctx<'_> {
                 }
                 let vty = self.gen_expr(value, frame)?;
                 self.str_copy = saved;
+                if matches!(vty, Ty::Tuple(_)) {
+                    return Err(CompileError::new(
+                        *span,
+                        "cannot assign a tuple to a single variable; destructure it: (a, b) = f()",
+                    ));
+                }
                 // a typed-pointer target (e.g. `*Box p`) checks its value
                 if let Ok(tty) = self.lvalue_value_type(target, frame) {
                     check_ptr_conforms(&vty, &Some(tty), *span, "cannot assign")?;
@@ -902,6 +1194,29 @@ impl Ctx<'_> {
                                 ));
                             }
                         }
+                    }
+                    // A tuple return: `return (e1, ..., en);` packs the
+                    // elements into a fresh block and returns the block.
+                    if let Expr::Tuple { elems, .. } = v.as_ref() {
+                        if let Some(Ty::Tuple(ts)) = &frame.ret_type {
+                            if ts.len() != elems.len() {
+                                return Err(CompileError::new(
+                                    e_span(v),
+                                    format!(
+                                        "tuple return has {} element(s) but the function returns {}",
+                                        elems.len(),
+                                        ts.len()
+                                    ),
+                                ));
+                            }
+                            let ts = ts.clone();
+                            let elems = elems.clone();
+                            return self.emit_tuple_return(&elems, &ts, frame);
+                        }
+                        return Err(CompileError::new(
+                            e_span(v),
+                            "this function does not return a tuple",
+                        ));
                     }
                     // a `string` return stores a fresh writable copy of a literal
                     let saved = self.str_copy;

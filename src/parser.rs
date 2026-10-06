@@ -759,6 +759,24 @@ impl<'a> Parser<'a> {
 
     fn parse_type(&mut self) -> CompileResult<Ty> {
         let span = self.cur().span;
+        // tuple type: `(T1, T2, ...)` — a multi-value return type. A lone
+        // `(T)` is not a tuple (casts parse through this same entry point).
+        if self.at(&Tok::LParen) && self.tuple_type_at() {
+            self.bump(); // (
+            let mut elems = vec![self.parse_type()?];
+            while self.at(&Tok::Comma) {
+                self.bump();
+                elems.push(self.parse_type()?);
+            }
+            self.expect(&Tok::RParen, "')' after tuple type")?;
+            if elems.len() < 2 {
+                return Err(CompileError::new(
+                    span,
+                    "tuple types need at least two members",
+                ));
+            }
+            return Ok(Ty::Tuple(elems));
+        }
         // pointer type: '*' type — the pointee is tracked (*int vs *string)
         if self.at(&Tok::Star) {
             self.bump();
@@ -984,6 +1002,50 @@ impl<'a> Parser<'a> {
         self.toks.get(j + 1).map(|t| t.kind == Tok::RParen) == Some(true)
     }
 
+    /// True if the tokens starting at the current `(` form a tuple type
+    /// `(Type, Type, ...)` — i.e. a top-level comma (followed by another type
+    /// start) appears before the matching `)`. A lone `(Type)` is a cast, not
+    /// a tuple.
+    fn tuple_type_at(&self) -> bool {
+        if self.toks.get(self.i).map(|t| &t.kind) != Some(&Tok::LParen) {
+            return false;
+        }
+        let mut j = self.i + 1;
+        if !self.is_type_at(j - self.i) {
+            return false;
+        }
+        let mut depth = 0;
+        let mut saw_comma = false;
+        loop {
+            let k = self.toks.get(j).map(|t| &t.kind);
+            if k.is_none() {
+                return false;
+            }
+            match k.unwrap() {
+                Tok::LParen => depth += 1,
+                Tok::RParen => {
+                    if depth == 0 {
+                        return saw_comma;
+                    }
+                    depth -= 1;
+                }
+                Tok::Comma if depth == 0 => {
+                    if self.is_type_at(j + 1 - self.i) {
+                        saw_comma = true;
+                    }
+                }
+                Tok::Lt => {
+                    if let Some(e) = self.type_args_end_at(j) {
+                        j = e;
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+            j += 1;
+        }
+    }
+
     /// True if the current token starts a typed declaration (`Ty name = ...`)
     /// or a `var` declaration (the type is inferred).
     fn is_decl_start(&self) -> bool {
@@ -1072,6 +1134,34 @@ impl<'a> Parser<'a> {
         name_is_ident && matches!(third, Some(Tok::Lt))
     }
 
+    /// True if the current token starts a function declaration whose return
+    /// type is a tuple: `(T1, T2, ...) name (`.
+    fn is_tuple_func_start(&self) -> bool {
+        if !self.at(&Tok::LParen) || !self.tuple_type_at() {
+            return false;
+        }
+        // find the tuple type's closing paren
+        let mut depth = 0;
+        let mut j = self.i;
+        while let Some(t) = self.toks.get(j) {
+            match &t.kind {
+                Tok::LParen => depth += 1,
+                Tok::RParen => {
+                    depth -= 1;
+                    if depth == 0 {
+                        return matches!(
+                            self.toks.get(j + 1).map(|t| &t.kind),
+                            Some(Tok::Ident(_))
+                        ) && self.toks.get(j + 2).map(|t| &t.kind) == Some(&Tok::LParen);
+                    }
+                }
+                _ => {}
+            }
+            j += 1;
+        }
+        false
+    }
+
     pub fn parse_program(&mut self) -> CompileResult<Program> {
         let mut structs = Vec::new();
         let mut funcs = Vec::new();
@@ -1148,6 +1238,7 @@ impl<'a> Parser<'a> {
                 || self.at(&Tok::Void)
                 || self.is_decl_start()
                 || self.is_generic_func_start()
+                || self.is_tuple_func_start()
             {
                 let mut d = self.parse_func()?;
                 d.package = self.current_package.clone();
@@ -1801,6 +1892,39 @@ impl<'a> Parser<'a> {
         let span = self.cur().span;
         let ty = if self.at(&Tok::Var) {
             self.bump(); // var
+            if self.at(&Tok::LParen) {
+                // var (a, b) = value — inferred tuple destructure
+                self.bump(); // (
+                let mut names: Vec<(String, Span)> = Vec::new();
+                loop {
+                    let nspan = self.cur().span;
+                    let name = self.expect_ident()?;
+                    names.push((name, nspan));
+                    if self.at(&Tok::Comma) {
+                        self.bump();
+                        continue;
+                    }
+                    self.expect(&Tok::RParen, "')' after tuple names")?;
+                    break;
+                }
+                if names.len() < 2 {
+                    return Err(CompileError::new(
+                        span,
+                        "tuple destructuring needs at least two names",
+                    ));
+                }
+                self.expect(&Tok::Assign, "'=' after tuple names")?;
+                let value = self.parse_expr()?;
+                if expect_semi {
+                    self.expect(&Tok::Semicolon, "';'")?;
+                }
+                return Ok(Stmt::TupleVar {
+                    span,
+                    names,
+                    tys: Vec::new(),
+                    value: Box::new(value),
+                });
+            }
             None
         } else {
             let ty = self.parse_type()?;
@@ -1842,6 +1966,69 @@ impl<'a> Parser<'a> {
             name,
             ty,
             value,
+        })
+    }
+
+    /// Try to parse a tuple destructuring declaration
+    /// `(T1 a, T2 b) = value;`. Returns `None` (and rewinds) when the
+    /// tokens do not form one.
+    fn try_tuple_decl(&mut self) -> Option<Stmt> {
+        if !self.at(&Tok::LParen) {
+            return None;
+        }
+        let save = self.i;
+        let span = self.cur().span;
+        self.bump(); // (
+        let mut fields: Vec<(Ty, String, Span)> = Vec::new();
+        loop {
+            let ty = match self.parse_type() {
+                Ok(t) => t,
+                Err(_) => {
+                    self.i = save;
+                    return None;
+                }
+            };
+            let nspan = self.cur().span;
+            let name = match self.expect_ident() {
+                Ok(n) => n,
+                Err(_) => {
+                    self.i = save;
+                    return None;
+                }
+            };
+            fields.push((ty, name, nspan));
+            if self.at(&Tok::Comma) {
+                self.bump();
+                continue;
+            }
+            if self.at(&Tok::RParen) {
+                self.bump();
+                break;
+            }
+            self.i = save;
+            return None;
+        }
+        if fields.len() < 2 || !self.at(&Tok::Assign) {
+            self.i = save;
+            return None;
+        }
+        self.bump(); // =
+        let value = match self.parse_expr() {
+            Ok(v) => v,
+            Err(_) => {
+                self.i = save;
+                return None;
+            }
+        };
+        if !self.at(&Tok::Semicolon) {
+            self.i = save;
+            return None;
+        }
+        self.bump();
+        Some(Stmt::TupleDecl {
+            span,
+            fields,
+            value: Box::new(value),
         })
     }
 
@@ -1926,6 +2113,13 @@ impl<'a> Parser<'a> {
             let span = self.cur().span;
             self.bump();
             let value = self.parse_expr()?;
+            if let Some(targets) = tuple_assign_targets(&expr) {
+                return Ok(Stmt::TupleAssign {
+                    span,
+                    targets,
+                    value: Box::new(value),
+                });
+            }
             if !is_lvalue(&expr) {
                 return Err(CompileError::new(
                     span,
@@ -2288,6 +2482,10 @@ impl<'a> Parser<'a> {
                         return Ok(());
                     }
                 }
+                if let Some(td) = self.try_tuple_decl() {
+                    out.push(td);
+                    return Ok(());
+                }
                 if self.is_decl_start() {
                     out.push(self.parse_decl(true)?);
                     return Ok(());
@@ -2298,17 +2496,24 @@ impl<'a> Parser<'a> {
                     self.bump();
                     let value = self.parse_expr()?;
                     self.expect(&Tok::Semicolon, "';'")?;
-                    if !is_lvalue(&expr) {
+                    if let Some(targets) = tuple_assign_targets(&expr) {
+                        out.push(Stmt::TupleAssign {
+                            span,
+                            targets,
+                            value: Box::new(value),
+                        });
+                    } else if !is_lvalue(&expr) {
                         return Err(CompileError::new(
                             span,
                             "invalid assignment target",
                         ));
+                    } else {
+                        out.push(Stmt::Assign {
+                            span,
+                            target: expr,
+                            value,
+                        });
                     }
-                    out.push(Stmt::Assign {
-                        span,
-                        target: expr,
-                        value,
-                    });
                 } else if let Some(op) = Self::compound_op(&self.cur().kind) {
                     let span = self.cur().span;
                     self.bump();
@@ -2823,6 +3028,21 @@ impl<'a> Parser<'a> {
                 }
                 self.bump();
                 let e = self.parse_expr()?;
+                if self.at(&Tok::Comma) {
+                    // tuple literal: (e1, e2, ...)
+                    let lspan = span;
+                    let mut elems = vec![e];
+                    while self.at(&Tok::Comma) {
+                        self.bump();
+                        elems.push(self.parse_expr()?);
+                    }
+                    let rspan = self.cur().span;
+                    self.expect(&Tok::RParen, "')' after tuple literal")?;
+                    return Ok(Expr::Tuple {
+                        span: lspan.join(&rspan),
+                        elems,
+                    });
+                }
                 self.expect(&Tok::RParen, "')'")?;
                 Ok(e)
             }
@@ -3037,7 +3257,8 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::Closure { span, .. }
         | Expr::OptChain { span, .. }
         | Expr::OptRef { span, .. }
-        | Expr::Coalesce { span, .. } => *span,
+        | Expr::Coalesce { span, .. }
+        | Expr::Tuple { span, .. } => *span,
     }
 }
 
@@ -3046,6 +3267,23 @@ pub fn is_lvalue(e: &Expr) -> bool {
         e,
         Expr::Ident { .. } | Expr::This { .. } | Expr::Index { .. } | Expr::Field { .. } | Expr::Deref { .. }
     )
+}
+
+/// If `e` is a tuple literal whose every element is a plain identifier
+/// lvalue, return those elements as assignment targets (for `(a, b) = ...`).
+fn tuple_assign_targets(e: &Expr) -> Option<Vec<Expr>> {
+    let Expr::Tuple { elems, .. } = e else {
+        return None;
+    };
+    if elems.len() < 2 {
+        return None;
+    }
+    for el in elems {
+        if !matches!(el, Expr::Ident { .. }) {
+            return None;
+        }
+    }
+    Some(elems.clone())
 }
 
 /// Extract an identifier path from an expression that is a plain identifier.

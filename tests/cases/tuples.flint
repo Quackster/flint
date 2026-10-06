@@ -1,0 +1,75 @@
+// Tuples + multi-value returns: a function may declare a tuple return type
+// `(T1, T2, ...)`, `return (e1, e2);` packs the elements into a fresh block,
+// and the caller destructures it with `(T1 a, T2 b) = f();`,
+// `var (a, b) = f();`, or `(a, b) = f();`. A tuple literal `(e1, e2)` may be
+// destructured directly. A discarded tuple-typed call drops its elements.
+
+class Point {
+    int x;
+    int y;
+    Point(int a, int b) { this.x = a; this.y = b; }
+    int manhattan() { return this.x + this.y; }
+}
+
+// Returns two values: a computed int and a fresh string.
+(int, string) stats(int n) {
+    string label = "n=";
+    label = label + str.itoa(n);
+    return (n * 2, label);
+}
+
+// Returns a class object and an int.
+(Point, int) makePoint(int x, int y) {
+    Point p = new Point(x, y);
+    return (p, x + y);
+}
+
+// Returns three ints.
+(int, int, int) three() {
+    return (1, 2, 3);
+}
+
+int main() {
+    // 1. Typed destructure of a tuple-typed call.
+    (int dbl, string s) = stats(21);
+    println(dbl);
+    println(s);
+
+    // 2. var (inferred) destructure.
+    var (a, b) = stats(5);
+    println(a);
+    println(b);
+
+    // 3. Assign into existing variables.
+    int x = 0;
+    string y = "old";
+    (x, y) = stats(3);
+    println(x);
+    println(y);
+
+    // 4. Tuple of a class object + int.
+    (Point p, int sum) = makePoint(4, 9);
+    println(p.manhattan());
+    println(sum);
+
+    // 5. Three-value tuple.
+    (int i1, int i2, int i3) = three();
+    println(i1 + i2 + i3);
+
+    // 6. Destructure a tuple literal directly.
+    (int m, string w) = (10, "lit");
+    println(m);
+    println(w);
+
+    // 7. A discarded tuple-typed call releases its elements.
+    stats(100);
+    makePoint(1, 1);
+
+    // 8. Reassign a destructured variable (old value released).
+    (int r, string q) = stats(7);
+    (r, q) = stats(11);
+    println(r);
+    println(q);
+
+    return 0;
+}

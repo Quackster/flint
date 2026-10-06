@@ -152,6 +152,7 @@ pub enum Ty {
     Inst(usize, Vec<Ty>), // instantiated generic class: class index + type args
     Alias(String), // `type NAME = ...` alias (fully qualified); resolved to
                    // its target type by the middle/mono pass
+    Tuple(Vec<Ty>), // `(T1, T2, ...)` — a multi-value return type
 }
 
 #[derive(Debug, Clone)]
@@ -285,6 +286,28 @@ pub enum Stmt {
         /// Optional `finally { ... }` block; runs on normal completion, on a
         /// caught exception, and on a `return` from the try/catch blocks.
         finally: Option<Box<Block>>,
+    },
+    // `(T1 a, T2 b) = value;` — destructure a tuple-typed value into fresh
+    // locals. `fields` is (type, name, name-span); each name-span is unique
+    // so the backend can plan a slot per field.
+    TupleDecl {
+        span: Span,
+        fields: Vec<(Ty, String, Span)>,
+        value: Box<Expr>,
+    },
+    // `var (a, b) = value;` — destructure with inferred element types;
+    // `tys` is filled in by the monomorphizer (empty in the parsed AST).
+    TupleVar {
+        span: Span,
+        names: Vec<(String, Span)>,
+        tys: Vec<Ty>,
+        value: Box<Expr>,
+    },
+    // `(a, b) = value;` — destructure into existing locals.
+    TupleAssign {
+        span: Span,
+        targets: Vec<Expr>,
+        value: Box<Expr>,
     },
 }
 
@@ -514,5 +537,11 @@ pub enum Expr {
         span: Span,
         fn_name: String,
         captures: Vec<Expr>,
+    },
+    // `(e1, e2, ...)` — a tuple literal (only meaningful as a `return`
+    // value or the right-hand side of a tuple destructure).
+    Tuple {
+        span: Span,
+        elems: Vec<Expr>,
     },
 }

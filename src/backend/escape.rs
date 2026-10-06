@@ -104,7 +104,9 @@ where
         F: FnMut(&'a Stmt),
     {
         match stmt {
-            Stmt::Decl { .. } => (*f)(stmt),
+            Stmt::Decl { .. }
+            | Stmt::TupleDecl { .. }
+            | Stmt::TupleVar { .. } => (*f)(stmt),
             Stmt::If {
                 then,
                 else_opt,
@@ -378,6 +380,17 @@ impl<'p> Analyzer<'p> {
                 self.mark_expr(l);
                 self.mark_expr(r);
             }
+            // A tuple element escapes into the returned block (or is
+            // destructured by the caller), so mark each one (a bare ident
+            // element is marked directly, as in the call-arg arms).
+            Expr::Tuple { elems, .. } => {
+                for el in elems {
+                    self.mark_expr(el);
+                    if let Expr::Ident { name, .. } = el {
+                        self.mark(name);
+                    }
+                }
+            }
             _ => {}
         }
     }
@@ -392,6 +405,17 @@ impl<'p> Analyzer<'p> {
                 if let Expr::Field { .. } = target {
                     if let Expr::Ident { name, .. } = value {
                         self.mark(name);
+                    }
+                }
+                self.mark_expr(value);
+            }
+            Stmt::TupleDecl { value, .. } | Stmt::TupleVar { value, .. } => {
+                self.mark_expr(value)
+            }
+            Stmt::TupleAssign { targets, value, .. } => {
+                for t in targets {
+                    if let Expr::Ident { name, .. } = t {
+                        self.assign_targets.insert(name.clone());
                     }
                 }
                 self.mark_expr(value);
@@ -560,6 +584,40 @@ impl<'p> Analyzer<'p> {
                     is_param: false,
                 });
                 self.name_idx.insert(name.clone(), idx);
+            }
+            Stmt::TupleDecl { fields, .. } => {
+                for (ty, name, nspan) in fields {
+                    let idx = self.vars.len();
+                    self.vars.push(Var {
+                        span: *nspan,
+                        name: name.clone(),
+                        ty: Some(ty.clone()),
+                        kind: LocalKind::Plain,
+                        obj: None,
+                        creator: false,
+                        ctor_esc: false,
+                        depth,
+                        is_param: false,
+                    });
+                    self.name_idx.insert(name.clone(), idx);
+                }
+            }
+            Stmt::TupleVar { names, tys, .. } => {
+                for ((name, nspan), ty) in names.iter().zip(tys.iter()) {
+                    let idx = self.vars.len();
+                    self.vars.push(Var {
+                        span: *nspan,
+                        name: name.clone(),
+                        ty: Some(ty.clone()),
+                        kind: LocalKind::Plain,
+                        obj: None,
+                        creator: false,
+                        ctor_esc: false,
+                        depth,
+                        is_param: false,
+                    });
+                    self.name_idx.insert(name.clone(), idx);
+                }
             }
             Stmt::If {
                 then, else_opt, ..
