@@ -310,6 +310,10 @@ impl Ctx<'_> {
                 }
                 Ok(None)
             }
+            Expr::OptRef { .. } => match &self.opt_base_ty {
+                Some(Ty::Struct(idx)) => Ok(Some(*idx)),
+                _ => Ok(None),
+            },
             _ => Ok(None),
         }
     }

@@ -78,6 +78,65 @@ impl Ctx<'_> {
             }
             _ => {}
         }
+        // `panic(msg)`: print "panic: msg" to stderr and exit with status 1
+        // (never returns). `assert(cond)` / `assert(cond, msg)`: panic when
+        // `cond` is false. Both are polymorphic over the message (int-ish
+        // values print as decimal, everything else as a string).
+        match callee.join(".").as_str() {
+            "panic" | "io.panic" => {
+                if args.len() != 1 {
+                    return Err(CompileError::new(
+                        span,
+                        format!("panic expects 1 argument, got {}", args.len()),
+                    ));
+                }
+                let aty = self.gen_expr_ro(&args[0], frame)?;
+                let is_int = matches!(aty, Ty::Int | Ty::Bool | Ty::Enum(_) | Ty::Array);
+                let target = if is_int { "flint_panic_i64" } else { "flint_panic_str" };
+                self.pop_args(args.len());
+                self.emit(&format!("\tcall {}", target));
+                // noreturn: push a placeholder so callers stay balanced
+                self.emit("\tmovq $0, %rax");
+                self.emit("\tpush %rax");
+                return Ok(Ty::Void);
+            }
+            "assert" | "io.assert" => {
+                if args.len() != 1 && args.len() != 2 {
+                    return Err(CompileError::new(
+                        span,
+                        format!("assert expects 1 or 2 arguments, got {}", args.len()),
+                    ));
+                }
+                let base = self.strn;
+                self.strn += 2;
+                let ok_label = format!(".Lassert_ok{}", base);
+                let end_label = format!(".Lassert_end{}", base);
+                self.gen_expr_ro(&args[0], frame)?;
+                self.emit("\tpop %rax");
+                self.emit("\ttest %rax, %rax");
+                self.emit(&format!("\tjnz {}", ok_label));
+                if args.len() == 2 {
+                    let aty = self.gen_expr_ro(&args[1], frame)?;
+                    let is_int = matches!(aty, Ty::Int | Ty::Bool | Ty::Enum(_) | Ty::Array);
+                    let target = if is_int { "flint_panic_i64" } else { "flint_panic_str" };
+                    self.pop_args(1);
+                    self.emit(&format!("\tcall {}", target));
+                } else {
+                    let msg = self.new_label("assertion failed");
+                    self.emit(&format!("\tlea {}(%rip), %rdi", msg));
+                    self.emit("\tcall flint_panic_str");
+                }
+                // noreturn: push a placeholder so callers stay balanced
+                self.emit("\tmovq $0, %rax");
+                self.emit("\tpush %rax");
+                self.emit(&format!("{}:", ok_label));
+                self.emit(&format!("{}:", end_label));
+                self.emit("\tmovq $0, %rax");
+                self.emit("\tpush %rax");
+                return Ok(Ty::Void);
+            }
+            _ => {}
+        }
         if let Some(b) = builtin_for(callee) {
             if args.len() != b.arity {
                 return Err(CompileError::new(

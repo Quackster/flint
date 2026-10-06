@@ -1,0 +1,40 @@
+// defer: deferred calls run in LIFO order when the enclosing function
+// exits — on the normal path, on every early return, and when a throw
+// leaves the function.
+void log(int n) {
+    println(n);
+}
+int normal() {
+    defer log(1);
+    defer log(2);
+    log(3);
+    return 0;
+}
+int early() {
+    defer log(10);
+    defer log(11);
+    log(12);
+    return 1;
+}
+int fallthrough() {
+    defer log(20);
+    if (1 == 1) {
+        log(21);
+    }
+    return 2;
+}
+int throw_exit() {
+    defer log(30);
+    throw 7;
+}
+int main() {
+    normal();
+    early();
+    fallthrough();
+    try {
+        throw_exit();
+    } catch (int e) {
+        println(e);
+    }
+    return 0;
+}

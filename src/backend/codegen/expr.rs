@@ -37,6 +37,69 @@ impl Ctx<'_> {
                 self.emit("\tpush %rax");
                 Ok(Ty::Str)
             }
+            Expr::Interp { span, parts } => {
+                // parts alternate: literal fragment, expression, fragment...
+                // Concatenate left to right, dropping each fresh operand
+                // (an itoa result or an owned sub-expression) after it is
+                // consumed, since flint_strconcat only reads its inputs.
+                let _ = self.gen_expr_ro(&parts[0], frame)?;
+                let mut acc_new = false;
+                for (i, part) in parts.iter().enumerate().skip(1) {
+                    let is_expr_part = i % 2 == 1;
+                    let pt = self.gen_expr_ro(part, frame)?;
+                    let mut part_new = false;
+                    if is_expr_part {
+                        match pt {
+                            Ty::Int | Ty::Bool | Ty::Enum(_) => {
+                                self.emit("\tpop %rdi");
+                                self.emit("\tcall flint_itoa");
+                                self.emit("\tpush %rax");
+                                part_new = true;
+                            }
+                            Ty::Str | Ty::Ptr(None) => {
+                                // A fresh string (call result, nested
+                                // interpolation, typed buffer) owns a
+                                // reference that must be dropped once the
+                                // concat has read it; reads (ident, field,
+                                // index, cast) borrow and are kept.
+                                part_new = matches!(
+                                    part,
+                                    Expr::Call { .. }
+                                        | Expr::Interp { .. }
+                                        | Expr::SizedNew { .. }
+                                );
+                            }
+                            _ => {
+                                return Err(CompileError::new(
+                                    *span,
+                                    "string interpolation needs int, bool, enum, or string expressions",
+                                ))
+                            }
+                        }
+                    }
+                    // stack: [acc, part]
+                    self.emit("\tpop %rsi"); // part
+                    self.emit("\tpop %rdi"); // acc (rdi for the concat call)
+                    if acc_new {
+                        self.emit("\tmov %rdi, %r12"); // keep it: the concat clobbers rdi
+                    }
+                    self.emit("\tcall flint_strconcat");
+                    self.emit("\tpush %rax"); // new acc
+                    // Release the operands, part first: a release that hits
+                    // zero drops into the munmap path and clobbers %rsi, so
+                    // the part must be consumed before the acc release.
+                    if part_new {
+                        self.emit("\tmov %rsi, %rdi");
+                        self.emit("\tcall flint_str_release");
+                    }
+                    if acc_new {
+                        self.emit("\tmov %r12, %rdi");
+                        self.emit("\tcall flint_str_release");
+                    }
+                    acc_new = true;
+                }
+                Ok(Ty::Str)
+            }
             Expr::Null { .. } => {
                 self.emit("\txor %rax, %rax");
                 self.emit("\tpush %rax");
@@ -64,6 +127,65 @@ impl Ctx<'_> {
                 self.maybe_retain(els, frame);
                 self.emit(&format!("{}:", end_label));
                 Ok(t)
+            }
+            Expr::OptRef { span } => {
+                let slot = *self
+                    .opt_base_slot
+                    .as_ref()
+                    .ok_or_else(|| CompileError::new(*span, "optional-chain reference outside a chain"))?;
+                let ty = self
+                    .opt_base_ty
+                    .clone()
+                    .ok_or_else(|| CompileError::new(*span, "optional-chain base has no type"))?;
+                self.emit(&format!("\tmovq {}(%rbp), %rax", slot));
+                self.emit("\tpush %rax");
+                Ok(ty)
+            }
+            Expr::OptChain { base, rest, .. } => {
+                let slot = frame.slot();
+                let bty = self.gen_expr(base, frame)?;
+                self.emit(&format!("\tmovq %rax, {}(%rbp)", slot));
+                let n = self.strn;
+                self.strn += 2;
+                let nn = format!(".Lopt_nn{}", n);
+                let done = format!(".Lopt_done{}", n);
+                self.emit("\ttest %rax, %rax");
+                self.emit(&format!("\tjne {}", nn));
+                // Null path: the base (0) already on the stack is the result.
+                self.emit(&format!("\tjmp {}", done));
+                self.emit(&format!("{}:", nn));
+                self.emit("\tpop %rax");
+                self.opt_base_slot = Some(slot);
+                self.opt_base_ty = Some(bty);
+                let t = self.gen_expr(rest, frame)?;
+                self.maybe_retain(rest, frame);
+                self.opt_base_slot = None;
+                self.opt_base_ty = None;
+                self.emit(&format!("{}:", done));
+                Ok(t)
+            }
+            Expr::Coalesce { l, r, .. } => {
+                let n = self.strn;
+                self.strn += 2;
+                let keep = format!(".Lcoal_keep{}", n);
+                let done = format!(".Lcoal_done{}", n);
+                let lty = self.gen_expr(l, frame)?;
+                self.emit("\ttest %rax, %rax");
+                self.emit(&format!("\tjne {}", keep));
+                // l is null: drop it and the result is r.
+                self.emit("\tpop %rax");
+                let rty = self.gen_expr(r, frame)?;
+                self.maybe_retain(r, frame);
+                self.emit(&format!("\tjmp {}", done));
+                self.emit(&format!("{}:", keep));
+                // l is non-null: it is already on the stack as the result.
+                self.maybe_retain(l, frame);
+                self.emit(&format!("{}:", done));
+                if matches!(l.as_ref(), Expr::Null { .. }) {
+                    Ok(rty)
+                } else {
+                    Ok(lty)
+                }
             }
             Expr::This { span, .. } => {
                 if let Some(off) = frame.this_offset {
@@ -208,6 +330,13 @@ impl Ctx<'_> {
                         self.emit("\tpush %rax");
                         let _ = it;
                         Ok(Ty::Bool)
+                    }
+                    UnOp::BitNot => {
+                        self.emit("\tpop %rdi");
+                        self.emit("\tnot %rdi");
+                        self.emit("\tpush %rdi");
+                        let _ = it;
+                        Ok(Ty::Int)
                     }
                     UnOp::Deref => {
                         self.emit("\tpop %rdi");

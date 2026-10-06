@@ -195,6 +195,8 @@ pub fn compile_sources(file_sources: &[String]) -> error::CompileResult<String> 
         interfaces: Vec::new(),
         enums: Vec::new(),
         imports: Vec::new(),
+        consts: Vec::new(),
+        type_aliases: Vec::new(),
     };
     for (start, end) in &ranges {
         let mut file_toks = toks[*start..*end].to_vec();
@@ -206,6 +208,8 @@ pub fn compile_sources(file_sources: &[String]) -> error::CompileResult<String> 
         merged.interfaces.append(&mut prog.interfaces);
         merged.enums.append(&mut prog.enums);
         merged.imports.append(&mut prog.imports);
+        merged.consts.append(&mut prog.consts);
+        merged.type_aliases.append(&mut prog.type_aliases);
     }
     let merged = middle::desugar_lambdas(&merged)?;
     let prog = middle::monomorphize(&merged)?;

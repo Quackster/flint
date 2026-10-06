@@ -376,12 +376,15 @@ flint_strlen:
     .globl flint_printstr
     .type flint_printstr, @function
 flint_printstr:
+    test %rdi, %rdi
+    jz .Lps_done              # null string: print nothing
     mov %rdi, %rsi            # buf
     call flint_strlen
     mov %rax, %rdx            # len
     mov $1, %rdi              # stdout
     mov $1, %rax              # SYS_write
     syscall
+.Lps_done:
     ret
     .size flint_printstr, .-flint_printstr
 
@@ -624,6 +627,101 @@ flint_println_i64:
     syscall
     ret
     .size flint_println_i64, .-flint_println_i64
+
+    .globl flint_panic_str
+    .type flint_panic_str, @function
+# flint_panic_str(s): rdi = s. Prints "panic: s\n" to stderr and exits
+# with status 1.
+flint_panic_str:
+    push %rbp
+    mov %rsp, %rbp
+    push %rdi                 # keep s across the prefix write
+    lea .Lpanic_prefix(%rip), %rsi
+    mov $7, %rdx              # "panic: "
+    mov $2, %rdi              # fd = 2 (stderr)
+    mov $1, %rax              # SYS_write
+    syscall
+    pop %rsi                  # s
+    mov %rsi, %rdi
+    call flint_strlen         # rax = len(s)
+    mov %rax, %rdx
+    mov %rsi, %rdi            # buf = s
+    mov $2, %edi              # fd = 2 (stderr)
+    mov $1, %rax
+    syscall
+    lea .Lprint_nl(%rip), %rsi
+    mov $1, %rdx
+    mov $2, %rdi
+    mov $1, %rax
+    syscall
+    mov $1, %edi
+    call flint_exit
+    ret
+    .size flint_panic_str, .-flint_panic_str
+
+    .globl flint_panic_i64
+    .type flint_panic_i64, @function
+# flint_panic_i64(n): rdi = n. Prints "panic: n\n" to stderr and exits
+# with status 1.
+flint_panic_i64:
+    push %rbp
+    mov %rsp, %rbp
+    sub $48, %rsp
+    lea -32(%rbp), %rsi       # buf base
+    mov %rdi, %r10            # value
+    mov %rbp, %r11            # p = base+32
+    test %r10, %r10
+    jns .Lpn_pos
+    neg %r10
+    mov $1, %rcx              # negative flag
+    jmp .Lpn_sign
+.Lpn_pos:
+    xor %rcx, %rcx
+.Lpn_sign:
+    test %r10, %r10
+    jnz .Lpn_loop
+    dec %r11
+    movb $48, (%r11)          # '0'
+    jmp .Lpn_negcheck
+.Lpn_loop:
+    mov $10, %r9
+    mov %r10, %rax
+.Lpn_div:
+    xor %rdx, %rdx
+    div %r9
+    lea 48(%rdx), %rdx
+    dec %r11
+    movb %dl, (%r11)
+    mov %rax, %r10
+    test %r10, %r10
+    jnz .Lpn_div
+.Lpn_negcheck:
+    test %rcx, %rcx
+    jz .Lpn_done
+    dec %r11
+    movb $45, (%r11)          # '-' before digits
+.Lpn_done:
+    mov %r11, %r14            # keep the digit pointer: syscall clobbers r11
+    lea .Lpanic_prefix(%rip), %rsi
+    mov $7, %rdx
+    mov $2, %rdi
+    mov $1, %rax
+    syscall
+    mov %rbp, %rdx
+    sub %r14, %rdx            # len
+    mov %r14, %rsi            # first byte
+    mov $2, %rdi
+    mov $1, %rax
+    syscall
+    lea .Lprint_nl(%rip), %rsi
+    mov $1, %rdx
+    mov $2, %rdi
+    mov $1, %rax
+    syscall
+    mov $1, %edi
+    call flint_exit
+    ret
+    .size flint_panic_i64, .-flint_panic_i64
 
     .globl flint_itoa
     .type flint_itoa, @function
@@ -2844,6 +2942,8 @@ flint_str_format:
     .string "\n"
     .Lprint_nl:
     .string "\n"
+    .Lpanic_prefix:
+    .string "panic: "
 
     .section .text
     # Signed division by absolute value: this toolchain's cltd only

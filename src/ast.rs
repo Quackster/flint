@@ -10,6 +10,38 @@ pub struct Program {
     /// input files. Each entry is a fully qualified name (`com.other.Foo`)
     /// or a wildcard (`com.other.*`).
     pub imports: Vec<String>,
+    /// Top-level `const NAME = <value>;` constants, inlined at use sites.
+    pub consts: Vec<ConstDef>,
+    /// Top-level `type NAME = <type>;` aliases, resolved by the parser.
+    pub type_aliases: Vec<TypeAlias>,
+}
+
+/// A compile-time constant value (int, bool, or string).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConstVal {
+    Int(i64),
+    Bool(bool),
+    Str(String),
+}
+
+/// `const NAME = <value>;` — top level (scoped by `package`) or a class
+/// member (`Class.NAME`). The monomorphizer inlines uses as literals.
+#[derive(Debug, Clone)]
+pub struct ConstDef {
+    pub span: Span,
+    /// Package for top-level consts; empty for class members.
+    pub package: String,
+    pub name: String,
+    pub value: ConstVal,
+}
+
+/// `type NAME = <type>;` — a top-level type alias.
+#[derive(Debug, Clone)]
+pub struct TypeAlias {
+    pub span: Span,
+    pub package: String,
+    pub name: String,
+    pub ty: Ty,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,6 +105,8 @@ pub struct ClassDef {
     pub is_abstract: bool,
     pub fields: Vec<FieldDef>,
     pub methods: Vec<MethodDef>,
+    /// `const NAME = <value>;` class members, referenced as `Class.NAME`.
+    pub consts: Vec<ConstDef>,
 }
 
 /// An interface: a set of abstract method signatures. v1: no fields, no
@@ -116,6 +150,8 @@ pub enum Ty {
     // middle/mono pass, so the backend never sees these)
     Param(String), // a type-parameter reference, e.g. `T` in `class Vessel<T>`
     Inst(usize, Vec<Ty>), // instantiated generic class: class index + type args
+    Alias(String), // `type NAME = ...` alias (fully qualified); resolved to
+                   // its target type by the middle/mono pass
 }
 
 #[derive(Debug, Clone)]
@@ -230,11 +266,20 @@ pub enum Stmt {
         span: Span,
         value: Box<Expr>,
     },
-    // `try { ... } catch (T var) { ... }` - simple exception handling.
+    // `defer expr;` - expr is evaluated when the enclosing function exits
+    // (Go-style: last deferred runs first, runs on every return path).
+    Defer {
+        span: Span,
+        expr: Box<Expr>,
+    },
+    // `try { ... } catch (T var) { ... }` / `catch (A | B var) { ... }` -
+    // exception handling. `catch_types` has one entry per type in the list;
+    // the catch variable itself is typed by their least upper bound (a
+    // common parent class or interface).
     TryCatch {
         span: Span,
         try_block: Box<Block>,
-        catch_type: Ty,
+        catch_types: Vec<Ty>,
         catch_var: String,
         catch_block: Box<Block>,
         /// Optional `finally { ... }` block; runs on normal completion, on a
@@ -271,6 +316,7 @@ pub enum BinOp {
 pub enum UnOp {
     Neg,
     Not,
+    BitNot, // ~
     Deref,  // *
     Addr,   // &
     FnAddr, // @ (function address)
@@ -289,6 +335,13 @@ pub enum Expr {
     Str {
         span: Span,
         value: String,
+    },
+    // String interpolation `"a={x}b"`: parts alternate between literal text
+    // fragments (`Expr::Str`) and interpolated expressions, starting and
+    // ending with a fragment.
+    Interp {
+        span: Span,
+        parts: Vec<Expr>,
     },
     Ident {
         span: Span,
@@ -412,6 +465,26 @@ pub enum Expr {
         span: Span,
         e: Box<Expr>,
         ty: Ty,
+    },
+    // `base?.rest`: if `base` is null the whole chain yields the zero value
+    // of the result type, otherwise the chain is evaluated. `rest` is the
+    // remainder of the postfix chain (field/method/index hops) whose root is
+    // an `OptRef` naming the base.
+    OptChain {
+        span: Span,
+        base: Box<Expr>,
+        rest: Box<Expr>,
+    },
+    // The base of the enclosing optional chain (valid only inside an
+    // `OptChain`'s `rest`).
+    OptRef {
+        span: Span,
+    },
+    // `l ?? r`: if `l` is null, `r`, else `l`.
+    Coalesce {
+        span: Span,
+        l: Box<Expr>,
+        r: Box<Expr>,
     },
     // `EnumName.Variant`: a compile-time integer constant.
     EnumVariant {

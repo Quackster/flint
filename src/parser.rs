@@ -174,6 +174,9 @@ pub struct Prescan {
     interface_idx: std::collections::HashMap<String, usize>,
     enum_names: std::collections::HashSet<String>,
     enum_idx: std::collections::HashMap<String, usize>,
+    /// Fully qualified `type NAME = ...` alias names (all files), so a
+    /// file can name a type alias defined in another file.
+    alias_names: std::collections::HashSet<String>,
     imports: Vec<String>,
 }
 
@@ -192,6 +195,7 @@ pub fn prescan(toks: &[Token], boundaries: &std::collections::HashSet<usize>) ->
     let mut enum_idx = std::collections::HashMap::new();
     let mut current_package = String::new();
     let mut imports = Vec::new();
+    let mut alias_names = std::collections::HashSet::new();
     let mut k = 0;
     while k < toks.len() {
         if boundaries.contains(&k) {
@@ -231,6 +235,14 @@ pub fn prescan(toks: &[Token], boundaries: &std::collections::HashSet<usize>) ->
                     enum_idx.insert(fqn.clone(), enum_names.len());
                     enum_names.insert(fqn);
                 }
+            }
+        }
+        // type Name = ... -> register the type alias (by full name)
+        if toks[k].kind == Tok::Alias {
+            if let Tok::Ident(n) = &toks.get(k + 1).map(|t| t.kind.clone()).unwrap_or(
+                Tok::Eof,
+            ) {
+                alias_names.insert(full_name(&current_package, n));
             }
         }
         // class / abstract class -> register the class name
@@ -389,6 +401,7 @@ pub fn prescan(toks: &[Token], boundaries: &std::collections::HashSet<usize>) ->
         interface_idx,
         enum_names,
         enum_idx,
+        alias_names,
         imports,
     }
 }
@@ -409,6 +422,8 @@ pub struct Parser<'a> {
     interface_idx: std::collections::HashMap<String, usize>,
     enum_names: std::collections::HashSet<String>,
     enum_idx: std::collections::HashMap<String, usize>,
+    /// Fully qualified type-alias names (all files, from the pre-scan).
+    alias_names: std::collections::HashSet<String>,
     // Innermost type-parameter scope: the `T`/`U` names of the generic
     // class/function currently being parsed, so `parse_type` can form `Ty::Param`.
     type_params: Vec<String>,
@@ -443,10 +458,40 @@ impl<'a> Parser<'a> {
             interface_idx: p.interface_idx,
             enum_names: p.enum_names,
             enum_idx: p.enum_idx,
+            alias_names: p.alias_names,
             type_params: Vec::new(),
             allow_type_param: false,
             pending_gt: 0,
         }
+    }
+
+    /// Resolve a (possibly short) type-alias name to its fully qualified
+    /// name, using the current package, the default package, and the import
+    /// list.
+    fn resolve_alias(&self, name: &str) -> Option<String> {
+        let fqn = full_name(&self.current_package, name);
+        if self.alias_names.contains(&fqn) {
+            return Some(fqn);
+        }
+        if self.alias_names.contains(name) {
+            return Some(name.to_string());
+        }
+        for imp in &self.imports {
+            if !imp.ends_with(".*") && imp.rsplit('.').next() == Some(name)
+                && self.alias_names.contains(imp)
+            {
+                return Some(imp.clone());
+            }
+        }
+        for imp in &self.imports {
+            if let Some(prefix) = imp.strip_suffix(".*") {
+                let fqn = format!("{}.{}", prefix, name);
+                if self.alias_names.contains(&fqn) {
+                    return Some(fqn);
+                }
+            }
+        }
+        None
     }
 
     /// Resolve a (possibly short) class name to its fully qualified name,
@@ -779,6 +824,10 @@ impl<'a> Parser<'a> {
                     self.bump();
                     let idx = self.enum_idx.get(&fqn).copied().unwrap_or(0);
                     Ty::Enum(idx)
+                } else if let Some(fqn) = self.resolve_alias(&n) {
+                    // type alias name; the mono pass rewrites it to the target
+                    self.bump();
+                    Ty::Alias(fqn)
                 } else if self.type_params.contains(&n) || self.allow_type_param {
                     self.bump();
                     Ty::Param(n)
@@ -867,6 +916,7 @@ impl<'a> Parser<'a> {
         self.resolve_class(n).is_some()
             || self.resolve_interface(n).is_some()
             || self.resolve_enum(n).is_some()
+            || self.resolve_alias(n).is_some()
     }
 
     /// True if the token `off` positions ahead begins a type.
@@ -1028,6 +1078,8 @@ impl<'a> Parser<'a> {
         let mut interfaces = Vec::new();
         let mut enums = Vec::new();
         let mut imports = Vec::new();
+        let mut consts = Vec::new();
+        let mut type_aliases = Vec::new();
         while !self.at(&Tok::Eof) {
             if self.at(&Tok::Package) {
                 self.bump(); // package
@@ -1075,6 +1127,23 @@ impl<'a> Parser<'a> {
                 let mut d = self.parse_enum()?;
                 d.package = self.current_package.clone();
                 enums.push(d);
+            } else if self.at(&Tok::Const) {
+                let mut c = self.parse_const()?;
+                c.package = self.current_package.clone();
+                consts.push(c);
+            } else if self.at(&Tok::Alias) {
+                let span = self.cur().span;
+                self.bump(); // alias
+                let name = self.expect_ident()?;
+                self.expect(&Tok::Assign, "'=' after type alias name")?;
+                let ty = self.parse_type()?;
+                self.expect(&Tok::Semicolon, "';' after type alias definition")?;
+                type_aliases.push(TypeAlias {
+                    span,
+                    package: self.current_package.clone(),
+                    name,
+                    ty,
+                });
             } else if self.at(&Tok::Async)
                 || self.at(&Tok::Void)
                 || self.is_decl_start()
@@ -1093,7 +1162,80 @@ impl<'a> Parser<'a> {
                 ));
             }
         }
-        Ok(Program { structs, funcs, interfaces, enums, imports })
+        Ok(Program {
+            structs,
+            funcs,
+            interfaces,
+            enums,
+            imports,
+            consts,
+            type_aliases,
+        })
+    }
+
+    /// `const NAME = <value>;` — the value must be a literal (int, bool, or
+    /// string); the monomorphizer inlines uses as that literal.
+    fn parse_const(&mut self) -> CompileResult<ConstDef> {
+        let span = self.cur().span;
+        self.bump(); // const
+        let name = self.expect_ident()?;
+        self.expect(&Tok::Assign, "'=' after const name")?;
+        let value = match self.cur().kind.clone() {
+            Tok::Int(v) => {
+                self.bump();
+                ConstVal::Int(v)
+            }
+            Tok::Minus => {
+                let s = self.cur().span;
+                self.bump();
+                match self.cur().kind.clone() {
+                    Tok::Int(v) => {
+                        self.bump();
+                        ConstVal::Int(-v)
+                    }
+                    other => {
+                        return Err(CompileError::new(
+                            s,
+                            format!("const value must be a literal, found {:?}", other),
+                        ))
+                    }
+                }
+            }
+            Tok::True => {
+                self.bump();
+                ConstVal::Bool(true)
+            }
+            Tok::False => {
+                self.bump();
+                ConstVal::Bool(false)
+            }
+            Tok::Str(s) => {
+                self.bump();
+                ConstVal::Str(s)
+            }
+            other => {
+                return Err(CompileError::new(
+                    self.cur().span,
+                    format!(
+                        "const value must be an int, bool, or string literal, found {:?}",
+                        other
+                    ),
+                ))
+            }
+        };
+        if !self.at(&Tok::Semicolon) {
+            return Err(CompileError::new(
+                self.cur().span,
+                "const value must be a single literal; computed values need a function or a static field",
+            ));
+        }
+        self.bump();
+        Ok(ConstDef {
+            span,
+            package: String::new(),
+            name,
+            value,
+        })
     }
 
     fn parse_class(&mut self, is_abstract: bool) -> CompileResult<ClassDef> {
@@ -1135,7 +1277,14 @@ impl<'a> Parser<'a> {
         }
         let mut fields = Vec::new();
         let mut methods = Vec::new();
+        let mut consts = Vec::new();
         while !self.at(&Tok::RBrace) {
+            // `const NAME = <value>;` class member
+            if self.at(&Tok::Const) {
+                let c = self.parse_const()?;
+                consts.push(c);
+                continue;
+            }
             // Check for constructor without return type: `Name ( params ) { ... }` or with vis
             // Peek visibility first
             let vis = if self.at(&Tok::Private) {
@@ -1308,6 +1457,7 @@ impl<'a> Parser<'a> {
             is_abstract,
             fields,
             methods,
+            consts,
         })
     }
 
@@ -2067,13 +2217,37 @@ impl<'a> Parser<'a> {
                     value: Box::new(value),
                 });
             }
+            Tok::Defer => {
+                let span = self.cur().span;
+                self.bump();
+                let value = self.parse_expr()?;
+                self.expect(&Tok::Semicolon, "';' after 'defer'")?;
+                out.push(Stmt::Defer {
+                    span,
+                    expr: Box::new(value),
+                });
+            }
             Tok::Try => {
                 let span = self.cur().span;
                 self.bump();
                 let try_block = self.parse_block()?;
                 self.expect(&Tok::Catch, "'catch' after 'try' block")?;
                 self.expect(&Tok::LParen, "'(' after 'catch'")?;
-                let catch_type = self.parse_type()?;
+                // `catch (T e)` or a multi-catch `catch (A | B e)`.
+                let mut catch_types = vec![self.parse_type()?];
+                while self.at(&Tok::Pipe) {
+                    let pspan = self.cur().span;
+                    self.bump();
+                    match self.parse_type() {
+                        Ok(t) => catch_types.push(t),
+                        Err(_) => {
+                            return Err(CompileError::new(
+                                pspan,
+                                "'|' in catch expects another exception type",
+                            ))
+                        }
+                    }
+                }
                 let catch_var = self.expect_ident()?;
                 self.expect(&Tok::RParen, "')' after catch param")?;
                 let catch_block = self.parse_block()?;
@@ -2086,7 +2260,7 @@ impl<'a> Parser<'a> {
                 out.push(Stmt::TryCatch {
                     span,
                     try_block: Box::new(try_block),
-                    catch_type,
+                    catch_types,
                     catch_var,
                     catch_block: Box::new(catch_block),
                     finally,
@@ -2170,6 +2344,12 @@ impl<'a> Parser<'a> {
             Tok::MinusEq => Some(BinOp::Sub),
             Tok::StarEq => Some(BinOp::Mul),
             Tok::SlashEq => Some(BinOp::Div),
+            Tok::PercentEq => Some(BinOp::Mod),
+            Tok::AmpEq => Some(BinOp::BitAnd),
+            Tok::PipeEq => Some(BinOp::BitOr),
+            Tok::CaretEq => Some(BinOp::BitXor),
+            Tok::ShlEq => Some(BinOp::Shl),
+            Tok::ShrEq => Some(BinOp::Shr),
             _ => None,
         }
     }
@@ -2197,7 +2377,7 @@ impl<'a> Parser<'a> {
 
     fn prec_of(tok: &Tok) -> Option<u8> {
         match tok {
-            Tok::OrOr => Some(1),
+            Tok::OrOr | Tok::QuesQues => Some(1),
             Tok::AndAnd => Some(2),
             Tok::EqEq | Tok::BangEq | Tok::Instanceof => Some(3),
             Tok::Lt | Tok::Gt | Tok::LtEq | Tok::GtEq => Some(4),
@@ -2259,6 +2439,15 @@ impl<'a> Parser<'a> {
                     e: Box::new(left),
                     ty,
                 };
+            } else if cur_kind == Tok::QuesQues {
+                let right = self.parse_binop(prec + 1)?;
+                let lspan = expr_span(&left);
+                let span = lspan.join(&span).join(&expr_span(&right));
+                left = Expr::Coalesce {
+                    span,
+                    l: Box::new(left),
+                    r: Box::new(right),
+                };
             } else {
                 let right = self.parse_binop(prec + 1)?;
                 let lspan = expr_span(&left);
@@ -2281,6 +2470,7 @@ impl<'a> Parser<'a> {
         let unop = match kind {
             Tok::Minus => Some(UnOp::Neg),
             Tok::Bang => Some(UnOp::Not),
+            Tok::Tilde => Some(UnOp::BitNot),
             Tok::Star => Some(UnOp::Deref),
             Tok::Amp => Some(UnOp::Addr),
             Tok::At => Some(UnOp::FnAddr),
@@ -2339,9 +2529,16 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_postfix(&mut self) -> CompileResult<Expr> {
-        let mut e = self.parse_atom()?;
-        // Type args parsed for a `f<T>(...)` call; consumed by the next `(`.
+        let e = self.parse_atom()?;
         let mut call_type_args: Option<Vec<Ty>> = None;
+        self.parse_postfix_rest(e, &mut call_type_args)
+    }
+
+    fn parse_postfix_rest(
+        &mut self,
+        mut e: Expr,
+        call_type_args: &mut Option<Vec<Ty>>,
+    ) -> CompileResult<Expr> {
         loop {
             if self.at(&Tok::LParen) {
                 let span = self.cur().span;
@@ -2379,7 +2576,7 @@ impl<'a> Parser<'a> {
                 let save = self.i;
                 match self.parse_type_args_opt() {
                     Ok(args) if self.at(&Tok::LParen) => {
-                        call_type_args = Some(args);
+                        *call_type_args = Some(args);
                     }
                     _ => {
                         self.i = save;
@@ -2406,6 +2603,28 @@ impl<'a> Parser<'a> {
                     base: Box::new(e),
                     name,
                 };
+            } else if self.at(&Tok::QDot) {
+                // `base?.rest`: null-checks the base once; if it is null the
+                // whole chain yields the zero value of the result type,
+                // otherwise the rest of the chain (including further `?.`
+                // hops) is evaluated.
+                let bspan = expr_span(&e);
+                let span = self.cur().span;
+                self.bump();
+                let name = self.expect_ident()?;
+                let field = Expr::Field {
+                    span,
+                    base: Box::new(Expr::OptRef { span }),
+                    name,
+                };
+                let rest = self.parse_postfix_rest(field, call_type_args)?;
+                let rspan = expr_span(&rest);
+                e = Expr::OptChain {
+                    span: bspan.join(&rspan),
+                    base: Box::new(e),
+                    rest: Box::new(rest),
+                };
+                break;
             } else if self.at(&Tok::LBracket) {
                 let span = self.cur().span;
                 self.bump();
@@ -2524,6 +2743,52 @@ impl<'a> Parser<'a> {
             Tok::Str(s) => {
                 self.bump();
                 Ok(Expr::Str { span, value: s })
+            }
+            // A fragment of an interpolated string: the lexer split the
+            // literal at each '{' and lexed the expressions normally, so the
+            // stream is StrFrag, expr, '}', StrFrag, expr, '}', ..., Str
+            // (a plain Str closes the literal; a StrFrag means another
+            // interpolation follows).
+            Tok::StrFrag(s) => {
+                let span = self.cur().span;
+                self.bump();
+                let mut parts = vec![Expr::Str {
+                    span,
+                    value: s.clone(),
+                }];
+                loop {
+                    let e = self.parse_expr()?;
+                    let cspan = self.cur().span;
+                    self.expect(&Tok::RBrace, "'}' in string interpolation")?;
+                    parts.push(e);
+                    let (fs, last) = match self.cur().kind.clone() {
+                        Tok::StrFrag(f) => (f, false),
+                        Tok::Str(f) => (f, true),
+                        other => {
+                            return Err(CompileError::new(
+                                cspan,
+                                format!(
+                                    "expected string text after '}}' in interpolation, found {:?}",
+                                    other
+                                ),
+                            ))
+                        }
+                    };
+                    let fspan = self.cur().span;
+                    self.bump();
+                    parts.push(Expr::Str {
+                        span: fspan,
+                        value: fs,
+                    });
+                    if last {
+                        break;
+                    }
+                }
+                let end = expr_span(parts.last().unwrap());
+                Ok(Expr::Interp {
+                    span: span.join(&end),
+                    parts,
+                })
             }
             Tok::LParen => {
                 // cast: `(Type) expr`
@@ -2743,6 +3008,7 @@ pub fn expr_span(e: &Expr) -> Span {
         Expr::Int { span, .. }
         | Expr::Bool { span, .. }
         | Expr::Str { span, .. }
+        | Expr::Interp { span, .. }
         | Expr::Ident { span, .. }
         | Expr::This { span, .. }
         | Expr::Call { span, .. }
@@ -2767,7 +3033,10 @@ pub fn expr_span(e: &Expr) -> Span {
         | Expr::EnumVariant { span, .. }
         | Expr::Await { span, .. }
         | Expr::Lambda { span, .. }
-        | Expr::Closure { span, .. } => *span,
+        | Expr::Closure { span, .. }
+        | Expr::OptChain { span, .. }
+        | Expr::OptRef { span, .. }
+        | Expr::Coalesce { span, .. } => *span,
     }
 }
 

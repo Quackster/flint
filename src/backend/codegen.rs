@@ -92,6 +92,7 @@ fn ty_name(ty: &Ty) -> String {
         Ty::Enum(_) => "int".to_string(),
         Ty::Param(_) => "param".to_string(),
         Ty::Inst(_, _) => "class".to_string(),
+        Ty::Alias(_) => "alias".to_string(),
     }
 }
 
@@ -124,6 +125,8 @@ pub fn generate(prog: &Program) -> CompileResult<String> {
         method_map: HashMap::new(),
         stack_region: None,
         str_copy: false,
+        opt_base_slot: None,
+        opt_base_ty: None,
     };
     for (i, f) in prog.funcs.iter().enumerate() {
         ctx

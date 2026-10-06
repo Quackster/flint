@@ -45,7 +45,8 @@ impl Ctx<'_> {
         self.zero_class_slots(&frame, nparams);
         self.gen_block(&f.body, &mut frame)?;
 
-        // implicit end: release heap refs, then fall through returns 0
+        // implicit end: run defers, release heap refs, then fall through returns 0
+        self.emit_defers(&mut frame)?;
         self.emit_end_releases(&frame);
         self.emit("\txor %rax, %rax");
         self.emit("\tleave");
@@ -148,7 +149,8 @@ impl Ctx<'_> {
         self.prewalk_decls(&meth.body, &mut frame, &plan);
         self.zero_class_slots(&frame, nparams);
         self.gen_block(&meth.body, &mut frame)?;
-        // release heap refs (params, this, locals) before returning
+        // run defers, then release heap refs (params, this, locals) before returning
+        self.emit_defers(&mut frame)?;
         self.emit_end_releases(&frame);
         self.emit("\txor %rax, %rax");
         self.emit("\tleave");

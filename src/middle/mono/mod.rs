@@ -68,6 +68,8 @@ pub fn monomorphize(prog: &Program) -> CompileResult<Program> {
             interfaces: Vec::new(),
             enums: Vec::new(),
             imports: Vec::new(),
+            consts: prog.consts.clone(),
+            type_aliases: Vec::new(),
         },
         struct_new: HashMap::new(),
         func_new: HashMap::new(),
@@ -82,6 +84,12 @@ pub fn monomorphize(prog: &Program) -> CompileResult<Program> {
         cur_locals: HashMap::new(),
         cur_this: None,
         cur_func_package: String::new(),
+        alias_map: prog
+            .type_aliases
+            .iter()
+            .map(|a| (fqn(&a.package, &a.name), a.ty.clone()))
+            .collect(),
+        opt_ref_ty: None,
     };
     m.run()
 }
@@ -113,6 +121,10 @@ struct Mono<'a> {
     /// Package of the function/method body currently being resolved, used to
     /// resolve short (unqualified) free-function calls.
     cur_func_package: String,
+    /// Type-alias table: fully qualified alias name -> target type.
+    alias_map: HashMap<String, Ty>,
+    /// Type of the enclosing `OptChain`'s base, for typing an `OptRef`.
+    opt_ref_ty: Option<Ty>,
 }
 
 impl<'a> Mono<'a> {
@@ -163,6 +175,22 @@ impl<'a> Mono<'a> {
                 self.expand_func(ni, i, &[])?;
             }
         }
+        // Seed the worklist with generic class instances named by type
+        // aliases (they may not appear anywhere else in the program).
+        for a in self.prog.type_aliases.iter() {
+            let mut seen = std::collections::HashSet::new();
+            let mut cur = a.ty.clone();
+            while let Ty::Alias(n) = &cur {
+                if !seen.insert(n.clone()) {
+                    break;
+                }
+                cur = match self.alias_map.get(n) {
+                    Some(t) => t.clone(),
+                    None => break,
+                };
+            }
+            let _ = self.resolve_type(&cur, &[])?;
+        }
         // Drain the instantiation worklists to a fixpoint (a generic
         // function body can instantiate a class, and a class body can
         // instantiate a function, so drain alternates until both are empty).
@@ -182,6 +210,17 @@ impl<'a> Mono<'a> {
                 break;
             }
         }
+        // Type aliases pass through with their target types resolved (after
+        // the expansion worklist, so class indices are stable).
+        for a in self.prog.type_aliases.iter() {
+            let ty = self.resolve_type(&a.ty, &[])?;
+            self.out.type_aliases.push(TypeAlias {
+                span: a.span,
+                package: a.package.clone(),
+                name: a.name.clone(),
+                ty,
+            });
+        }
         let mut out = std::mem::replace(
             &mut self.out,
             Program {
@@ -190,6 +229,8 @@ impl<'a> Mono<'a> {
                 interfaces: Vec::new(),
                 enums: Vec::new(),
                 imports: Vec::new(),
+                consts: Vec::new(),
+                type_aliases: Vec::new(),
             },
         );
         // Now that every generic class instance is expanded, desugar the
@@ -257,6 +298,7 @@ fn placeholder_class() -> ClassDef {
         is_abstract: false,
         fields: Vec::new(),
         methods: Vec::new(),
+        consts: Vec::new(),
     }
 }
 

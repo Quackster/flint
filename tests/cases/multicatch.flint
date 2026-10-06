@@ -1,0 +1,82 @@
+// Multi-catch: catch (A | B e) — the catch variable is typed by the least
+// upper bound of the listed types (a common parent class or interface).
+class AppError {
+    string msg;
+    int code;
+    void AppError(string m, int c) {
+        this.msg = m;
+        this.code = c;
+    }
+}
+
+class NetError extends AppError {
+    void NetError(string m, int c) {
+        super(m, c);
+    }
+}
+
+class TimeoutError extends AppError {
+    void TimeoutError(string m, int c) {
+        super(m, c);
+    }
+}
+
+string describe(AppError e) {
+    return e.msg + ":" + str.itoa(e.code);
+}
+
+void failNet() {
+    throw new NetError("net", 1);
+}
+
+void failTimeout() {
+    throw new TimeoutError("timeout", 2);
+}
+
+interface IoLike {
+    int id();
+}
+
+class ReadError implements IoLike {
+    int id() {
+        return 11;
+    }
+}
+
+class WriteError implements IoLike {
+    int id() {
+        return 22;
+    }
+}
+
+void failRead() {
+    throw new ReadError();
+}
+
+void failWrite() {
+    throw new WriteError();
+}
+
+int main() {
+    try {
+        failNet();
+    } catch (NetError | TimeoutError e) {
+        println(describe(e));
+    }
+    try {
+        failTimeout();
+    } catch (TimeoutError | NetError e) {
+        println(describe(e));
+    }
+    try {
+        failRead();
+    } catch (ReadError | WriteError e) {
+        println("io:" + str.itoa(e.id()));
+    }
+    try {
+        failWrite();
+    } catch (WriteError | ReadError e) {
+        println("io:" + str.itoa(e.id()));
+    }
+    return 0;
+}

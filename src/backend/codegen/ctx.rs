@@ -20,6 +20,10 @@ pub(crate) struct Ctx<'a> {
     /// writable `flint_strcopy` (the "retain": each store owns an
     /// independent block; release is the v1 no-op — blocks reclaim at exit).
     pub str_copy: bool,
+    /// While generating an `OptChain`'s rest: the slot holding the chain's
+    /// base value, and the base's type (so an `OptRef` lowers correctly).
+    pub opt_base_slot: Option<i64>,
+    pub opt_base_ty: Option<Ty>,
 }
 
 pub(crate) struct Local {
@@ -55,6 +59,8 @@ pub(crate) struct Frame {
     /// block, value slot, flag slot). When set, `return` stores its value,
     /// sets the flag, and jumps to the target instead of returning.
     pub ret_capture: Option<(String, i64, i64)>,
+    /// Deferred call expressions, run in LIFO order at every function exit.
+    pub defers: Vec<crate::ast::Expr>,
 }
 
 impl Frame {
@@ -69,6 +75,7 @@ impl Frame {
             ret_type: None,
             try_end_stack: Vec::new(),
             ret_capture: None,
+            defers: Vec::new(),
         }
     }
     pub(crate) fn param_slot(&self, i: usize) -> i64 {

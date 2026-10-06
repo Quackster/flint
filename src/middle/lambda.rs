@@ -176,14 +176,18 @@ fn build_scope(
                 );
             }
             Stmt::TryCatch {
-                catch_type,
+                catch_types,
                 catch_var,
                 try_block,
                 catch_block,
                 finally,
                 ..
             } => {
-                register_local(known, seen, locals, catch_var, Some(catch_type.clone()));
+                // Best effort pre-monomorphization: the least upper bound
+                // when the names resolve, else the first listed type.
+                let vty = crate::backend::layout::lub_types(lk.prog, catch_types)
+                    .unwrap_or_else(|| catch_types[0].clone());
+                register_local(known, seen, locals, catch_var, Some(vty));
                 walk_block(lk, known, seen, locals, try_block);
                 walk_block(lk, known, seen, locals, catch_block);
                 if let Some(f) = finally {
@@ -271,6 +275,7 @@ fn block_has_lambda(b: &Block) -> bool {
             } => expr_has(target) || block_has_lambda(body),
             Stmt::Return { value, .. } => value.as_ref().map_or(false, |v| expr_has(v)),
             Stmt::Throw { value, .. } => expr_has(value),
+            Stmt::Defer { expr, .. } => expr_has(expr),
             Stmt::Switch {
                 target, cases, default, ..
             } => {
@@ -315,6 +320,12 @@ fn block_has_lambda(b: &Block) -> bool {
             Expr::Cond { cond, then, els, .. } => {
                 expr_has(cond.as_ref()) || expr_has(then.as_ref()) || expr_has(els.as_ref())
             }
+            Expr::Interp { parts, .. } => parts.iter().any(expr_has),
+            Expr::OptChain { base, rest, .. } => {
+                expr_has(base.as_ref()) || expr_has(rest.as_ref())
+            }
+            Expr::OptRef { .. } => false,
+            Expr::Coalesce { l, r, .. } => expr_has(l.as_ref()) || expr_has(r.as_ref()),
             _ => false,
         }
     }
@@ -468,6 +479,20 @@ fn free_names(
                 walk(free, this, declared, params, then, span)?;
                 walk(free, this, declared, params, els, span)?;
             }
+            Expr::Interp { parts, .. } => {
+                for p in parts {
+                    walk(free, this, declared, params, p, span)?;
+                }
+            }
+            Expr::OptChain { base, rest, .. } => {
+                walk(free, this, declared, params, base, span)?;
+                walk(free, this, declared, params, rest, span)?;
+            }
+            Expr::OptRef { .. } => {}
+            Expr::Coalesce { l, r, .. } => {
+                walk(free, this, declared, params, l, span)?;
+                walk(free, this, declared, params, r, span)?;
+            }
             _ => {}
         }
         Ok(())
@@ -538,6 +563,7 @@ fn free_names(
                     }
                 }
                 Stmt::Throw { value, .. } => walk(free, this, declared, params, value, span)?,
+                Stmt::Defer { expr, .. } => walk(free, this, declared, params, expr, span)?,
                 Stmt::Switch {
                     target, cases, default, ..
                 } => {
@@ -645,6 +671,20 @@ fn rewrite_body(e: &mut Expr, scalar_off: &HashMap<String, i64>, this_captured: 
             rewrite_body(then, scalar_off, this_captured);
             rewrite_body(els, scalar_off, this_captured);
         }
+        Expr::Interp { parts, .. } => {
+            for p in parts.iter_mut() {
+                rewrite_body(p, scalar_off, this_captured);
+            }
+        }
+        Expr::OptChain { base, rest, .. } => {
+            rewrite_body(base, scalar_off, this_captured);
+            rewrite_body(rest, scalar_off, this_captured);
+        }
+        Expr::OptRef { .. } => {}
+        Expr::Coalesce { l, r, .. } => {
+            rewrite_body(l, scalar_off, this_captured);
+            rewrite_body(r, scalar_off, this_captured);
+        }
         _ => {}
     }
 }
@@ -700,6 +740,7 @@ fn rewrite_stmt(s: &mut Stmt, scalar_off: &HashMap<String, i64>, this_captured: 
                 }
             }
             Stmt::Throw { value, .. } => rewrite_body(value, scalar_off, this_captured),
+            Stmt::Defer { expr, .. } => rewrite_body(expr, scalar_off, this_captured),
             Stmt::Switch {
                 target, cases, default, ..
             } => {
@@ -1022,6 +1063,20 @@ fn desugar_stmt(
                 expr(pkg, base, scope, then, lifted, n)?;
                 expr(pkg, base, scope, els, lifted, n)?;
             }
+            Expr::Interp { parts, .. } => {
+                for p in parts.iter_mut() {
+                    expr(pkg, base, scope, p, lifted, n)?;
+                }
+            }
+            Expr::OptChain { base: b2, rest, .. } => {
+                expr(pkg, base, scope, b2, lifted, n)?;
+                expr(pkg, base, scope, rest, lifted, n)?;
+            }
+            Expr::OptRef { .. } => {}
+            Expr::Coalesce { l, r, .. } => {
+                expr(pkg, base, scope, l, lifted, n)?;
+                expr(pkg, base, scope, r, lifted, n)?;
+            }
             _ => {}
         }
         Ok(())
@@ -1083,6 +1138,9 @@ fn desugar_stmt(
         }
         Stmt::Throw { value, .. } => {
             expr(pkg, base, scope, value, lifted, n)?;
+        }
+        Stmt::Defer { expr: de, .. } => {
+            expr(pkg, base, scope, de, lifted, n)?;
         }
         Stmt::Switch {
             target, cases, default, ..

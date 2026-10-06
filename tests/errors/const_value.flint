@@ -1,0 +1,4 @@
+const BAD = 1 + 2;
+int main() {
+    return BAD;
+}

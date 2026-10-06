@@ -1,0 +1,18 @@
+class A {
+    void A() {
+    }
+}
+
+class B {
+    void B() {
+    }
+}
+
+int main() {
+    try {
+        throw new A();
+    } catch (A | B e) {
+        return 1;
+    }
+    return 0;
+}

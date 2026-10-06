@@ -103,7 +103,7 @@ impl<'a> Mono<'a> {
                 .get(*idx)
                 .map(|e| e.name.clone())
                 .unwrap_or_else(|| "enum".to_string()),
-            Ty::Param(_) | Ty::Inst(_, _) => "type".to_string(),
+            Ty::Param(_) | Ty::Inst(_, _) | Ty::Alias(_) => "type".to_string(),
             Ty::Interface(idx) => self
                 .prog
                 .interfaces

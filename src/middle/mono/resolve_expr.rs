@@ -2,7 +2,16 @@ use crate::ast::*;
 use crate::error::{CompileError, CompileResult};
 use crate::span::Span;
 
-use super::Mono;
+use super::{Mono, fqn};
+
+/// The literal expression a const value inlines to.
+fn const_expr(c: &ConstDef, span: Span) -> Expr {
+    match &c.value {
+        ConstVal::Int(v) => Expr::Int { span, value: *v },
+        ConstVal::Bool(v) => Expr::Bool { span, value: *v },
+        ConstVal::Str(s) => Expr::Str { span, value: s.clone() },
+    }
+}
 
 /// Extract a dotted path (root identifier + field names) from a pure
 /// identifier/field chain. Returns None if the expression contains anything
@@ -33,8 +42,23 @@ impl<'a> Mono<'a> {
             | Expr::Bool { .. }
             | Expr::Str { .. }
             | Expr::Null { .. }
-            | Expr::This { .. }
-            | Expr::Ident { .. } => Ok(e.clone()),
+            | Expr::This { .. } => Ok(e.clone()),
+            Expr::Ident { name, span } => {
+                // A bare name may be a top-level `const` of the current
+                // package (locals shadow consts).
+                if !self.cur_locals.contains_key(name) {
+                    let want = fqn(&self.cur_func_package, name);
+                    if let Some(c) = self
+                        .prog
+                        .consts
+                        .iter()
+                        .find(|c| fqn(&c.package, &c.name) == want)
+                    {
+                        return Ok(const_expr(c, *span));
+                    }
+                }
+                Ok(e.clone())
+            }
             Expr::Closure {
                 span,
                 fn_name,
@@ -250,6 +274,24 @@ impl<'a> Mono<'a> {
                 })
             }
             Expr::Field { span, base, name } => {
+                // `Class.CONST` — a class const member inlines to its literal.
+                if let Expr::Ident { name: cn, .. } = base.as_ref() {
+                    if !self.cur_locals.contains_key(cn) {
+                        if let Some(ci) =
+                            self.class_by_name.get(&fqn(&self.cur_func_package, cn))
+                        {
+                            if let Some(c) = self
+                                .prog
+                                .structs[*ci]
+                                .consts
+                                .iter()
+                                .find(|c| c.name == *name)
+                            {
+                                return Ok(const_expr(c, *span));
+                            }
+                        }
+                    }
+                }
                 let base = Box::new(self.resolve_expr(base, subst)?);
                 Ok(Expr::Field {
                     span: *span,
@@ -329,6 +371,49 @@ impl<'a> Mono<'a> {
                     cond,
                     then,
                     els,
+                })
+            }
+            Expr::Interp { span, parts } => {
+                let parts: Vec<Expr> = parts
+                    .iter()
+                    .map(|p| self.resolve_expr(p, subst))
+                    .collect::<CompileResult<Vec<Expr>>>()?;
+                Ok(Expr::Interp { span: *span, parts })
+            }
+            Expr::OptChain { span, base, rest } => {
+                let bt = self.expr_type(base, subst)?;
+                if !matches!(&bt, Ty::Struct(_) | Ty::Str | Ty::Ptr(_)) {
+                    return Err(CompileError::new(
+                        *span,
+                        "'?.' requires a reference base (a class, string, or pointer value)",
+                    ));
+                }
+                let saved = std::mem::replace(&mut self.opt_ref_ty, Some(bt));
+                let rest = self.resolve_expr(rest, subst);
+                self.opt_ref_ty = saved;
+                let rest = Box::new(rest?);
+                let base = Box::new(self.resolve_expr(base, subst)?);
+                Ok(Expr::OptChain {
+                    span: *span,
+                    base,
+                    rest,
+                })
+            }
+            Expr::OptRef { span } => Ok(Expr::OptRef { span: *span }),
+            Expr::Coalesce { span, l, r } => {
+                let lt = self.expr_type(l, subst)?;
+                if !matches!(&lt, Ty::Struct(_) | Ty::Str | Ty::Ptr(_)) {
+                    return Err(CompileError::new(
+                        *span,
+                        "'??' requires a reference left operand (a class, string, or pointer value)",
+                    ));
+                }
+                let l = Box::new(self.resolve_expr(l, subst)?);
+                let r = Box::new(self.resolve_expr(r, subst)?);
+                Ok(Expr::Coalesce {
+                    span: *span,
+                    l,
+                    r,
                 })
             }
             Expr::Await { span, e: inner } => {

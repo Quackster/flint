@@ -344,6 +344,10 @@ fn is_builtin_callee(callee: &[String]) -> bool {
             | "mem.releaseStr"
             | "sys.fnCall2"
             | "fnCall2"
+            | "assert"
+            | "io.assert"
+            | "panic"
+            | "io.panic"
     )
 }
 
@@ -429,6 +433,33 @@ impl<'p> Checker<'p> {
                 Ok(())
             }
             Expr::Lambda { .. } => Ok(()),
+            // Interpolated sub-expressions are read by value (the result
+            // string is fresh); a part never moves its own operands.
+            Expr::Interp { parts, .. } => {
+                for p in parts {
+                    if !matches!(p, Expr::Str { .. }) {
+                        self.check_expr_value(p)?;
+                    }
+                }
+                Ok(())
+            }
+            // `base?.rest`: the base is null-tested and used as receiver
+            // (both borrows); the rest is evaluated for value (nested moves
+            // inside it apply, but the base itself never moves).
+            Expr::OptChain { base, rest, .. } => {
+                self.check_expr_borrow(base)?;
+                self.check_expr_value(rest)?;
+                Ok(())
+            }
+            // The base of the enclosing optional chain: borrowed, never moved.
+            Expr::OptRef { .. } => Ok(()),
+            // `l ?? r`: the result reuses whichever side is non-null; the
+            // sides are borrows (the backend takes the extra reference).
+            Expr::Coalesce { l, r, .. } => {
+                self.check_expr_borrow(l)?;
+                self.check_expr_borrow(r)?;
+                Ok(())
+            }
             _ => Ok(()),
         }
     }
@@ -898,9 +929,21 @@ impl<'p> Checker<'p> {
                 }
                 Ok(true)
             }
+            Stmt::Defer { expr, .. } => {
+                // Evaluated at function exit, while the operands are still
+                // alive: check it like a plain expression statement.
+                if let Expr::Ident { name, span } = expr.as_ref() {
+                    if self.is_owned_var(name) {
+                        self.use_move(name, *span)?;
+                    }
+                    return Ok(false);
+                }
+                self.check_expr_value(expr)?;
+                Ok(false)
+            }
             Stmt::TryCatch {
                 try_block,
-                catch_type,
+                catch_types,
                 catch_var,
                 catch_block,
                 finally,
@@ -911,13 +954,15 @@ impl<'p> Checker<'p> {
                 let try_end = self.snapshot();
                 self.restore(&snap);
                 // The catch variable is a fresh owner (the thrown value moves
-                // into it).
+                // into it), typed by the catch types' least upper bound.
+                let vty = crate::backend::layout::lub_types(self.prog, catch_types)
+                    .unwrap_or_else(|| catch_types[0].clone());
                 self.scopes.push(HashMap::new());
                 if let Some(top) = self.scopes.last_mut() {
                     top.insert(
                         catch_var.clone(),
                         Var {
-                            ty: catch_type.clone(),
+                            ty: vty,
                             state: State::Owned,
                             moved_at: None,
                         },

@@ -1,0 +1,68 @@
+// Optional chaining (`a?.b`, `a?.m()`) and null-coalescing (`a ?? b`).
+// `a?.rest` yields the zero value of the result type when `a` is null
+// (skipping the whole chain), else evaluates `a.rest`; `a ?? b` yields
+// `b` when `a` is null, else `a`. Chaining: `a?.b?.c` short-circuits at
+// the first null.
+class Inner {
+    string msg;
+    int val;
+    Inner(string m, int v) {
+        this.msg = m;
+        this.val = v;
+    }
+    Inner next() {
+        return this;
+    }
+    string getMsg() {
+        return this.msg;
+    }
+}
+class Outer {
+    Inner inner;
+    Outer(Inner i) {
+        this.inner = i;
+    }
+    Inner getInner() {
+        return this.inner;
+    }
+}
+
+int main() {
+    Outer o = new Outer(new Inner("hi", 42));
+    Outer empty = new Outer(null);
+    println(o?.inner?.val);
+    println(empty?.inner?.val);
+    println(o?.getInner()?.getMsg());
+    println(empty?.getInner()?.getMsg());
+    string s = null;
+    string t = s ?? "default";
+    println(t);
+    string u = "real" ?? "nope";
+    println(u);
+    println(o?.inner != null);
+    println(empty?.inner != null);
+    // A chain ending in a scalar field: zero on null.
+    Inner n = null;
+    println(n?.val + 5);
+    // Null coalescing of chain results.
+    string r = empty?.inner?.getMsg() ?? "fb";
+    println(r);
+    string r2 = o?.inner?.getMsg() ?? "fb";
+    println(r2);
+    // Churn: refcounts must stay balanced across null / non-null chains.
+    int i = 0;
+    while (i < 1000) {
+        Outer a = new Outer(new Inner("x", i));
+        Outer b = new Outer(null);
+        int v1 = a?.inner?.val;
+        int v2 = b?.inner?.val;
+        string m = a?.inner?.next()?.getMsg() ?? "z";
+        if (v1 != i || v2 != 0 || m == null) {
+            println("BAD");
+            return 1;
+        }
+        i = i + 1;
+    }
+    println("done");
+    return 0;
+}

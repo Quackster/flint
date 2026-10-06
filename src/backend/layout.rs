@@ -203,6 +203,69 @@ pub(crate) fn ctor_symbol(
     }
 }
 
+/// The least upper bound of a multi-catch type list: a type in the list
+/// that every other entry is a subtype of, the nearest common ancestor
+/// class of all the class entries, or an interface that every class entry
+/// implements. `None` when the entries share no common type.
+pub(crate) fn lub_types(prog: &Program, types: &[Ty]) -> Option<Ty> {
+    if types.is_empty() {
+        return None;
+    }
+    if types.iter().all(|t| *t == types[0]) {
+        return Some(types[0].clone());
+    }
+    let has_iface = types.iter().any(|t| matches!(t, Ty::Interface(_)));
+    // A listed type that is a supertype of every other entry.
+    for c in types {
+        let ok = types.iter().all(|t| match (t, c) {
+            (_, _) if *t == *c => true,
+            (Ty::Struct(s), Ty::Struct(cc)) => is_subtype(prog, *s, &prog.structs[*cc].name),
+            (Ty::Struct(s), Ty::Interface(i)) => is_subtype(prog, *s, &prog.interfaces[*i].name),
+            (Ty::Interface(_), Ty::Struct(_)) => false, // checked when the class is the candidate
+            (Ty::Interface(i), Ty::Interface(ci)) => *i == *ci,
+            _ => false,
+        });
+        if ok {
+            return Some(c.clone());
+        }
+    }
+    // The nearest common ancestor class (walk up from the first class entry).
+    if !has_iface {
+        if let Some(first) = types.iter().find_map(|t| match t {
+            Ty::Struct(s) => Some(*s),
+            _ => None,
+        }) {
+            let mut seen = std::collections::HashSet::new();
+            let mut cur: Option<usize> = Some(first);
+            while let Some(c) = cur {
+                if seen.insert(c) {
+                    let ok = types.iter().all(|t| match t {
+                        Ty::Struct(s) => *s == c || is_subtype(prog, *s, &prog.structs[c].name),
+                        _ => false,
+                    });
+                    if ok {
+                        return Some(Ty::Struct(c));
+                    }
+                }
+                cur = parent_idx(prog, c);
+            }
+        }
+    }
+    // An interface implemented by every class entry (interfaces listed in
+    // the types must be the same one).
+    for (ii, _) in prog.interfaces.iter().enumerate() {
+        let ok = types.iter().all(|t| match t {
+            Ty::Struct(s) => is_subtype(prog, *s, &prog.interfaces[ii].name),
+            Ty::Interface(i) => *i == ii,
+            _ => false,
+        });
+        if ok {
+            return Some(Ty::Interface(ii));
+        }
+    }
+    None
+}
+
 /// True when `child` is a subtype of `parent_name` (a class it extends,
 /// transitively, or an interface it implements, transitively).
 pub(crate) fn is_subtype(prog: &Program, child: usize, parent_name: &str) -> bool {

@@ -364,6 +364,20 @@ impl<'p> Analyzer<'p> {
                 }
             }
             Expr::Lambda { body, .. } => self.mark_block(body, 0),
+            Expr::Interp { parts, .. } => {
+                for p in parts {
+                    self.mark_expr(p);
+                }
+            }
+            Expr::OptChain { base, rest, .. } => {
+                self.mark_expr(base);
+                self.mark_expr(rest);
+            }
+            Expr::OptRef { .. } => {}
+            Expr::Coalesce { l, r, .. } => {
+                self.mark_expr(l);
+                self.mark_expr(r);
+            }
             _ => {}
         }
     }
@@ -453,6 +467,9 @@ impl<'p> Analyzer<'p> {
             }
             Stmt::Throw { value, .. } => {
                 self.mark_expr(value);
+            }
+            Stmt::Defer { expr, .. } => {
+                self.mark_expr(expr);
             }
             Stmt::TryCatch {
                 try_block,

@@ -4,13 +4,51 @@ use crate::span::Span;
 
 use crate::backend::escape::LocalKind;
 use crate::backend::layout;
-use super::{Ctx, Frame, Local, RetainKind, e_span, struct_idx_of};
+use super::{Ctx, Frame, Local, RetainKind, e_span, struct_idx_of, ty_name};
 use super::call::check_ptr_conforms;
 
 impl Ctx<'_> {
     pub(crate) fn gen_block(&mut self, block: &Block, frame: &mut Frame) -> CompileResult<()> {
         for stmt in &block.stmts {
             self.gen_stmt(stmt, frame)?;
+        }
+        Ok(())
+    }
+
+    /// Run every deferred call, last deferred first, discarding each result
+    /// like an expression statement. Called at each function exit, just
+    /// before the end-of-scope releases (so the deferred calls can still use
+    /// the frame's locals).
+    pub(crate) fn emit_defers(&mut self, frame: &mut Frame) -> CompileResult<()> {
+        while let Some(d) = frame.defers.pop() {
+            let t = self.gen_expr(&d, frame)?;
+            self.maybe_retain(&d, frame);
+            if let Some(s) = struct_idx_of(&t) {
+                let cname = &self.prog.structs[s].name;
+                self.emit("\tpop %rax");
+                self.emit("\tmov %rax, %rdi");
+                self.emit(&format!("\tcall flint_release_{}", cname));
+            } else if matches!(
+                t,
+                Ty::Str | Ty::Array | Ty::ByteArray | Ty::ShortArray
+            ) && !matches!(
+                d,
+                Expr::Index { .. }
+                    | Expr::AddrOf { .. }
+                    | Expr::Deref { .. }
+                    | Expr::SuperBase { .. }
+                    | Expr::Str { .. }
+            ) {
+                self.emit("\tpop %rax");
+                self.emit("\tmov %rax, %rdi");
+                match t {
+                    Ty::ShortArray => self.emit("\tcall flint_short_release"),
+                    Ty::Str | Ty::ByteArray => self.emit("\tcall flint_str_release"),
+                    _ => self.emit("\tcall flint_array_release"),
+                }
+            } else {
+                self.emit("\tpop %rax"); // discard
+            }
         }
         Ok(())
     }
@@ -80,7 +118,19 @@ impl Ctx<'_> {
         self.emit(&format!("\tcall {}", helper));
     }
 
-    fn retain_kind_for(&self, e: &Expr, frame: &Frame) -> Option<RetainKind> {
+    /// True when the value expression is a borrow-provenance element read
+    /// (`a[i]`), possibly wrapped in an optional chain or a null-coalesce
+    /// (the read still needs a reference when stored in an owned slot).
+    fn is_index_read(e: &Expr) -> bool {
+        match e {
+            Expr::Index { .. } => true,
+            Expr::OptChain { rest, .. } => Self::is_index_read(rest),
+            Expr::Coalesce { r, .. } => Self::is_index_read(r),
+            _ => false,
+        }
+    }
+
+    pub(crate) fn retain_kind_for(&self, e: &Expr, frame: &Frame) -> Option<RetainKind> {
         fn kind_of(t: &Ty) -> Option<RetainKind> {
             match t {
                 Ty::Struct(_) | Ty::Interface(_) => Some(RetainKind::Object),
@@ -199,7 +249,7 @@ impl Ctx<'_> {
             return Ok(());
         }
         self.maybe_retain(value, frame);
-        if !matches!(value, Expr::Index { .. }) {
+        if !Self::is_index_read(value) {
             return Ok(());
         }
         self.emit("\tmov (%rsp), %rdi");
@@ -707,26 +757,56 @@ impl Ctx<'_> {
                 // Jump to the end of the innermost try block.
                 self.gen_expr(value, frame)?;
                 self.maybe_retain(value, frame);
-                self.emit_end_releases(frame);
-                self.emit("\tpop %rax");
-                self.emit("\tcall flint_throw");
                 if let Some(target) = frame.try_end_stack.last() {
+                    // The function keeps running (a catch may follow), so the
+                    // deferred calls wait for a real exit.
+                    self.emit("\tpop %rax");
+                    self.emit("\tcall flint_throw");
                     self.emit(&format!("\tjmp {}", target));
                 } else {
-                    // No enclosing try: return from the function.
+                    // No enclosing try: the function exits here.
+                    self.emit_defers(frame)?;
+                    self.emit_end_releases(frame);
+                    self.emit("\tpop %rax");
+                    self.emit("\tcall flint_throw");
                     self.emit("\tleave");
                     self.emit("\tret");
                 }
                 Ok(())
             }
+            Stmt::Defer { expr, .. } => {
+                // The expression is stored and evaluated at function exit.
+                frame.defers.push(expr.as_ref().clone());
+                Ok(())
+            }
             Stmt::TryCatch {
+                span,
                 try_block,
-                catch_type,
+                catch_types,
                 catch_var,
                 catch_block,
                 finally,
                 ..
             } => {
+                // The catch variable is typed by the catch types' least
+                // upper bound (a common parent class or interface).
+                let catch_type = layout::lub_types(self.prog, catch_types).ok_or_else(|| {
+                    let names: Vec<String> = catch_types
+                        .iter()
+                        .map(|t| match t {
+                            Ty::Struct(s) => self.prog.structs[*s].name.clone(),
+                            Ty::Interface(i) => self.prog.interfaces[*i].name.clone(),
+                            other => ty_name(other),
+                        })
+                        .collect();
+                    CompileError::new(
+                        *span,
+                        format!(
+                            "catch ({} ) has no common type; the listed exception types must share a parent class or interface",
+                            names.join(" | ")
+                        ),
+                    )
+                })?;
                 // Declare the catch variable as a local. String/array slots
                 // start null: the end-releases must see null (and skip) on
                 // paths where no exception is caught.
@@ -801,6 +881,7 @@ impl Ctx<'_> {
                     self.emit(&format!("\tmovq {}(%rbp), %rax", flag_off));
                     self.emit("\ttest %rax, %rax");
                     self.emit(&format!("\tjz {}", end_label));
+                    self.emit_defers(frame)?;
                     self.emit(&format!("\tmovq {}(%rbp), %rax", val_off));
                     self.emit("\tleave");
                     self.emit("\tret");
@@ -831,7 +912,9 @@ impl Ctx<'_> {
                     self.str_copy = saved;
                     self.retain_for_slot(frame.ret_type.as_ref(), v, &vty, frame)?;
                     // a `finally` block must run before the return takes effect
-                    if let Some((target, val_off, flag_off)) = &frame.ret_capture {
+                    let cap = frame.ret_capture.clone();
+                    if let Some((target, val_off, flag_off)) = cap {
+                        self.emit_defers(frame)?;
                         self.emit_end_releases(frame);
                         self.emit("\tpop %rax");
                         self.emit(&format!("\tmov %rax, {}(%rbp)", val_off));
@@ -840,6 +923,7 @@ impl Ctx<'_> {
                         return Ok(());
                     }
                     // the block-end releases are skipped on early return
+                    self.emit_defers(frame)?;
                     self.emit_end_releases(frame);
                     self.emit("\tpop %rax");
                     self.emit("\tleave");
@@ -847,7 +931,9 @@ impl Ctx<'_> {
                     Ok(())
                 }
                 None => {
-                    if let Some((target, val_off, flag_off)) = &frame.ret_capture {
+                    let cap = frame.ret_capture.clone();
+                    if let Some((target, val_off, flag_off)) = cap {
+                        self.emit_defers(frame)?;
                         self.emit_end_releases(frame);
                         self.emit("\txor %eax, %eax");
                         self.emit(&format!("\tmov %eax, {}(%rbp)", val_off));
@@ -855,6 +941,7 @@ impl Ctx<'_> {
                         self.emit(&format!("\tjmp {}", target));
                         return Ok(());
                     }
+                    self.emit_defers(frame)?;
                     self.emit_end_releases(frame);
                     self.emit("\txor %eax, %eax");
                     self.emit("\tleave");

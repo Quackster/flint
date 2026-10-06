@@ -1,0 +1,46 @@
+// const + type aliases: top-level `const NAME = <literal>;` inlines the
+// value at use sites; class consts are referenced as `Class.NAME`;
+// `alias NAME = <type>;` is an alias for a type (may chain or name generic
+// class instances). Locals shadow top-level consts.
+const MAX = 100;
+const NEG = -7;
+const FLAG = true;
+const GREETING = "hello";
+alias Big = long;
+alias Name = string;
+alias Chain = Big;
+
+class Box2 {
+    const SIZE = 8;
+    int v;
+    Box2(int x) { this.v = x; }
+}
+
+class Pair<A, B> {
+    A a;
+    B b;
+    Pair(A x, B y) { this.a = x; this.b = y; }
+    int sum() { return this.a + this.b; }
+}
+alias PII = Pair<int, int>;
+
+int main() {
+    println(MAX);
+    println(NEG);
+    println(FLAG);
+    println(GREETING);
+    println(Box2.SIZE);
+    Big n = 5;
+    Name s = "hi";
+    Chain c = 2;
+    println(n + c);
+    println(s);
+    int MAX = 3;
+    println(MAX);
+    Box2 b = new Box2(Box2.SIZE);
+    println(b.v);
+    PII p = new Pair<int, int>(1, 2);
+    println(p.sum());
+    println(str.len(GREETING));
+    return 0;
+}

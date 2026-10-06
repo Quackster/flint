@@ -1,0 +1,20 @@
+// String interpolation: "a={expr}" builds a string by concatenating the
+// literal fragments with the interpolated expressions (int, bool, enum, or
+// string). A \{ escape produces a literal brace.
+int main() {
+    int x = 42;
+    string s = "hello";
+    println("x={x}");
+    println("a={x} b={x + 1}");
+    println("s={s}!");
+    println("neg={-7}");
+    println("{x} at start");
+    println("cat={s}{s}");
+    println("brace={"\{"}");
+    println("literal=\{");
+    // Interpolated string parts borrow: s stays valid after use.
+    string t = "a={s}";
+    println(s);
+    println(t);
+    return 0;
+}

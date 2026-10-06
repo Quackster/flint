@@ -51,6 +51,33 @@ impl<'a> Mono<'a> {
                 };
                 Ok(Ty::Ptr(ni))
             }
+            // `type NAME = ...` alias: follow the target (aliases may chain)
+            // and resolve the final type.
+            Ty::Alias(n) => {
+                let mut cur = n.clone();
+                let mut seen = std::collections::HashSet::new();
+                let target = loop {
+                    match self.alias_map.get(&cur) {
+                        None => {
+                            return Err(CompileError::new(
+                                Span::new(0, 0),
+                                format!("unknown type alias '{}'", cur),
+                            ))
+                        }
+                        Some(Ty::Alias(next)) => {
+                            if !seen.insert(next.clone()) {
+                                return Err(CompileError::new(
+                                    Span::new(0, 0),
+                                    format!("circular type alias '{}'", next),
+                                ));
+                            }
+                            cur = next.clone();
+                        }
+                        Some(other) => break other.clone(),
+                    }
+                };
+                self.resolve_type(&target, subst)
+            }
             other => Ok(other.clone()),
         }
     }
@@ -270,15 +297,23 @@ impl<'a> Mono<'a> {
                 let value = Box::new(self.resolve_expr(value, subst)?);
                 Ok(vec![Stmt::Throw { span: *span, value }])
             }
+            Stmt::Defer { span, expr } => {
+                let expr = Box::new(self.resolve_expr(expr, subst)?);
+                Ok(vec![Stmt::Defer { span: *span, expr }])
+            }
             Stmt::TryCatch {
                 span,
                 try_block,
-                catch_type,
+                catch_types,
                 catch_var,
                 catch_block,
                 finally,
             } => {
                 let try_block = Box::new(self.resolve_block(try_block, subst)?);
+                let catch_types = catch_types
+                    .iter()
+                    .map(|t| self.resolve_type(t, subst))
+                    .collect::<CompileResult<Vec<_>>>()?;
                 let catch_block = Box::new(self.resolve_block(catch_block, subst)?);
                 let finally = match finally {
                     Some(b) => Some(Box::new(self.resolve_block(b, subst)?)),
@@ -287,7 +322,7 @@ impl<'a> Mono<'a> {
                 Ok(vec![Stmt::TryCatch {
                     span: *span,
                     try_block,
-                    catch_type: catch_type.clone(),
+                    catch_types,
                     catch_var: catch_var.clone(),
                     catch_block,
                     finally,

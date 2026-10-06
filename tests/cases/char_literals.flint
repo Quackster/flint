@@ -1,0 +1,20 @@
+// Char literals: 'a' is a code point (an int value); escapes '\n' '\t'
+// '\r' '\0' '\'' '\"' '\\' are supported. The `char` type is an int alias.
+const A = 'a';
+const BS = '\\';
+
+int main() {
+    println('a' == 97);
+    println('A');
+    println('0');
+    println('a' - 'A');
+    println('a' + '\n' + '\'' + BS);
+    char c = 'x';
+    println(c);
+    string s = "ab";
+    println(s[0] == 'a');
+    println(str.indexOf("hello", "h"));
+    print("ok=");
+    println('k');
+    return 0;
+}

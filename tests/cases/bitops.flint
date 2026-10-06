@@ -1,0 +1,41 @@
+// Bitwise not and compound bitwise/shift assignments: ~, %=, &=, |=, ^=, <<=, >>=.
+int main() {
+    int a = 5; // 0b0101
+    print(~a & 255);
+    print("\n");
+    print(~0);
+    print("\n");
+    print(~(-1));
+    print("\n");
+
+    a = 60; // 0b00111100
+    a &= 12; // 0b00001100
+    print(a);
+    print("\n");
+    a |= 3; // 0b00001111
+    print(a);
+    print("\n");
+    a ^= 5; // 0b00001010
+    print(a);
+    print("\n");
+
+    a = 1;
+    a <<= 4;
+    print(a);
+    print("\n");
+    a >>= 2;
+    print(a);
+    print("\n");
+
+    a = 17;
+    a %= 5;
+    print(a);
+    print("\n");
+
+    int b[] = [7, 9];
+    b[0] &= 5;
+    b[1] <<= 1;
+    print(b[0] + b[1]);
+    print("\n");
+    return 0;
+}

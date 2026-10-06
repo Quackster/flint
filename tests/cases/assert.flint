@@ -1,0 +1,24 @@
+// assert(cond) / assert(cond, msg): pass silently when cond holds.
+// (panic's failing path exits non-zero and writes stderr; it is smoke-tested
+// outside the suite, which requires exit 0.)
+int half(int n) {
+    assert(n >= 0, "half needs a non-negative n");
+    return n / 2;
+}
+
+int main() {
+    assert(1 + 1 == 2);
+    assert(true, "should never print");
+    assert(10 > 3, "ten is greater than three");
+    assert(len([1, 2, 3]) == 3);
+
+    int h = half(41);
+    println(h);
+
+    // A panic call that is never reached still compiles and does not fire.
+    if (false) {
+        panic("unreachable");
+    }
+    println(0);
+    return 0;
+}

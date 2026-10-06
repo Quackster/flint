@@ -6,6 +6,12 @@ pub struct Lexer<'a> {
     src: &'a str,
     bytes: &'a [u8],
     pos: usize,
+    /// Brace depth while lexing a string-interpolation expression
+    /// (`"a={x}b"`); 0 outside.
+    interp: u32,
+    /// Set after the `}` that closes an interpolation: the next token is a
+    /// string fragment (lexed without skipping whitespace).
+    in_str: bool,
 }
 
 impl<'a> Lexer<'a> {
@@ -14,6 +20,8 @@ impl<'a> Lexer<'a> {
             src,
             bytes: src.as_bytes(),
             pos: 0,
+            interp: 0,
+            in_str: false,
         }
     }
 
@@ -160,6 +168,9 @@ impl<'a> Lexer<'a> {
             "import" => Tok::Import,
             "enum" => Tok::Enum,
             "throw" => Tok::Throw,
+            "defer" => Tok::Defer,
+            "const" => Tok::Const,
+            "alias" => Tok::Alias,
             "try" => Tok::Try,
             "catch" => Tok::Catch,
             "finally" => Tok::Finally,
@@ -177,6 +188,117 @@ impl<'a> Lexer<'a> {
         }
     }
 
+    /// Append the escaped character following the backslash (already
+    /// consumed) to `out`.
+    fn push_escape(&mut self, out: &mut String, start: usize) -> CompileResult<()> {
+        match self.bump() {
+            Some(b'n') => out.push('\n'),
+            Some(b't') => out.push('\t'),
+            Some(b'r') => out.push('\r'),
+            Some(b'"') => out.push('"'),
+            Some(b'\\') => out.push('\\'),
+            Some(b'0') => out.push('\0'),
+            // Escaped braces are literal text (no interpolation).
+            Some(b'{') => out.push('{'),
+            Some(b'}') => out.push('}'),
+            Some(c) => {
+                out.push('\\');
+                out.push(c as char);
+            }
+            None => {
+                return Err(CompileError::new(
+                    self.span_from(start),
+                    "unterminated string escape",
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    /// A `'` starts a char literal: exactly one character (or one escape
+    /// sequence), closed by `'`. Chars are code points, so the literal is
+    /// emitted as an int token.
+    fn read_char(&mut self, start: usize) -> CompileResult<Token> {
+        self.bump(); // opening quote
+        let c = match self.bump() {
+            None => {
+                return Err(CompileError::new(
+                    self.span_from(start),
+                    "unterminated char literal",
+                ));
+            }
+            Some(b'\\') => match self.bump() {
+                None => {
+                    return Err(CompileError::new(
+                        self.span_from(start),
+                        "unterminated char literal",
+                    ));
+                }
+                Some(b'n') => '\n',
+                Some(b't') => '\t',
+                Some(b'r') => '\r',
+                Some(b'0') => '\0',
+                Some(b'\'') => '\'',
+                Some(b'"') => '"',
+                Some(b'\\') => '\\',
+                Some(other) => {
+                    return Err(CompileError::new(
+                        self.span_from(self.pos - 1),
+                        format!("unknown escape sequence '\\{}'", other as char),
+                    ))
+                }
+            },
+            Some(b) => b as char,
+        };
+        match self.bump() {
+            Some(b'\'') => {}
+            Some(b'\n') | Some(b'\r') | None => {
+                return Err(CompileError::new(
+                    self.span_from(start),
+                    "unterminated char literal",
+                ));
+            }
+            Some(b) => {
+                return Err(CompileError::new(
+                    self.span_from(self.pos - 1),
+                    format!(
+                        "char literal must be exactly one character, found '{}' after '{}'",
+                        b as char, c
+                    ),
+                ))
+            }
+        }
+        Ok(Token {
+            kind: Tok::Int(c as i64),
+            span: self.span_from(start),
+        })
+    }
+
+    /// True when the text at `self.pos` (just past a `{` inside a string)
+    /// can start the expression of an interpolation. Otherwise the brace is
+    /// literal text (e.g. the JSON string `"{\"a\":1}"`).
+    fn interp_start(&self) -> bool {
+        let mut j = self.pos;
+        while let Some(w) = self.bytes.get(j) {
+            if *w == b' ' || *w == b'\t' || *w == b'\n' || *w == b'\r' {
+                j += 1;
+            } else {
+                break;
+            }
+        }
+        match self.bytes.get(j) {
+            Some(c) => {
+                c.is_ascii_alphanumeric()
+                    || *c == b'_'
+                    || matches!(
+                        *c,
+                        b'(' | b'[' | b'-' | b'*' | b'&' | b'~' | b'!' | b'@' | b'"'
+                    )
+            }
+            None => false,
+        }
+    }
+
     fn read_string(&mut self, start: usize) -> CompileResult<Token> {
         // self.pos is at the opening quote.
         self.bump();
@@ -190,24 +312,18 @@ impl<'a> Lexer<'a> {
                     ));
                 }
                 Some(b'"') => break,
-                Some(b'\\') => match self.bump() {
-                    Some(b'n') => out.push('\n'),
-                    Some(b't') => out.push('\t'),
-                    Some(b'r') => out.push('\r'),
-                    Some(b'"') => out.push('"'),
-                    Some(b'\\') => out.push('\\'),
-                    Some(b'0') => out.push('\0'),
-                    Some(c) => {
-                        out.push('\\');
-                        out.push(c as char);
-                    }
-                    None => {
-                        return Err(CompileError::new(
-                            self.span_from(start),
-                            "unterminated string escape",
-                        ));
-                    }
-                },
+                Some(b'{') if self.interp_start() => {
+                    // String interpolation: this token is the text before the
+                    // brace; the expression is lexed normally, and the
+                    // matching '}' returns to the string.
+                    self.interp = 1;
+                    return Ok(Token {
+                        kind: Tok::StrFrag(out),
+                        span: self.span_from(start),
+                    });
+                }
+                Some(b'{') => out.push('{'),
+                Some(b'\\') => self.push_escape(&mut out, start)?,
                 Some(c) => out.push(c as char),
             }
         }
@@ -217,9 +333,50 @@ impl<'a> Lexer<'a> {
         })
     }
 
+    /// Lex the string text after a closing `}` of an interpolation, up to
+    /// the next `{` (another interpolation) or the closing quote.
+    fn read_string_frag(&mut self) -> CompileResult<Token> {
+        // self.pos is just past the '}'.
+        let start = self.pos;
+        let mut out = String::new();
+        loop {
+            match self.bump() {
+                None => {
+                    return Err(CompileError::new(
+                        self.span_from(start),
+                        "unterminated string literal",
+                    ));
+                }
+                Some(b'"') => break,
+                Some(b'{') if self.interp_start() => {
+                    self.interp = 1;
+                    return Ok(Token {
+                        kind: Tok::StrFrag(out),
+                        span: self.span_from(start),
+                    });
+                }
+                Some(b'{') => out.push('{'),
+                Some(b'\\') => self.push_escape(&mut out, start)?,
+                Some(c) => out.push(c as char),
+            }
+        }
+        // The string ended: a plain Str token closes the interpolation.
+        Ok(Token {
+            kind: Tok::Str(out),
+            span: self.span_from(start),
+        })
+    }
+
     pub fn tokenize(&mut self) -> CompileResult<Vec<Token>> {
         let mut toks = Vec::new();
         loop {
+            if self.in_str {
+                // String fragment after a closing '}: lex the text verbatim
+                // (no whitespace skip).
+                self.in_str = false;
+                toks.push(self.read_string_frag()?);
+                continue;
+            }
             self.skip_ws()?;
             if self.at_eof() {
                 let span = self.span_from(self.bytes.len());
@@ -250,6 +407,10 @@ impl<'a> Lexer<'a> {
                     self.pos = start;
                     self.read_string(start)?
                 }
+                b'\'' => {
+                    self.pos = start;
+                    self.read_char(start)?
+                }
                 _ => {
                     let kind = self
                         .punct(b)
@@ -263,6 +424,20 @@ impl<'a> Lexer<'a> {
                     }
                 }
             };
+            // Inside an interpolation expression, track brace depth; the
+            // '}' that closes it switches back to string-fragment mode.
+            if self.interp > 0 {
+                match &tok.kind {
+                    Tok::LBrace => self.interp += 1,
+                    Tok::RBrace => {
+                        self.interp -= 1;
+                        if self.interp == 0 {
+                            self.in_str = true;
+                        }
+                    }
+                    _ => {}
+                }
+            }
             toks.push(tok);
         }
     }
@@ -321,12 +496,32 @@ impl<'a> Lexer<'a> {
                     Tok::Slash
                 }
             }
-            b'?' => Tok::Question,
-            b'%' => Tok::Percent,
+            b'?' => {
+                if self.peek() == Some(b'?') {
+                    self.bump();
+                    Tok::QuesQues
+                } else if self.peek() == Some(b'.') {
+                    self.bump();
+                    Tok::QDot
+                } else {
+                    Tok::Question
+                }
+            }
+            b'%' => {
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Tok::PercentEq
+                } else {
+                    Tok::Percent
+                }
+            }
             b'&' => {
                 if self.peek() == Some(b'&') {
                     self.bump();
                     Tok::AndAnd
+                } else if self.peek() == Some(b'=') {
+                    self.bump();
+                    Tok::AmpEq
                 } else {
                     Tok::Amp
                 }
@@ -335,11 +530,22 @@ impl<'a> Lexer<'a> {
                 if self.peek() == Some(b'|') {
                     self.bump();
                     Tok::OrOr
+                } else if self.peek() == Some(b'=') {
+                    self.bump();
+                    Tok::PipeEq
                 } else {
                     Tok::Pipe
                 }
             }
-            b'^' => Tok::Caret,
+            b'^' => {
+                if self.peek() == Some(b'=') {
+                    self.bump();
+                    Tok::CaretEq
+                } else {
+                    Tok::Caret
+                }
+            }
+            b'~' => Tok::Tilde,
             b'@' => Tok::At,
             b'!' => {
                 if self.peek() == Some(b'=') {
@@ -356,7 +562,12 @@ impl<'a> Lexer<'a> {
                 }
                 Some(b'<') => {
                     self.bump();
-                    Tok::Shl
+                    if self.peek() == Some(b'=') {
+                        self.bump();
+                        Tok::ShlEq
+                    } else {
+                        Tok::Shl
+                    }
                 }
                 _ => Tok::Lt,
             },
@@ -367,7 +578,12 @@ impl<'a> Lexer<'a> {
                 }
                 Some(b'>') => {
                     self.bump();
-                    Tok::Shr
+                    if self.peek() == Some(b'=') {
+                        self.bump();
+                        Tok::ShrEq
+                    } else {
+                        Tok::Shr
+                    }
                 }
                 _ => Tok::Gt,
             },

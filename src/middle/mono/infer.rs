@@ -64,6 +64,7 @@ impl<'a> Mono<'a> {
             Expr::Int { .. } => Ok(Ty::Int),
             Expr::Bool { .. } => Ok(Ty::Bool),
             Expr::Str { .. } => Ok(Ty::Str),
+            Expr::Interp { .. } => Ok(Ty::Str),
             Expr::Null { .. } => Ok(Ty::Ptr(None)),
             Expr::EnumVariant { .. } => Ok(Ty::Int),
             Expr::This { .. } => self
@@ -104,6 +105,10 @@ impl<'a> Mono<'a> {
             Expr::UnOp { op, e: inner, .. } => match op {
                 UnOp::Neg => Ok(Ty::Int),
                 UnOp::Not => Ok(Ty::Bool),
+                UnOp::BitNot => {
+                    self.expr_type(inner, subst)?;
+                    Ok(Ty::Int)
+                }
                 UnOp::Addr => Ok(Ty::Ptr(None)),
                 UnOp::FnAddr => Ok(Ty::Ptr(None)),
                 UnOp::Deref => {
@@ -143,6 +148,18 @@ impl<'a> Mono<'a> {
             Expr::Cast { ty, .. } => self.resolve_type(ty, subst),
             Expr::Instanceof { .. } => Ok(Ty::Bool),
             Expr::Cond { then, .. } => self.expr_type(then, subst),
+            Expr::OptChain { base, rest, .. } => {
+                let bt = self.expr_type(base, subst)?;
+                let saved = std::mem::replace(&mut self.opt_ref_ty, Some(bt));
+                let r = self.expr_type(rest, subst);
+                self.opt_ref_ty = saved;
+                r
+            }
+            Expr::OptRef { span } => self
+                .opt_ref_ty
+                .clone()
+                .ok_or_else(|| CompileError::new(*span, "cannot infer type of optional-chain base")),
+            Expr::Coalesce { l, .. } => self.expr_type(l, subst),
             Expr::Closure { .. } => Ok(Ty::Ptr(None)),
             Expr::Lambda { .. } => Ok(Ty::Ptr(None)),
             Expr::StructLit {

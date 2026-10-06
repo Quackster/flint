@@ -9,7 +9,7 @@ x86_64 Linux assembly (no libc).
 
 ```sh
 cargo build                 # -> target/debug/flintc (release: --release)
-bash tests/run_tests.sh     # full suite (expect: PASS=108  FAIL=0)
+bash tests/run_tests.sh     # full suite (expect: PASS=125  FAIL=0)
 ```
 
 Requires `as` and `ld` (binutils) on the PATH. Compile one program:
@@ -20,6 +20,13 @@ flintc src/stdlib/thread.flint examples/primes_thread.flint -o primes_thread && 
 
 Pass the stdlib/prelude files you need as extra source files (there is no
 auto-include); the example's header comment states its exact build line.
+
+## Commits
+
+Commit every milestone once finished: when a feature (or other self-contained
+piece of work) is complete and the full test suite passes, make a git commit
+for it right away — do not let finished milestones pile up uncommitted.
+Write the commit message in the repo's existing style.
 
 ## Code style (Java-like)
 

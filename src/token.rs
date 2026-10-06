@@ -5,6 +5,10 @@ pub enum Tok {
     // literals
     Int(i64),
     Str(String),
+    /// A text fragment of an interpolated string (`"a={x}b"`); only the
+    /// lexer produces these, and the parser turns the fragment+expression
+    /// sequence into `Expr::Interp`.
+    StrFrag(String),
     Ident(String),
 
     // punctuation
@@ -19,6 +23,8 @@ pub enum Tok {
     Dot,
     Colon,
     Question,
+    QuesQues,
+    QDot,
 
     // operators
     Plus,
@@ -48,6 +54,13 @@ pub enum Tok {
     MinusEq,  // -=
     StarEq,   // *=
     SlashEq,  // /=
+    PercentEq, // %=
+    AmpEq,    // &=
+    PipeEq,   // |=
+    CaretEq,  // ^=
+    ShlEq,    // <<=
+    ShrEq,    // >>=
+    Tilde,    // ~ (bitwise not)
     RArrow,   // -> (lambda)
 
     // keywords
@@ -84,6 +97,9 @@ pub enum Tok {
     Import,
     Enum,
     Throw,
+    Defer,
+    Const,
+    Alias,
     Try,
     Catch,
     Finally,
