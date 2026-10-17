@@ -1,14 +1,12 @@
-/* style.css — 2004 help-viewer look: Times New Roman on white, classic gray
-   chrome, beveled boxes, no rounded corners, no shadows except hard menu
-   shadows. Dark mode via body.dark (toggled from the View menu / toolbar). */
+/* style.css — 2004 help-page look: Times New Roman on white, classic gray
+   accents, beveled boxes, no rounded corners. Dark mode via body.dark
+   (toggled from the top-bar button). */
 
 /* ---------- palette ---------- */
 :root {
   --bg: #ffffff;            /* content background */
   --chrome: #d4d0c8;        /* window chrome gray */
   --chrome-dark: #808080;   /* border gray */
-  --titlebar: #000080;      /* classic navy title bar */
-  --titlebar-fg: #ffffff;
   --fg: #000000;
   --fg-dim: #505050;
   --link: #0000ee;
@@ -35,8 +33,6 @@ body.dark {
   --bg: #1e1e1e;
   --chrome: #2b2b2b;
   --chrome-dark: #555555;
-  --titlebar: #333333;
-  --titlebar-fg: #e0e0e0;
   --fg: #d4d4d4;
   --fg-dim: #9a9a9a;
   --link: #7aa2ff;
@@ -63,7 +59,7 @@ body.dark {
 html { scroll-behavior: smooth; }
 body {
   margin: 0;
-  background: var(--chrome);
+  background: var(--bg);
   color: var(--fg);
   font-family: "Times New Roman", Times, Georgia, serif;
   font-size: 16px;
@@ -81,75 +77,6 @@ a:hover { color: var(--link); }
 .sunken {
   box-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi);
 }
-
-/* ---------- window frame ---------- */
-.win { display: flex; flex-direction: column; height: 100vh; }
-
-.titlebar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--titlebar);
-  color: var(--titlebar-fg);
-  font-family: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
-  font-size: 12px;
-  font-weight: 700;
-  padding: 4px 6px 4px 10px;
-}
-.winbtns { display: flex; gap: 2px; }
-.winbtns span {
-  width: 20px; height: 18px;
-  display: inline-flex; align-items: center; justify-content: center;
-  background: var(--chrome);
-  color: #000000;
-  font-size: 11px; font-weight: 400;
-  box-shadow: inset 1px 1px 0 var(--bevel-hi), inset -1px -1px 0 var(--bevel-lo);
-}
-body.dark .winbtns span { color: var(--fg); }
-.winbtns span:hover { background: var(--sel); color: #ffffff; }
-
-/* ---------- menu bar ---------- */
-.menubar {
-  display: flex;
-  background: var(--chrome);
-  border-bottom: 1px solid var(--chrome-dark);
-  font-family: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
-  font-size: 11px;
-}
-.menu-item { position: relative; padding: 3px 10px; cursor: default; color: var(--fg); }
-.menu-item:hover, .menu-item:focus-within { background: var(--sel); color: #ffffff; }
-.menu {
-  display: none;
-  position: absolute; top: 100%; left: 0;
-  min-width: 170px;
-  background: var(--bg);
-  border: 1px solid var(--chrome-dark);
-  box-shadow: 2px 2px 0 rgba(0,0,0,.3);
-  z-index: 50;
-}
-.menu-item:hover .menu, .menu-item:focus-within .menu { display: block; }
-.menu .mi {
-  display: block; width: 100%;
-  padding: 4px 20px 4px 10px;
-  font-family: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
-  font-size: 11px;
-  color: var(--fg);
-  text-decoration: none;
-  white-space: nowrap;
-  background: none; border: 0; text-align: left; cursor: default;
-}
-.menu .mi:hover { background: var(--sel); color: #ffffff; }
-.menu .sep { border-top: 1px solid var(--chrome-dark); margin: 3px 0; }
-
-/* ---------- toolbar ---------- */
-.toolbar {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 8px;
-  background: var(--chrome);
-  border-bottom: 1px solid var(--chrome-dark);
-}
 .tbtn {
   font-family: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
   font-size: 11px;
@@ -162,26 +89,37 @@ body.dark .winbtns span { color: var(--fg); }
 .tbtn:active {
   box-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi);
 }
-.tb-sep {
-  width: 2px; height: 22px; margin: 0 4px;
-  border-left: 1px solid var(--chrome-dark);
-  border-right: 1px solid var(--bevel-hi);
+
+/* ---------- page top bar ---------- */
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 16px;
+  background: var(--chrome);
+  border-bottom: 1px solid var(--chrome-dark);
+  font-family: "Times New Roman", Times, Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--fg);
 }
 
 /* ---------- layout: contents pane + main pane ---------- */
-.layout { display: flex; flex: 1 1 auto; min-height: 0; }
+.layout { display: flex; }
 .sidebar {
   width: var(--sidebar-w);
   flex: 0 0 var(--sidebar-w);
   background: var(--bg);
   border-right: 1px solid var(--chrome-dark);
+  position: sticky;
+  top: 0;
+  height: 100vh;
   overflow-y: auto;
   padding: 10px 0 40px;
 }
 .main {
   flex: 1 1 auto;
   min-width: 0;
-  overflow-y: auto;
   background: var(--bg);
   padding: 26px 38px 80px;
 }
@@ -189,7 +127,6 @@ body.dark .winbtns span { color: var(--fg); }
 .doc-section:last-child { border-bottom: none; }
 @media (max-width: 900px) {
   .sidebar { display: none; }
-  .menubar { display: none; }
   .main { padding: 16px 16px 60px; }
 }
 
@@ -348,20 +285,3 @@ td { font-size: 14px; }
 .card p { margin: 0; font-size: 14px; color: var(--fg-dim); }
 .card a.title { display: block; font-weight: 700; color: var(--fg); font-size: 15px; margin-bottom: 6px; text-decoration: none; }
 .card a.title:hover { color: var(--link); text-decoration: underline; }
-
-/* ---------- status bar ---------- */
-.statusbar {
-  display: flex;
-  gap: 3px;
-  padding: 3px 4px;
-  background: var(--chrome);
-  border-top: 1px solid var(--chrome-dark);
-}
-.sb-item {
-  font-family: Tahoma, "MS Sans Serif", "Segoe UI", Arial, sans-serif;
-  font-size: 11px;
-  color: var(--fg);
-  padding: 1px 10px;
-  box-shadow: inset 1px 1px 0 var(--bevel-lo), inset -1px -1px 0 var(--bevel-hi);
-}
-.sb-right { margin-left: auto; }

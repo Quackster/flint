@@ -1,7 +1,6 @@
 // app.js — self-contained documentation behaviour: a hand-written Flint
-// syntax highlighter, sidebar search, active-link tracking, the help-window
-// chrome (toolbar + menus + dark-mode toggle), and a mobile nav toggle.
-// No external dependencies; works from file://.
+// syntax highlighter, sidebar search, active-link tracking, and the
+// dark-mode toggle. No external dependencies; works from file://.
 (function () {
   "use strict";
 
@@ -129,8 +128,6 @@
         for (var id in links) {
           links[id].classList.toggle("active", id === slug);
         }
-        var status = document.getElementById("sb-status");
-        if (status) status.textContent = active.getAttribute("data-label") || "Ready";
       }
     }
     var ticking = false;
@@ -172,51 +169,24 @@
   }
 
   // ------------------------------------------------------------------
-  // Help-window chrome: toolbar buttons, menu actions, dark-mode toggle.
+  // Dark-mode toggle (top-bar button), persisted in localStorage.
   // ------------------------------------------------------------------
-  function initChrome() {
-    function on(id, fn) {
-      var el = document.getElementById(id);
-      if (el) el.addEventListener("click", fn);
-    }
-    function toTop() {
-      var top = document.getElementById("index");
-      if (top) top.scrollIntoView();
-    }
-    on("tb-back", function () { window.history.back(); });
-    on("tb-forward", function () { window.history.forward(); });
-    on("tb-home", toTop);
-    on("tb-print", function () { window.print(); });
-    on("menu-print", function () { window.print(); });
-    on("menu-find", function () {
-      var box = document.getElementById("nav-search");
-      if (box) box.focus();
-    });
-    on("menu-contents", toTop);
-    on("menu-about", function () {
-      window.alert("Flint — a systems language that compiles straight to a " +
-        "native ELF executable.\n\nCompiler: flintc (Rust, zero dependencies)\n" +
-        "Target: freestanding x86_64 Linux\nNo runtime to install.");
-    });
-  }
-
   function initTheme() {
-    var menuBtn = document.getElementById("menu-theme");
     var tbBtn = document.getElementById("tb-theme");
     function label() {
       if (tbBtn) tbBtn.textContent =
         document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
     }
-    function toggle() {
-      var dark = !document.body.classList.contains("dark");
-      document.body.classList.toggle("dark", dark);
-      try { localStorage.setItem("flint-docs-theme", dark ? "dark" : "light"); }
-      catch (e) { /* file:// or private mode: fine */ }
+    if (tbBtn) {
+      tbBtn.addEventListener("click", function () {
+        var dark = !document.body.classList.contains("dark");
+        document.body.classList.toggle("dark", dark);
+        try { localStorage.setItem("flint-docs-theme", dark ? "dark" : "light"); }
+        catch (e) { /* file:// or private mode: fine */ }
+        label();
+      });
       label();
     }
-    if (menuBtn) menuBtn.addEventListener("click", toggle);
-    if (tbBtn) tbBtn.addEventListener("click", toggle);
-    label();
   }
 
   function ready(fn) {
@@ -229,7 +199,6 @@
     initSearch();
     initScrollspy();
     initCopy();
-    initChrome();
     initTheme();
   });
 })();

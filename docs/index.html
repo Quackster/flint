@@ -9,26 +9,10 @@
 <script src="app.js" defer></script>
 </head>
 <body>
-<div class="win">
-<div class="titlebar">
-<span>Flint — Help</span>
-<span class="winbtns"><span>_</span><span>&#9633;</span><span>&times;</span></span>
-</div>
-<div class="menubar">
-<span class="menu-item">File<span class="menu"><button class="mi" id="menu-print">Print</button></span></span>
-<span class="menu-item">Edit<span class="menu"><button class="mi" id="menu-find">Find in Sections</button></span></span>
-<span class="menu-item">View<span class="menu"><button class="mi" id="menu-theme">Toggle Dark Mode</button></span></span>
-<span class="menu-item">Help<span class="menu"><button class="mi" id="menu-contents">Contents</button><div class="sep"></div><button class="mi" id="menu-about">About Flint</button></span></span>
-</div>
-<div class="toolbar">
-<button class="tbtn" id="tb-back">Back</button>
-<button class="tbtn" id="tb-forward">Forward</button>
-<span class="tb-sep"></span>
-<button class="tbtn" id="tb-home">Home</button>
-<button class="tbtn" id="tb-print">Print</button>
-<span class="tb-sep"></span>
+<header class="topbar">
+<span>Flint — Documentation</span>
 <button class="tbtn" id="tb-theme">Dark Mode</button>
-</div>
+</header>
 <div class="layout">
 <nav class="sidebar">
 <a class="brand" href="#index">Flint<span> docs</span></a>
@@ -4599,11 +4583,6 @@ int main() {
 <div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 </section>
 </main>
-</div>
-<div class="statusbar">
-<span class="sb-item" id="sb-status">Ready</span>
-<span class="sb-item sb-right">Flint documentation</span>
-</div>
 </div>
 </body>
 </html>
