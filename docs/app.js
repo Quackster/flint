@@ -1,6 +1,7 @@
 // app.js — self-contained documentation behaviour: a hand-written Flint
-// syntax highlighter, sidebar search, active-link tracking, and a mobile
-// nav toggle. No external dependencies; works from file://.
+// syntax highlighter, sidebar search, active-link tracking, the help-window
+// chrome (toolbar + menus + dark-mode toggle), and a mobile nav toggle.
+// No external dependencies; works from file://.
 (function () {
   "use strict";
 
@@ -128,6 +129,8 @@
         for (var id in links) {
           links[id].classList.toggle("active", id === slug);
         }
+        var status = document.getElementById("sb-status");
+        if (status) status.textContent = active.getAttribute("data-label") || "Ready";
       }
     }
     var ticking = false;
@@ -151,9 +154,9 @@
         var head = block.querySelector(".head");
         var btn = document.createElement("button");
         btn.textContent = "copy";
-        btn.style.cssText =
-          "background:transparent;border:1px solid var(--border);color:var(--fg-dim);" +
-          "border-radius:6px;padding:2px 10px;cursor:pointer;font-size:12px;";
+        btn.className = "tbtn";
+        btn.style.padding = "1px 8px";
+        btn.style.marginLeft = "8px";
         btn.addEventListener("click", function () {
           var code = block.querySelector("pre");
           var text = code ? code.textContent : "";
@@ -168,6 +171,54 @@
     }
   }
 
+  // ------------------------------------------------------------------
+  // Help-window chrome: toolbar buttons, menu actions, dark-mode toggle.
+  // ------------------------------------------------------------------
+  function initChrome() {
+    function on(id, fn) {
+      var el = document.getElementById(id);
+      if (el) el.addEventListener("click", fn);
+    }
+    function toTop() {
+      var top = document.getElementById("index");
+      if (top) top.scrollIntoView();
+    }
+    on("tb-back", function () { window.history.back(); });
+    on("tb-forward", function () { window.history.forward(); });
+    on("tb-home", toTop);
+    on("tb-print", function () { window.print(); });
+    on("menu-print", function () { window.print(); });
+    on("menu-find", function () {
+      var box = document.getElementById("nav-search");
+      if (box) box.focus();
+    });
+    on("menu-contents", toTop);
+    on("menu-about", function () {
+      window.alert("Flint — a systems language that compiles straight to a " +
+        "native ELF executable.\n\nCompiler: flintc (Rust, zero dependencies)\n" +
+        "Target: freestanding x86_64 Linux\nNo runtime to install.");
+    });
+  }
+
+  function initTheme() {
+    var menuBtn = document.getElementById("menu-theme");
+    var tbBtn = document.getElementById("tb-theme");
+    function label() {
+      if (tbBtn) tbBtn.textContent =
+        document.body.classList.contains("dark") ? "Light Mode" : "Dark Mode";
+    }
+    function toggle() {
+      var dark = !document.body.classList.contains("dark");
+      document.body.classList.toggle("dark", dark);
+      try { localStorage.setItem("flint-docs-theme", dark ? "dark" : "light"); }
+      catch (e) { /* file:// or private mode: fine */ }
+      label();
+    }
+    if (menuBtn) menuBtn.addEventListener("click", toggle);
+    if (tbBtn) tbBtn.addEventListener("click", toggle);
+    label();
+  }
+
   function ready(fn) {
     if (document.readyState !== "loading") fn();
     else document.addEventListener("DOMContentLoaded", fn);
@@ -178,5 +229,7 @@
     initSearch();
     initScrollspy();
     initCopy();
+    initChrome();
+    initTheme();
   });
 })();

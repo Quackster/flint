@@ -4,14 +4,35 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Flint — documentation</title>
+<script>if (localStorage.getItem("flint-docs-theme") === "dark") document.body.classList.add("dark");</script>
 <link rel="stylesheet" href="style.css">
 <script src="app.js" defer></script>
 </head>
 <body>
+<div class="win">
+<div class="titlebar">
+<span>Flint — Help</span>
+<span class="winbtns"><span>_</span><span>&#9633;</span><span>&times;</span></span>
+</div>
+<div class="menubar">
+<span class="menu-item">File<span class="menu"><button class="mi" id="menu-print">Print</button></span></span>
+<span class="menu-item">Edit<span class="menu"><button class="mi" id="menu-find">Find in Sections</button></span></span>
+<span class="menu-item">View<span class="menu"><button class="mi" id="menu-theme">Toggle Dark Mode</button></span></span>
+<span class="menu-item">Help<span class="menu"><button class="mi" id="menu-contents">Contents</button><div class="sep"></div><button class="mi" id="menu-about">About Flint</button></span></span>
+</div>
+<div class="toolbar">
+<button class="tbtn" id="tb-back">Back</button>
+<button class="tbtn" id="tb-forward">Forward</button>
+<span class="tb-sep"></span>
+<button class="tbtn" id="tb-home">Home</button>
+<button class="tbtn" id="tb-print">Print</button>
+<span class="tb-sep"></span>
+<button class="tbtn" id="tb-theme">Dark Mode</button>
+</div>
 <div class="layout">
 <nav class="sidebar">
 <a class="brand" href="#index">Flint<span> docs</span></a>
-<input class="search" id="nav-search" type="search" placeholder="Filter sections…" aria-label="Filter sections">
+<input class="search" id="nav-search" type="search" placeholder="Find in sections…" aria-label="Find in sections">
 <div class="nav-section"><div class="nav-title">Getting started</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#index">Overview</a></li><li><a href="#getting-started">Getting started</a></li><li><a href="#compiler">The toolchain</a></li><li><a href="#modules">Modules & multi-file</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Core language</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#types">Types & literals</a></li><li><a href="#variables">Variables & scope</a></li><li><a href="#operators">Operators</a></li><li><a href="#control-flow">Control flow</a></li><li><a href="#labels">Labeled loops</a></li><li><a href="#functions">Functions</a></li><li><a href="#lambdas">Lambdas &amp; closures</a></li><li><a href="#exceptions">Exceptions</a></li><li><a href="#tuples">Tuples &amp; multi-value returns</a></li><li><a href="#match">Match</a></li></ul></div>
 <div class="nav-section"><div class="nav-title">Object model</div><ul class="nav" style="list-style:none;margin:0;padding:0"><li><a href="#classes">Classes & fields</a></li><li><a href="#constructors">Constructors</a></li><li><a href="#methods">Methods, this, super</a></li><li><a href="#visibility">Visibility</a></li><li><a href="#properties">Properties</a></li><li><a href="#statics">Statics</a></li><li><a href="#inheritance">Inheritance & dispatch</a></li><li><a href="#abstract">Abstract classes</a></li><li><a href="#interfaces">Interfaces</a></li><li><a href="#event-handlers">Event handlers (+=)</a></li><li><a href="#enums">Enums</a></li><li><a href="#generics">Generics</a></li></ul></div>
@@ -44,35 +65,35 @@ $ ./hello
 
 <h2>What you can do</h2>
 <div class="grid">
-<div class="card"><a class="title" href="classes.html">Classes &amp; OOP</a>
+<div class="card"><a class="title" href="#classes">Classes &amp; OOP</a>
 <p>Fields, constructors, methods, inheritance, abstract classes, interfaces,
 properties, statics, and enums.</p></div>
-<div class="card"><a class="title" href="generics.html">Generics</a>
+<div class="card"><a class="title" href="#generics">Generics</a>
 <p>Generic classes with type inference and explicit instantiation
 (<code>Vessel&lt;Pair&lt;int,int&gt;&gt;</code>).</p></div>
-<div class="card"><a class="title" href="std-coll.html">Collections</a>
+<div class="card"><a class="title" href="#std-coll">Collections</a>
 <p>Stdlib classes <code>List</code>, <code>Queue</code>,
 <code>HashSet</code>, and <code>HashMap</code> over a shared
 <code>Collection</code> base, with int, string, and object elements.</p></div>
-<div class="card"><a class="title" href="memory.html">Raw memory</a>
+<div class="card"><a class="title" href="#memory">Raw memory</a>
 <p>Escape analysis, ownership and typed buffers, raw pointers,
 sized load/store, and direct syscalls.</p></div>
-<div class="card"><a class="title" href="concurrency.html">Concurrency</a>
+<div class="card"><a class="title" href="#concurrency">Concurrency</a>
 <p>Threads, mutexes, atomic CAS, and network I/O for building servers.</p></div>
-<div class="card"><a class="title" href="fixed-point.html">Fixed-point math</a>
+<div class="card"><a class="title" href="#fixed-point">Fixed-point math</a>
 <p>A Q48.16 fixed-point numeric model with <code>math.*</code> builtins —
 no floating point, no surprises.</p></div>
 </div>
 
 <h2>Where to start</h2>
 <ul>
-<li><a href="getting-started.html">Install and build your first program</a> —
+<li><a href="#getting-started">Install and build your first program</a> —
 the CLI, flags, and the <code>flint.toml</code> manifest.</li>
-<li><a href="compiler.html">How the toolchain works</a> — the
+<li><a href="#compiler">How the toolchain works</a> — the
 <code>flintc → .s → as → ld</code> pipeline and the runtime.</li>
-<li><a href="types.html">Types &amp; literals</a> — the type system, number
+<li><a href="#types">Types &amp; literals</a> — the type system, number
 bases, and the (intentionally) flat numeric model.</li>
-<li><a href="modules.html">Modules &amp; multi-file</a> — packages,
+<li><a href="#modules">Modules &amp; multi-file</a> — packages,
 <code>import</code>, and building multi-file projects.</li>
 </ul>
 
@@ -138,7 +159,7 @@ stdout — useful for inspecting the generated <code>.s</code>.</p>
 paths relative to the manifest file:</p>
 <div class="code"><div class="head"><span>flint.toml</span></div>
 <pre><code class="flint">sources = ["util.flint", "main.flint"]</code></pre></div>
-<p>See <a href="modules.html">Modules &amp; multi-file</a> for the full picture,
+<p>See <a href="#modules">Modules &amp; multi-file</a> for the full picture,
 including a worked example.</p>
 </section>
 <section id="compiler" class="doc-section" data-label="The toolchain">
@@ -231,7 +252,7 @@ int main() {
 }</code></pre></div>
 <p>The standard library follows the same rule — its classes live in
 <code>package std</code>, so you <code>import std.Math</code> and so on (see
-the <a href="std-math.html">Standard library</a> pages). When you compile a
+the <a href="#std-math">Standard library</a> pages). When you compile a
 program that uses the standard library, pass the library sources along with
 your file: <code>flintc src/stdlib/*.flint myprogram.flint -o out</code>.</p>
 
@@ -293,7 +314,7 @@ in decimal or hex.</li>
 <li><b>Null:</b> <code>null</code> (string and object null).</li>
 </ul>
 <p>There are <em>no floating-point literals</em>. Real-valued math uses the
-Q48.16 fixed-point model — see <a href="fixed-point.html">Fixed-point
+Q48.16 fixed-point model — see <a href="#fixed-point">Fixed-point
 numbers</a>.</p>
 
 <h2>Hex literals wrap at the 64-bit boundary</h2>
@@ -335,7 +356,7 @@ negative. <code>0xFFFFFFFFFFFFFFFF</code> (all 64 bits) is <code>-1</code>.</div
 <h2>String literals</h2>
 <p>Strings are NUL-terminated byte buffers. They support backslash escapes
 (<code>\n</code>, <code>\t</code>, <code>\"</code>, <code>\\</code>, …). See
-<a href="strings.html">Strings</a> for the full model, including that a
+<a href="#strings">Strings</a> for the full model, including that a
 <code>string + int</code> is pointer arithmetic and two strings
 <code>+</code> concatenate.</p>
 </section>
@@ -704,14 +725,14 @@ int main() {
 <ul>
 <li><b>No access modifier needed</b> for free functions — a top-level
 <code>int name(...) {}</code> is visible across files once the file is part
-of the compilation (see <a href="modules.html">Modules</a>).</li>
+of the compilation (see <a href="#modules">Modules</a>).</li>
 <li><b>Pointers</b> are written with a leading <code>*</code>:
 <code>*int p</code>, <code>*byte buf</code>. <code>&amp;x</code> is
 address-of, <code>*p</code> dereferences. See
-<a href="pointers.html">Pointers &amp; raw memory</a>.</li>
+<a href="#pointers">Pointers &amp; raw memory</a>.</li>
 <li><b><code>@</code> yields a function's address</b> as an <code>int</code> —
 this is how a function is handed to <code>sys.threadCreate(@fn, arg)</code>.
-See <a href="concurrency.html">Concurrency</a>.</li>
+See <a href="#concurrency">Concurrency</a>.</li>
  <li>Functions may <code>return</code> early; a <code>void</code> function needs
  no return.</li>
  <li><b>Default parameter values:</b> trailing parameters may carry defaults —
@@ -1177,9 +1198,9 @@ int main() {
 <li><b>Object fields can be re-pointed</b>:
 <code>r.origin = new Point(9, 9)</code> makes the field refer to a
 different object.</li>
-<li>See <a href="constructors.html">Constructors</a> for the three ways an
+<li>See <a href="#constructors">Constructors</a> for the three ways an
 object gets its initial values, and
-<a href="coll-objects.html">Object elements</a> for reference semantics when
+<a href="#coll-objects">Object elements</a> for reference semantics when
 objects are stored in collections.</li>
 </ul>
 </section>
@@ -1295,7 +1316,7 @@ int main() {
 <h2><code>super</code></h2>
 <p>In a subclass, <code>super(args)</code> calls the parent constructor, and
 <code>super.method()</code> calls the parent's method. See
-<a href="inheritance.html">Inheritance &amp; dispatch</a> for a full example
+<a href="#inheritance">Inheritance &amp; dispatch</a> for a full example
 (<code>Dog.bark()</code> uses <code>super.speak()</code>).</p>
 </section>
 <section id="visibility" class="doc-section" data-label="Visibility">
@@ -1347,7 +1368,7 @@ because privacy is scoped to the class, not the object.</p>
 
 <div class="note"><b>Properties.</b> The <code>get</code>/<code>set</code>/
 <code>getset</code> accessor prefixes on a private field generate accessor
-methods — see <a href="properties.html">Properties</a>.</div>
+methods — see <a href="#properties">Properties</a>.</div>
 </section>
 <section id="properties" class="doc-section" data-label="Properties">
 <div class="page-head"><h1>Properties</h1>
@@ -2275,7 +2296,7 @@ format; <code>math.ftoi</code> lowers it (rounding half-up).
 2</div>
 <p>The final <code>2</code> confirms <code>ftoi</code> rounds
 <em>half-up</em> (<code>1.5 → 2</code>, not truncation to
-<code>1</code>). The <a href="std-math.html">Math</a> standard-library class
+<code>1</code>). The <a href="#std-math">Math</a> standard-library class
 builds on these builtins (<code>fround</code>, <code>fceil</code>,
 <code>ffloor</code>, <code>fsqrt</code>, …).</p>
 </section>
@@ -3267,7 +3288,7 @@ the I/O-related builtin namespaces (<code>b64</code>, <code>json</code>,
 
 <h2>File I/O (std.File)</h2>
 <p>Use <code>std.File</code> for all file I/O in application code (see the
-<a href="std-file.html">File</a> section): <code>readAll</code>,
+<a href="#std-file">File</a> section): <code>readAll</code>,
 <code>writeAll</code>, <code>copy</code>, <code>size</code>, <code>exists</code>,
 <code>delete</code>, <code>append</code>, <code>rename</code>.</p>
 <div class="code"><div class="head"><span>examples/sysio.flint (file I/O section)</span></div>
@@ -3308,7 +3329,7 @@ bytes</td></tr>
 <code>O_WRONLY</code>=1, <code>O_CREAT</code>=64,
 <code>O_TRUNC</code>=512 — so
 <code>1|64|512 = 577</code> creates/truncates for writing. The
-<a href="std-file.html">File</a> standard-library class wraps these.</p>
+<a href="#std-file">File</a> standard-library class wraps these.</p>
 
 <h2>Generic syscall</h2>
 <p><code>sys.syscall(num, a1..a5)</code> issues a raw syscall: the number
@@ -3323,11 +3344,11 @@ goes in <code>rax</code>, and the arguments land in
 (<code>byte</code>/<code>char</code>, <code>short</code>,
 <code>string</code>, <code>int</code>) with view casts
 (<code>(byte)</code>, <code>(short)</code>, <code>(int)</code>) — see
-<a href="pointers.html">Pointers &amp; raw memory</a>.</li>
+<a href="#pointers">Pointers &amp; raw memory</a>.</li>
 <li><b>Concurrency:</b> <code>std.Thread</code> / <code>std.Sync</code> (raw
 <code>sys.threadCreate</code>, <code>threadJoin</code>, <code>mutex_*</code>,
 <code>atomicCas</code>, <code>nanosleep</code>; see
-<a href="concurrency.html">Concurrency</a>).</li>
+<a href="#concurrency">Concurrency</a>).</li>
 </ul>
 </section>
 <section id="builtins" class="doc-section" data-label="Builtin namespaces">
@@ -3347,17 +3368,17 @@ utilities. They are compiled directly to the runtime — no
 <code>clone futex threadCreate threadJoin nanosleep</code> ·
  <code>mutexLock mutexUnlock atomicCas</code> ·
  <code>fnCall2</code></td>
-<td><a href="io.html">I/O</a> / <a href="concurrency.html">Concurrency</a> /
-<a href="networking.html">Networking</a></td></tr>
+<td><a href="#io">I/O</a> / <a href="#concurrency">Concurrency</a> /
+<a href="#networking">Networking</a></td></tr>
 <tr><td><code>str</code></td>
 <td><code>cmp concat concati copy itoa len replace substring format</code></td>
-<td><a href="strings.html">Strings</a></td></tr>
+<td><a href="#strings">Strings</a></td></tr>
 <tr><td><code>math</code></td>
 <td><code>itof ftoi fadd fsub fmul fdiv fcmp</code></td>
-<td><a href="fixed-point.html">Fixed-point</a></td></tr>
+<td><a href="#fixed-point">Fixed-point</a></td></tr>
 <tr><td><code>mem</code></td>
 <td><code>retain release retainVal retainStr releaseStr</code></td>
-<td><a href="pointers.html">Pointers</a></td></tr>
+<td><a href="#pointers">Pointers</a></td></tr>
 <tr><td><code>io</code></td>
 <td><code>print println</code></td>
 <td>—</td></tr>
@@ -3366,22 +3387,22 @@ utilities. They are compiled directly to the runtime — no
 <td>—</td></tr>
 <tr><td><code>time</code></td>
 <td><code>millis now</code></td>
-<td><a href="std-time.html">Time</a></td></tr>
+<td><a href="#std-time">Time</a></td></tr>
 <tr><td><code>rand</code></td>
 <td><code>next range</code></td>
-<td><a href="std-rand.html">Rand</a></td></tr>
+<td><a href="#std-rand">Rand</a></td></tr>
 <tr><td><code>env</code></td>
 <td><code>get</code></td>
-<td><a href="io.html">I/O</a></td></tr>
+<td><a href="#io">I/O</a></td></tr>
 <tr><td><code>log</code></td>
 <td><code>info warn error debug</code></td>
-<td><a href="io.html">I/O</a></td></tr>
+<td><a href="#io">I/O</a></td></tr>
 <tr><td><code>b64</code></td>
 <td><code>encode decode</code></td>
-<td><a href="io.html">I/O</a></td></tr>
+<td><a href="#io">I/O</a></td></tr>
 <tr><td><code>json</code></td>
 <td><code>get geti</code></td>
-<td><a href="io.html">I/O</a></td></tr>
+<td><a href="#io">I/O</a></td></tr>
 </table>
 
 <h2>Notes</h2>
@@ -3392,11 +3413,11 @@ int (an int argument is formatted in decimal) and write to stdout;
 not. <code>log.*</code> writes tagged lines —
 <code>log.info</code> to stdout, <code>log.warn</code> to stderr.</li>
 <li><code>math.*</code> operate on Q48.16 fixed-point values
-(<a href="fixed-point.html">Fixed-point numbers</a>).</li>
+(<a href="#fixed-point">Fixed-point numbers</a>).</li>
 <li><code>str.format</code> is a varargs formatter
 (<code>%d</code>, <code>%s</code>, <code>%b</code>) — see
-<a href="strings.html">Strings</a>.</li>
-<li>These builtins are separate from the <a href="std-math.html">standard
+<a href="#strings">Strings</a>.</li>
+<li>These builtins are separate from the <a href="#std-math">standard
 library</a> classes, which are ordinary <code>class</code>es in
 <code>package std</code> that you <code>import</code>.</li>
 </ul>
@@ -4578,6 +4599,11 @@ int main() {
 <div class="output"><span class="lbl">output (headless; on a desktop a window is shown)</span>no display</div>
 </section>
 </main>
+</div>
+<div class="statusbar">
+<span class="sb-item" id="sb-status">Ready</span>
+<span class="sb-item sb-right">Flint documentation</span>
+</div>
 </div>
 </body>
 </html>
