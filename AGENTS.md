@@ -156,16 +156,34 @@ like ordinary application code, **not** like a systems-programming demo:
 
 ## Keeping the docs in sync
 
-`docs/` is the public face of the language and **must stay current**:
+`docs/` (the `index.html` site) and `FEATURES.md` are the public face of
+the language. They **must stay current**:
 
 - **Every time a feature, stdlib class, builtin, or example is added,
-  changed, or removed, update `docs/` in the same change.** A new stdlib class
-  in `src/stdlib/` needs a `Standard library: <X>` section *and* a nav link in
-  the `Standard library` nav section; a changed API, example, or behaviour must
-  be reflected in the matching section.
-- Keep `docs/index.html` consistent with `README.md`: the same sections, the
-  same stdlib class list, and the same examples/build lines. When one changes,
-  change both.
-- Check the `Standard library` nav section against `src/stdlib/*.flint`: every
-  class file should have a section, and every section should match the class
-  signature. A missing/extra entry means the docs are stale.
+  changed, or removed, update `docs/` and `FEATURES.md` in the same
+  change.** A new stdlib class in `src/stdlib/` needs a
+  `Standard library: <X>` section *and* a nav link in the `Standard
+  library` nav section in `index.html`. It also needs a matching row in
+  the `FEATURES.md` section 17 table, with its example and expected
+  output. A changed API, example, or behaviour must be reflected in the
+  matching sections of both files.
+- Keep `docs/index.html`, `README.md`, and `FEATURES.md` consistent: the
+  same sections, the same stdlib class list, and the same examples/build
+  lines. When one changes, change all.
+- Check the `Standard library` nav section against `src/stdlib/*.flint`:
+  every class file should have a section, and every section should match
+  the class signature. A missing/extra entry means the docs are stale.
+- `FEATURES.md` keeps one example with expected output under every dot
+  point (in a `<details>` block). When a feature changes, update the
+  example and re-capture its output.
+
+## Documentation style
+
+Write documentation markdown (`docs/`, `README.md`, `FEATURES.md`) in
+plain, standard English, in the style of ASD-STE100 (Simplified Technical
+English):
+
+- Short sentences. One idea per sentence.
+- No idioms. Say the meaning directly.
+- No contractions. Write `do not`, not `don't`.
+- Do not use em dashes. Use a period, a comma, or a new sentence instead.
