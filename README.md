@@ -1,89 +1,209 @@
-# flint / flintc
+# Flint / flintc
 
-A small, statically-typed, systems-level language that compiles to
-freestanding x86_64 Linux assembly (no libc). The `flintc` compiler is written
-in Rust with zero external dependencies.
+Flint is a small, statically typed systems programming language.
 
-**Full documentation — language reference, features, examples, and the standard
-library — lives at <https://h4bbo.net/flint>.**
+It compiles directly to **x86_64 Linux assembly** and does not use libc. The compiler, `flintc`, is written in Rust with no external dependencies.
 
-- Source: `*.flint`
-- Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> codegen -> .s -> as -> ld -e _start`
-- Runtime: a hand-written freestanding `intrinsics.s` (raw `syscall`s, heap,
-  refcount, threads, sockets, print helpers) linked in by the driver. The
-  collections are ordinary stdlib classes (`src/stdlib/coll.flint`), not part
-  of the runtime.
+📚 **Full documentation:** <https://h4bbo.net/flint>
+
+### Overview
+
+- Source files: `*.flint`
+- Target: x86_64 Linux
+- Runtime: freestanding, no libc
+- Compiler: Rust
+- Output: Linux executables or x86_64 assembly
+
+The compiler pipeline is:
+
+```text
+lexer → parser → desugar → monomorphize → ownership → codegen → assembly → linker
+```
+
+Flint includes a small hand-written runtime in `intrinsics.s`. It provides system calls, memory management, reference counting, threads, sockets, and basic printing.
+
+Collections are part of the standard library, not the runtime.
 
 ## Quick start
+
+Clone and build Flint:
 
 ```sh
 git clone https://github.com/Quackster/flint.git
 cd flint
-cargo build --release          # -> target/release/flintc
-cargo build                    # -> target/debug/flintc
+
+cargo build --release
 ```
 
-Requires `as` and `ld` (binutils) on the PATH.
+The compiler will be available at:
+
+```text
+target/release/flintc
+```
+
+You can also build a debug version:
 
 ```sh
-flintc examples/hello.flint -o hello     # compile -> link -> executable
-./hello                               # hello, world
-
-flintc examples/hello.flint -S            # emit x86_64 assembly only (stdout)
-flintc examples/hello.flint -o out.s -S   # ... or write the .s to a file
+cargo build
 ```
 
-Multiple files, a manifest, or a whole directory:
+### Requirements
+
+Flint needs `as` and `ld` from **binutils**.
+
+Make sure both are available in your `PATH`.
+
+## Compile a program
+
+Compile and run the hello-world example:
 
 ```sh
-flintc a.flint b.flint -o out              # concatenate (each keeps its own `package` header)
-flintc --manifest box.toml -o out      # read a TOML manifest:  sources = ["util.flint", "main.flint"]
-flintc --dir src -o out               # compile every .flint in a directory (sorted)
+flintc examples/hello.flint -o hello
+./hello
 ```
 
-CLI flags: `-o <FILE>` (output, default = first input without `.flint`), `-S`
-(assembly only), `--manifest <FILE>`, `--dir <DIR>`, `-h`/`--help`.
+Output:
 
-Tests: `cargo test` (Rust integration, end-to-end via the flintc binary) and
-`tests/run_tests.sh` (execution + golden-asm + spanned-error tests).
-
-## Compiler architecture & layout
-
-Pipeline: `lexer -> parser -> desugar (lambdas) -> monomorphize -> ownership
--> codegen -> .s -> as -> ld -e _start`.
-
-- **middle/**: lambda desugaring (`lambda`): a lambda is lifted into a
-  function that takes its captures, and the lambda node is replaced by a
-  closure (a heap block holding the function pointer and the captures). Then
-  monomorphization (`ensure`, `expand`, `infer`, `resolve`, `resolve_expr`):
-  generic templates are expanded to concrete types/functions. Then
-  `ownership.rs`: compile-time move / borrow checking like Rust Ch 4.1
-  (each value has a single owner; `T x = y` moves, calls borrow like `&T`;
-  `x.move()` / `str.copy(s)` clone explicitly). Owned values free
-  themselves at scope end (real `munmap`, verified by the `frees` test).
-- **backend/**: code generation (`codegen/`: `accessor`, `binop`, `builtin`,
-  `call`, `ctx`, `expr`, `func`, `lvalue`, `new`, `stmt`) plus
-  `escape.rs` (stack-vs-heap escape analysis), `layout.rs`, and `release.rs`.
-- **intrinsics.s**: the freestanding runtime, embedded at compile time and
-  linked into every binary.
-
+```text
+hello, world
 ```
-Cargo.toml  README.md
-src/
-  main.rs  ast.rs  lexer.rs  parser.rs  token.rs  span.rs  error.rs
-  backend/  mod.rs  codegen.rs  escape.rs  layout.rs  release.rs
-    codegen/  accessor.rs  binop.rs  builtin.rs  call.rs
-                 ctx.rs  expr.rs  func.rs  lvalue.rs  new.rs  stmt.rs
-  middle/   mod.rs  lambda.rs  ownership.rs  mono/  ensure.rs  expand.rs
-                 infer.rs  mod.rs  resolve.rs  resolve_expr.rs
-  prelude/  sys.flint  io.flint  mem.flint  str.flint  conv.flint
-    stdlib/   array.flint  bit.flint  checksum.flint  coll.flint  file.flint
-              gui.flint  image.flint  math.flint  mem.flint  net.flint
-              num.flint  path.flint  rand.flint  sort.flint  str.flint
-              sync.flint  task.flint  thread.flint  time.flint  widget.flint
-  intrinsics.s
-tests/  flintc.rs  run_tests.sh  cases/  golden/  errors/  multifile/  thread_*.flint
-examples/  hello.flint  fib.flint  file_copy.flint  alloc_demo.flint  filter.flint
-            tcp_client.flint  tcp_server.flint  gui.flint  window_gui.flint
-            form.flint  windows.flint
+
+### Generate assembly
+
+To print assembly:
+
+```sh
+flintc examples/hello.flint -S
 ```
+
+To save it to a file:
+
+```sh
+flintc examples/hello.flint -o out.s -S
+```
+
+## Multiple source files
+
+You can compile multiple files:
+
+```sh
+flintc a.flint b.flint -o out
+```
+
+You can also use a TOML manifest:
+
+```sh
+flintc --manifest box.toml -o out
+```
+
+Example `box.toml`:
+
+```toml
+sources = ["util.flint", "main.flint"]
+```
+
+Or compile every `.flint` file in a directory:
+
+```sh
+flintc --dir src -o out
+```
+
+Files are compiled in sorted order.
+
+## Command-line options
+
+| Option | Description |
+|---|---|
+| `-o <FILE>` | Set the output file |
+| `-S` | Generate assembly only |
+| `--manifest <FILE>` | Use a TOML manifest |
+| `--dir <DIR>` | Compile all `.flint` files in a directory |
+| `-h`, `--help` | Show help |
+
+If `-o` is not provided, the output name is based on the first input file.
+
+## Tests
+
+Run the Rust tests:
+
+```sh
+cargo test
+```
+
+Run the full test suite:
+
+```sh
+tests/run_tests.sh
+```
+
+The test suite covers program execution, assembly output, error messages, and multi-file programs.
+
+## Compiler architecture
+
+The compiler is split into a few main stages:
+
+```text
+lexer
+  ↓
+parser
+  ↓
+lambda desugaring
+  ↓
+monomorphization
+  ↓
+ownership checking
+  ↓
+code generation
+  ↓
+assembly
+  ↓
+as
+  ↓
+ld
+```
+
+### `middle/`
+
+This contains the compiler's middle-end.
+
+**Lambdas**
+
+Lambdas are converted into normal functions with their captured values stored in a closure.
+
+**Generics**
+
+Generic code is expanded into concrete types and functions during monomorphization.
+
+**Ownership**
+
+Flint has compile-time ownership and borrowing checks inspired by Rust.
+
+For example:
+
+```text
+T x = y
+```
+
+moves `y` into `x`.
+
+Values can be explicitly copied when needed:
+
+```text
+x.move()
+str.copy(s)
+```
+
+Owned values are automatically released when they leave scope.
+
+### `backend/`
+
+The backend turns Flint code into x86_64 assembly.
+
+It handles:
+
+- expressions
+- functions
+- calls
+- operators
+- variables
+- memory allocation
